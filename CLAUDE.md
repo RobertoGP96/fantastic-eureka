@@ -49,6 +49,13 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
   derivado (PENDING + dueAt pasado), no hay cron.
+- **Cuenta vinculada**: `Debt.accountId` y `PaymentPlan.accountId` (opcionales,
+  onDelete: SetNull, misma moneda validada en la action) guardan la cuenta
+  preferida; se elige al crear y se edita en el detalle
+  (`src/components/linked-account-editor.tsx` + actions `setDebtAccount` /
+  `setPlanAccount`). Los forms de abono/cuota la preseleccionan
+  (`defaultAccountId`) y llevan `key` por cuenta para re-inicializarse al
+  cambiarla.
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
   onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
   de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
