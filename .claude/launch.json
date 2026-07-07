@@ -6,6 +6,13 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3002
+    },
+    {
+      "name": "caja-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "next", "dev", "--turbopack"],
+      "port": 3002,
+      "autoPort": true
     }
   ]
 }
