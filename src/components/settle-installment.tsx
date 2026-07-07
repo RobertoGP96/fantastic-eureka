@@ -28,16 +28,23 @@ export function SettleInstallment({
   defaultAmount,
   currencyCode,
   kind,
+  defaultAccountId,
 }: {
   installmentId: string;
   accounts: AccountOption[];
   defaultAmount: string;
   currencyCode: string;
   kind: string;
+  defaultAccountId?: string | null;
 }) {
   const router = useRouter();
   const { showToast } = useUI();
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  // Arranca en la cuenta vinculada al plan/deuda (si sigue disponible).
+  const [accountId, setAccountId] = useState(
+    accounts.find((account) => account.id === defaultAccountId)?.id ??
+      accounts[0]?.id ??
+      ""
+  );
   const [amount, setAmount] = useState(defaultAmount);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

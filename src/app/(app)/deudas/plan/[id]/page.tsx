@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
+import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
 import { fmtMinor, minorToInput } from "@/lib/format";
@@ -105,7 +106,9 @@ export default async function PlanDetallePage({
                   {dueLabel(pending.dueAt)}
                 </Badge>
               </div>
+              {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
               <SettleInstallment
+                key={plan.accountId ?? "none"}
                 installmentId={pending.id}
                 accounts={accounts}
                 defaultAmount={minorToInput(
@@ -114,8 +117,24 @@ export default async function PlanDetallePage({
                 )}
                 currencyCode={plan.currency.code}
                 kind={plan.kind}
+                defaultAccountId={plan.accountId}
               />
             </div>
+          </section>
+        )}
+
+        {plan.active && (
+          <section>
+            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+              Cuenta vinculada
+            </h2>
+            <LinkedAccountEditor
+              kind="plan"
+              targetId={plan.id}
+              accounts={accounts}
+              currentAccountId={plan.accountId}
+              currencyCode={plan.currency.code}
+            />
           </section>
         )}
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
+import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
 import { fmtMinor, minorToInput } from "@/lib/format";
@@ -53,7 +54,11 @@ export default async function DeudaDetallePage({
   const pendingInstallments = debt.plans
     .filter((plan) => plan.active)
     .flatMap((plan) =>
-      plan.installments.map((inst) => ({ ...inst, planKind: plan.kind }))
+      plan.installments.map((inst) => ({
+        ...inst,
+        planKind: plan.kind,
+        planAccountId: plan.accountId,
+      }))
     )
     .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
 
@@ -124,7 +129,9 @@ export default async function DeudaDetallePage({
                         {dueLabel(inst.dueAt)}
                       </Badge>
                     </div>
+                    {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
                     <SettleInstallment
+                      key={inst.planAccountId ?? debt.accountId ?? "none"}
                       installmentId={inst.id}
                       accounts={accounts}
                       defaultAmount={minorToInput(
@@ -133,6 +140,7 @@ export default async function DeudaDetallePage({
                       )}
                       currencyCode={debt.currency.code}
                       kind={inst.planKind}
+                      defaultAccountId={inst.planAccountId ?? debt.accountId}
                     />
                   </div>
                 );
@@ -146,9 +154,27 @@ export default async function DeudaDetallePage({
             <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
               Registrar abono
             </h2>
+            {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
             <PaymentForm
+              key={debt.accountId ?? "none"}
               debtId={debt.id}
               accounts={accounts}
+              currencyCode={debt.currency.code}
+              defaultAccountId={debt.accountId}
+            />
+          </section>
+        )}
+
+        {isOpen && (
+          <section>
+            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+              Cuenta vinculada
+            </h2>
+            <LinkedAccountEditor
+              kind="debt"
+              targetId={debt.id}
+              accounts={accounts}
+              currentAccountId={debt.accountId}
               currencyCode={debt.currency.code}
             />
           </section>

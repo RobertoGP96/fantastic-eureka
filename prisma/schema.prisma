@@ -71,6 +71,8 @@ model Account {
   transactions        Transaction[] @relation("AccountTx")
   counterTransactions Transaction[] @relation("CounterAccountTx")
   cashCounts          CashCount[]
+  debts               Debt[]
+  paymentPlans        PaymentPlan[]
 }
 
 model Category {
@@ -177,6 +179,9 @@ model Debt {
   totalMinor  Int
   currencyId  String
   currency    Currency @relation(fields: [currencyId], references: [id])
+  // Cuenta preferida para los abonos (misma moneda); editable tras crear.
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
   status      String   @default("OPEN") // OPEN | PAID | CANCELLED
   createdAt   DateTime @default(now())
 
@@ -195,6 +200,9 @@ model PaymentPlan {
   description String
   currencyId  String
   currency    Currency  @relation(fields: [currencyId], references: [id])
+  // Cuenta preferida para pagar/cobrar las cuotas (misma moneda); editable.
+  accountId   String?
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
   amountMinor Int
   frequency   String // ONCE | WEEKLY | BIWEEKLY | MONTHLY
   dayOfMonth  Int?

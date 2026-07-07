@@ -125,6 +125,8 @@ export const createDebtSchema = z.object({
   description: z.string().trim().min(1).max(120),
   total: amountText,
   currencyId: idSchema,
+  // Cuenta preferida para los abonos (opcional, misma moneda)
+  accountId: idSchema.optional(),
   // Plan de cuotas opcional al crear la deuda
   frequency: z.enum(FREQUENCIES).optional(),
   installmentAmount: amountText.optional(),
@@ -137,10 +139,23 @@ export const createPlanSchema = z.object({
   kind: z.enum(PLAN_KINDS),
   description: z.string().trim().min(1).max(120),
   currencyId: idSchema,
+  // Cuenta preferida para las cuotas (opcional, misma moneda)
+  accountId: idSchema.optional(),
   amount: amountText,
   frequency: z.enum(FREQUENCIES),
   firstDueAt: z.coerce.date(),
   endAt: z.coerce.date().optional(),
+});
+
+// Editar la cuenta vinculada tras crear: null la desvincula.
+export const setDebtAccountSchema = z.object({
+  debtId: idSchema,
+  accountId: idSchema.nullable(),
+});
+
+export const setPlanAccountSchema = z.object({
+  planId: idSchema,
+  accountId: idSchema.nullable(),
 });
 
 export const settleInstallmentSchema = z.object({

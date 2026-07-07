@@ -59,7 +59,12 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (pura: directo → inverso → compuesto vía base) y `src/lib/rates.ts`
   (servidor). `latestRatesByCurrency()` mantiene su interfaz histórica
   (moneda→base) resolviendo desde pares, por lo que cambiar la moneda base
-  NO invalida nada.
+  NO invalida nada. Detalle por par en `/tasas/[from]/[to]` (códigos de
+  moneda en la URL) con gráfico lineal interactivo
+  (`src/components/rate-line-chart.tsx`, SVG puro con crosshair/tooltip);
+  las tarjetas de `/tasas` enlazan al detalle y llevan sparkline
+  (`src/components/rate-sparkline.tsx`). Series por par con una sola
+  consulta: `pairRateSeries()` en `src/lib/rates.ts`.
 - **Dashboard**: métricas en `src/lib/metrics.ts` (Prisma) sobre la lógica
   pura testeable de `src/lib/metrics-core.ts` (agrupación mensual y conversión
   a base). Gráficos con barras CSS (`src/components/monthly-bars.tsx`), sin

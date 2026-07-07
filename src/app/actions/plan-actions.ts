@@ -12,6 +12,7 @@ import {
   ActionError,
   createPlanSchema,
   idSchema,
+  setPlanAccountSchema,
   settleInstallmentSchema,
   type ActionResult,
 } from "@/lib/schemas";
@@ -42,6 +43,23 @@ export async function createPlan(
       return { success: false, error: "Moneda no válida" };
     }
 
+    let accountId: string | null = null;
+    if (parsed.data.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: parsed.data.accountId },
+      });
+      if (!account || account.archived) {
+        return { success: false, error: "Cuenta no válida" };
+      }
+      if (account.currencyId !== currency.id) {
+        return {
+          success: false,
+          error: `La cuenta debe estar en ${currency.code} (la moneda del plan)`,
+        };
+      }
+      accountId = account.id;
+    }
+
     const amountMinor = parseAmountToMinor(parsed.data.amount, currency);
     if (amountMinor <= 0) {
       return { success: false, error: "La cuota debe ser mayor que cero" };
@@ -59,6 +77,7 @@ export async function createPlan(
         kind: parsed.data.kind,
         description: parsed.data.description,
         currencyId: currency.id,
+        accountId,
         amountMinor,
         frequency: parsed.data.frequency,
         dayOfMonth:
@@ -78,6 +97,51 @@ export async function createPlan(
   } catch (error) {
     console.error("createPlan:", error);
     return { success: false, error: "No se pudo crear el plan" };
+  }
+}
+
+export async function setPlanAccount(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = setPlanAccountSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const plan = await prisma.paymentPlan.findUnique({
+      where: { id: parsed.data.planId },
+      include: { currency: true },
+    });
+    if (!plan) {
+      return { success: false, error: "Plan no encontrado" };
+    }
+
+    if (parsed.data.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: parsed.data.accountId },
+      });
+      if (!account || account.archived) {
+        return { success: false, error: "Cuenta no válida" };
+      }
+      if (account.currencyId !== plan.currencyId) {
+        return {
+          success: false,
+          error: `La cuenta debe estar en ${plan.currency.code} (la moneda del plan)`,
+        };
+      }
+    }
+
+    await prisma.paymentPlan.update({
+      where: { id: plan.id },
+      data: { accountId: parsed.data.accountId },
+    });
+
+    revalidatePlanPaths(plan.id, plan.debtId);
+    return { success: true, data: { id: plan.id } };
+  } catch (error) {
+    console.error("setPlanAccount:", error);
+    return { success: false, error: "No se pudo actualizar la cuenta" };
   }
 }
 

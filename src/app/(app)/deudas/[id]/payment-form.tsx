@@ -23,14 +23,21 @@ export function PaymentForm({
   debtId,
   accounts,
   currencyCode,
+  defaultAccountId,
 }: {
   debtId: string;
   accounts: AccountOption[];
   currencyCode: string;
+  defaultAccountId?: string | null;
 }) {
   const router = useRouter();
   const { showToast } = useUI();
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  // Arranca en la cuenta vinculada a la deuda (si sigue disponible).
+  const [accountId, setAccountId] = useState(
+    accounts.find((account) => account.id === defaultAccountId)?.id ??
+      accounts[0]?.id ??
+      ""
+  );
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);

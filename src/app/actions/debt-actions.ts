@@ -9,6 +9,7 @@ import {
   ActionError,
   createDebtSchema,
   debtPaymentSchema,
+  setDebtAccountSchema,
   type ActionResult,
 } from "@/lib/schemas";
 
@@ -63,6 +64,23 @@ export async function createDebt(
       return { success: false, error: "Indica el contacto" };
     }
 
+    let accountId: string | null = null;
+    if (data.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: data.accountId },
+      });
+      if (!account || account.archived) {
+        return { success: false, error: "Cuenta no válida" };
+      }
+      if (account.currencyId !== currency.id) {
+        return {
+          success: false,
+          error: `La cuenta debe estar en ${currency.code} (la moneda de la deuda)`,
+        };
+      }
+      accountId = account.id;
+    }
+
     const totalMinor = parseAmountToMinor(data.total, currency);
     if (totalMinor <= 0) {
       return { success: false, error: "El total debe ser mayor que cero" };
@@ -90,6 +108,7 @@ export async function createDebt(
           description: data.description,
           totalMinor,
           currencyId: currency.id,
+          accountId,
         },
       });
 
@@ -101,6 +120,7 @@ export async function createDebt(
             kind: data.direction === "RECEIVABLE" ? "COLLECT" : "PAY",
             description: data.description,
             currencyId: currency.id,
+            accountId,
             amountMinor: installmentMinor,
             frequency: data.frequency!,
             dayOfMonth:
@@ -124,6 +144,51 @@ export async function createDebt(
   } catch (error) {
     console.error("createDebt:", error);
     return { success: false, error: "No se pudo crear la deuda" };
+  }
+}
+
+export async function setDebtAccount(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = setDebtAccountSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const debt = await prisma.debt.findUnique({
+      where: { id: parsed.data.debtId },
+      include: { currency: true },
+    });
+    if (!debt) {
+      return { success: false, error: "Deuda no encontrada" };
+    }
+
+    if (parsed.data.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: parsed.data.accountId },
+      });
+      if (!account || account.archived) {
+        return { success: false, error: "Cuenta no válida" };
+      }
+      if (account.currencyId !== debt.currencyId) {
+        return {
+          success: false,
+          error: `La cuenta debe estar en ${debt.currency.code} (la moneda de la deuda)`,
+        };
+      }
+    }
+
+    await prisma.debt.update({
+      where: { id: debt.id },
+      data: { accountId: parsed.data.accountId },
+    });
+
+    revalidateDebtPaths(debt.id);
+    return { success: true, data: { id: debt.id } };
+  } catch (error) {
+    console.error("setDebtAccount:", error);
+    return { success: false, error: "No se pudo actualizar la cuenta" };
   }
 }
 

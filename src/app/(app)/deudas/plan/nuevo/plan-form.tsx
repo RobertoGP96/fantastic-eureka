@@ -30,16 +30,25 @@ interface CurrencyOption {
   code: string;
 }
 
+interface AccountOption {
+  id: string;
+  name: string;
+  currencyId: string;
+}
+
 const NO_CONTACT = "__none__";
+const NO_ACCOUNT = "__none_account__";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function PlanForm({
   contacts,
   currencies,
+  accounts,
 }: {
   contacts: ContactOption[];
   currencies: CurrencyOption[];
+  accounts: AccountOption[];
 }) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -47,12 +56,24 @@ export function PlanForm({
   const [description, setDescription] = useState("");
   const [contactId, setContactId] = useState(NO_CONTACT);
   const [currencyId, setCurrencyId] = useState(currencies[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(NO_ACCOUNT);
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<string>("MONTHLY");
   const [firstDueAt, setFirstDueAt] = useState(todayISO());
   const [endAt, setEndAt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Solo cuentas de la moneda elegida: es donde se pagan/cobran las cuotas.
+  const currencyAccounts = accounts.filter(
+    (account) => account.currencyId === currencyId
+  );
+
+  const changeCurrency = (value: string) => {
+    setCurrencyId(value);
+    const selected = accounts.find((account) => account.id === accountId);
+    if (selected && selected.currencyId !== value) setAccountId(NO_ACCOUNT);
+  };
 
   const submit = async () => {
     setSaving(true);
@@ -62,6 +83,7 @@ export function PlanForm({
       description,
       contactId: contactId === NO_CONTACT ? undefined : contactId,
       currencyId,
+      accountId: accountId === NO_ACCOUNT ? undefined : accountId,
       amount,
       frequency,
       firstDueAt: new Date(`${firstDueAt}T12:00:00`),
@@ -151,7 +173,7 @@ export function PlanForm({
           <span className="text-[12.5px] font-semibold text-ink-soft">
             Moneda
           </span>
-          <Select value={currencyId} onValueChange={setCurrencyId}>
+          <Select value={currencyId} onValueChange={changeCurrency}>
             <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
@@ -165,6 +187,30 @@ export function PlanForm({
           </Select>
         </label>
       </div>
+
+      {currencyAccounts.length > 0 && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12.5px] font-semibold text-ink-soft">
+            Cuenta para las cuotas (opcional)
+          </span>
+          <Select value={accountId} onValueChange={setAccountId}>
+            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ACCOUNT}>Sin cuenta</SelectItem>
+              {currencyAccounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-[11.5px] text-muted">
+            Se preseleccionará al pagar o cobrar cada cuota.
+          </span>
+        </label>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
