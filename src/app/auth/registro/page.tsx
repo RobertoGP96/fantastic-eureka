@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { Coins } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 import { RegisterForm } from "./register-form";
 
 export default function RegistroPage() {
+  const registrationDisabled = process.env.ALLOW_REGISTRATION === "false";
   return (
     <div className="anim-fade-up rounded-[22px] bg-white p-6 shadow-[0_20px_60px_rgba(10,31,63,.35)]">
       <div className="mb-5 flex flex-col items-center gap-2.5 text-center">
@@ -18,7 +20,24 @@ export default function RegistroPage() {
           </p>
         </div>
       </div>
-      <RegisterForm />
+      {registrationDisabled ? (
+        <div className="flex flex-col gap-4">
+          <p className="rounded-[13px] bg-warn-bg px-3.5 py-3 text-center text-[12.5px] font-medium text-warn">
+            El registro está deshabilitado en esta instancia.
+          </p>
+          <p className="text-center text-[12.5px] text-muted">
+            ¿Ya tienes cuenta?{" "}
+            <Link
+              href="/auth/login"
+              className="font-semibold text-brand-mid transition-colors hover:text-brand"
+            >
+              Inicia sesión
+            </Link>
+          </p>
+        </div>
+      ) : (
+        <RegisterForm />
+      )}
     </div>
   );
 }

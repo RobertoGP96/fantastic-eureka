@@ -153,3 +153,6 @@ e2e/.auth/
 
 # Next.js generated types
 next-env.d.ts
+
+# Vercel
+.vercel

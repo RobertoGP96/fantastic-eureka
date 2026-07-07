@@ -71,6 +71,19 @@ reales, y las categorías básicas de gastos/ingresos.
 | `pnpm db:studio` | Prisma Studio |
 | `pnpm tsx prisma/reset-data.ts` | Borra datos de trabajo conservando el seed |
 
+## Deploy en Vercel
+
+1. Importa el repo en Vercel (framework Next.js; los defaults sirven — el
+   script `build` ya ejecuta `prisma generate`).
+2. Variables de entorno (Production y Preview) — ver `.env.example`:
+   - `DATABASE_URL`: cadena **pooled** de Neon con
+     `&schema=caja&pgbouncer=true&connect_timeout=15&connection_limit=10`.
+   - `DIRECT_URL`: cadena directa (host sin `-pooler`), con `&schema=caja`.
+   - `ALLOW_REGISTRATION`: `false` (recomendado — los usuarios comparten los
+     datos; crea las cuentas necesarias antes de cerrar el registro).
+3. Migraciones: NO corren en el build. La BD actual ya está migrada; para
+   futuras migraciones ejecuta `pnpm db:deploy` localmente contra Neon.
+
 ## Decisiones de diseño
 
 - **Dinero en enteros**: todos los montos se guardan en unidades menores

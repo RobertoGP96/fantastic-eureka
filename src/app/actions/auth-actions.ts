@@ -13,6 +13,11 @@ import {
 export async function registerUser(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  // En producción pública conviene cerrar el registro (datos compartidos).
+  if (process.env.ALLOW_REGISTRATION === "false") {
+    return { success: false, error: "El registro está deshabilitado" };
+  }
+
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return {

@@ -10,6 +10,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - `pnpm build` — build de producción (incluye typecheck)
 - `pnpm db:migrate` — migración + seed; `pnpm db:studio` — Prisma Studio
 - `pnpm tsx prisma/reset-data.ts` — limpia datos conservando seed
+- `pnpm db:deploy` — `prisma migrate deploy` (producción; no corre en build)
+- Deploy: Vercel (build = `prisma generate && next build`); env vars
+  DATABASE_URL, DIRECT_URL y ALLOW_REGISTRATION=false (registro cerrado;
+  los usuarios comparten datos)
 - `pnpm test:e2e` — Playwright E2E (levanta su propio dev server; requiere
   puerto 3002 LIBRE — parar `pnpm dev` antes)
 
