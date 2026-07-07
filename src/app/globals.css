@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --color-page: #c9d4e2;
+  --color-app: #eef2f7;
+  --color-navy: #0a1f3f;
+  --color-brand: #14417f;
+  --color-brand-mid: #2e6fd4;
+  --color-brand-light: #4d93f0;
+  --color-brand-soft: #7fb0f5;
+  --color-chip: #e3edfb;
+  --color-photo: #e4eaf2;
+  --color-photo-fg: #93a3bc;
+  --color-ink: #1b2740;
+  --color-ink-soft: #4e5d77;
+  --color-muted: #7c8aa3;
+  --color-muted-2: #9aa9c0;
+  --color-line: #dde4ee;
+  --color-line-2: #e7ecf3;
+  --color-ok: #1e7a4f;
+  --color-ok-bg: #e5f3ec;
+  --color-warn: #b07b2e;
+  --color-warn-bg: #f6ecdc;
+  --color-fav: #d14d6b;
+  --color-danger: #b54a5e;
+  --color-danger-bg: #f4e2e6;
+  --color-disabled: #b9c4d6;
+}
+
+.grad-header {
+  background: linear-gradient(150deg, #0a1f3f, #14417f);
+}
+
+.grad-cta {
+  background: linear-gradient(120deg, #14417f, #2e6fd4);
+}
+
+.grad-offer {
+  background: linear-gradient(120deg, #14417f, #4d93f0);
+}
+
+.grad-progress {
+  background: linear-gradient(90deg, #14417f, #4d93f0);
+}
+
+.grad-confirm {
+  background: linear-gradient(160deg, #0a1f3f, #14417f);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-fade-up {
+  animation: fadeUp 0.4s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up {
+    animation: none;
+  }
+}
+
+.toast-pop {
+  position: fixed;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: toastIn 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-pop {
+    animation: none;
+  }
+}
+
+input {
+  outline: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

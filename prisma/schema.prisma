@@ -1,0 +1,212 @@
+// Esquema de Caja: cuentas, movimientos, arqueos, tasas y deudas.
+// SQLite no soporta enums: los campos "kind"/"status"/"direction" usan
+// constantes de src/lib/domain.ts validadas con Zod en las server actions.
+// Montos SIEMPRE en unidades menores (enteros); tasas escaladas ×10 000.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Currency {
+  id            String  @id @default(cuid())
+  code          String  @unique
+  name          String
+  symbol        String
+  decimalPlaces Int     @default(2)
+  isBase        Boolean @default(false)
+  active        Boolean @default(true)
+
+  denominations Denomination[]
+  accounts      Account[]
+  transactions  Transaction[]
+  rates         ExchangeRate[]
+  debts         Debt[]
+  paymentPlans  PaymentPlan[]
+}
+
+model Denomination {
+  id         String   @id @default(cuid())
+  currencyId String
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  valueMinor Int
+  kind       String // BILL | COIN
+  active     Boolean  @default(true)
+
+  countLines CashCountLine[]
+
+  @@unique([currencyId, valueMinor, kind])
+}
+
+model Account {
+  id         String   @id @default(cuid())
+  name       String
+  type       String // CASH | BANK | DIGITAL
+  currencyId String
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  icon       String?
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  transactions        Transaction[] @relation("AccountTx")
+  counterTransactions Transaction[] @relation("CounterAccountTx")
+  cashCounts          CashCount[]
+}
+
+model Category {
+  id     String  @id @default(cuid())
+  name   String
+  kind   String // EXPENSE | INCOME
+  icon   String?
+  active Boolean @default(true)
+
+  transactions Transaction[]
+
+  @@unique([name, kind])
+}
+
+// Libro mayor. amountMinor es positivo salvo en ADJUSTMENT (con signo).
+// TRANSFER: accountId = origen, counterAccountId = destino;
+// counterAmountMinor va en la moneda del destino (rateScaled si cruza monedas).
+model Transaction {
+  id                String   @id @default(cuid())
+  kind              String // INCOME | EXPENSE | TRANSFER | ADJUSTMENT
+  accountId         String
+  account           Account  @relation("AccountTx", fields: [accountId], references: [id])
+  counterAccountId  String?
+  counterAccount    Account? @relation("CounterAccountTx", fields: [counterAccountId], references: [id])
+  amountMinor       Int
+  currencyId        String
+  currency          Currency @relation(fields: [currencyId], references: [id])
+  counterAmountMinor Int?
+  rateScaled        Int?
+  categoryId        String?
+  category          Category? @relation(fields: [categoryId], references: [id])
+  note              String?
+  occurredAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  cashCount   CashCount?
+  installment Installment?
+  debtPayment DebtPayment?
+
+  @@index([accountId, occurredAt])
+  @@index([occurredAt])
+}
+
+// Tasa manual: unidades de la moneda BASE por 1 unidad de `currency`, ×10 000.
+// Histórico puro: nunca se sobreescribe, la vigente es la de mayor effectiveAt.
+model ExchangeRate {
+  id          String   @id @default(cuid())
+  currencyId  String
+  currency    Currency @relation(fields: [currencyId], references: [id])
+  rateScaled  Int
+  source      String   @default("MANUAL")
+  effectiveAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([currencyId, effectiveAt])
+}
+
+model CashCount {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id])
+  countedAt       DateTime @default(now())
+  totalMinor      Int
+  expectedMinor   Int
+  differenceMinor Int
+  note            String?
+  adjustmentTxId  String?  @unique
+  adjustmentTx    Transaction? @relation(fields: [adjustmentTxId], references: [id])
+
+  lines CashCountLine[]
+}
+
+model CashCountLine {
+  id             String       @id @default(cuid())
+  cashCountId    String
+  cashCount      CashCount    @relation(fields: [cashCountId], references: [id], onDelete: Cascade)
+  denominationId String
+  denomination   Denomination @relation(fields: [denominationId], references: [id])
+  quantity       Int
+
+  @@unique([cashCountId, denominationId])
+}
+
+model Contact {
+  id    String  @id @default(cuid())
+  name  String
+  phone String?
+  note  String?
+
+  debts Debt[]
+  plans PaymentPlan[]
+}
+
+model Debt {
+  id          String   @id @default(cuid())
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id])
+  direction   String // RECEIVABLE | PAYABLE
+  description String
+  totalMinor  Int
+  currencyId  String
+  currency    Currency @relation(fields: [currencyId], references: [id])
+  status      String   @default("OPEN") // OPEN | PAID | CANCELLED
+  createdAt   DateTime @default(now())
+
+  plans    PaymentPlan[]
+  payments DebtPayment[]
+}
+
+// Plan de cuotas: ligado a una deuda o standalone (mensualidad tipo renta).
+model PaymentPlan {
+  id          String    @id @default(cuid())
+  debtId      String?
+  debt        Debt?     @relation(fields: [debtId], references: [id])
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+  kind        String // COLLECT | PAY
+  description String
+  currencyId  String
+  currency    Currency  @relation(fields: [currencyId], references: [id])
+  amountMinor Int
+  frequency   String // ONCE | WEEKLY | BIWEEKLY | MONTHLY
+  dayOfMonth  Int?
+  nextDueAt   DateTime
+  endAt       DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  installments Installment[]
+}
+
+// Cuota materializada. VENCIDA es derivado: PENDING con dueAt < ahora.
+model Installment {
+  id            String      @id @default(cuid())
+  planId        String
+  plan          PaymentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dueAt         DateTime
+  amountMinor   Int
+  status        String      @default("PENDING") // PENDING | PAID | SKIPPED
+  transactionId String?     @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  settledAt     DateTime?
+
+  @@unique([planId, dueAt])
+}
+
+model DebtPayment {
+  id            String      @id @default(cuid())
+  debtId        String
+  debt          Debt        @relation(fields: [debtId], references: [id])
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  amountMinor   Int
+  paidAt        DateTime    @default(now())
+}
