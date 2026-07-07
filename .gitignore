@@ -149,6 +149,7 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results/
 playwright-report/
+e2e/.auth/
 
 # Next.js generated types
 next-env.d.ts

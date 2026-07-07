@@ -10,6 +10,8 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - `pnpm build` — build de producción (incluye typecheck)
 - `pnpm db:migrate` — migración + seed; `pnpm db:studio` — Prisma Studio
 - `pnpm tsx prisma/reset-data.ts` — limpia datos conservando seed
+- `pnpm test:e2e` — Playwright E2E (levanta su propio dev server; requiere
+  puerto 3002 LIBRE — parar `pnpm dev` antes)
 
 ## Arquitectura
 
@@ -48,4 +50,11 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `ActionError` para abortar (patrón anti doble-envío) — mantenerlo así.
 - `.env.backup` guarda credenciales Neon Postgres originales del repo (no
   usadas; la app corre en SQLite).
-- Playwright E2E: pendiente de configurar (no instalado aún).
+- Playwright E2E (`e2e/`, config en `playwright.config.ts`): BD aislada
+  `prisma/test.db` recreada en cada corrida (migrate deploy + seed vía
+  `e2e/setup-db.ts`, encadenado en el comando del webServer porque este
+  arranca ANTES que globalSetup). Proyecto `setup` registra `e2e@caja.test`
+  vía /auth/registro y guarda `e2e/.auth/user.json` (storageState) para los
+  proyectos desktop y mobile (375×812). `channel: "chrome"` (Chrome del
+  sistema): la descarga del Chromium empaquetado da 403 por geo-bloqueo.
+  `workers: 1` a propósito (los flujos mutan la misma BD SQLite).
