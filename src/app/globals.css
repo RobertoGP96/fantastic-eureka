@@ -1,50 +1,93 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
+/*
+ * Identidad propia de Caja: paleta petróleo/esmeralda con acento dorado.
+ * Se mantienen los NOMBRES de los tokens heredados (navy, brand, chip, ok…)
+ * para que todo el UI se re-vista sin tocar componentes.
+ */
 @theme {
-  --color-page: #c9d4e2;
-  --color-app: #eef2f7;
-  --color-navy: #0a1f3f;
-  --color-brand: #14417f;
-  --color-brand-mid: #2e6fd4;
-  --color-brand-light: #4d93f0;
-  --color-brand-soft: #7fb0f5;
-  --color-chip: #e3edfb;
-  --color-photo: #e4eaf2;
-  --color-photo-fg: #93a3bc;
-  --color-ink: #1b2740;
-  --color-ink-soft: #4e5d77;
-  --color-muted: #7c8aa3;
-  --color-muted-2: #9aa9c0;
-  --color-line: #dde4ee;
-  --color-line-2: #e7ecf3;
-  --color-ok: #1e7a4f;
-  --color-ok-bg: #e5f3ec;
+  --color-page: #c3d6d3;
+  --color-app: #eef4f2;
+  --color-navy: #07272e;
+  --color-brand: #0c6b70;
+  --color-brand-mid: #128f89;
+  --color-brand-light: #27b3a4;
+  --color-brand-soft: #82d7c9;
+  --color-chip: #dcf0ec;
+  --color-photo: #e2edea;
+  --color-photo-fg: #8fa9a5;
+  --color-ink: #12292d;
+  --color-ink-soft: #43605f;
+  --color-muted: #6d8885;
+  --color-muted-2: #97aeab;
+  --color-line: #d9e5e2;
+  --color-line-2: #e4eeeb;
+  --color-ok: #1d8a4e;
+  --color-ok-bg: #e0f3e7;
   --color-warn: #b07b2e;
   --color-warn-bg: #f6ecdc;
-  --color-fav: #d14d6b;
-  --color-danger: #b54a5e;
-  --color-danger-bg: #f4e2e6;
-  --color-disabled: #b9c4d6;
+  --color-fav: #e0596e;
+  --color-danger: #c04b5d;
+  --color-danger-bg: #f7e3e6;
+  --color-disabled: #b5c6c3;
+  --color-gold: #d9a13b;
+  --color-gold-bg: #f8eed9;
+
+  /* Tokens semánticos de shadcn/ui mapeados a la identidad de Caja */
+  --color-background: #eef4f2;
+  --color-foreground: #12292d;
+  --color-card: #ffffff;
+  --color-card-foreground: #12292d;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #12292d;
+  --color-primary: #0c6b70;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #dcf0ec;
+  --color-secondary-foreground: #0c6b70;
+  --color-accent: #dcf0ec;
+  --color-accent-foreground: #0c6b70;
+  --color-destructive: #c04b5d;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #d9e5e2;
+  --color-input: #d9e5e2;
+  --color-ring: #82d7c9;
+  --color-muted-foreground: #6d8885;
+
+  /* Sidebar en petróleo profundo */
+  --color-sidebar: #07272e;
+  --color-sidebar-foreground: #cfe4e0;
+  --color-sidebar-primary: #128f89;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #0e3a40;
+  --color-sidebar-accent-foreground: #ffffff;
+  --color-sidebar-border: #14454b;
+  --color-sidebar-ring: #82d7c9;
 }
 
 .grad-header {
-  background: linear-gradient(150deg, #0a1f3f, #14417f);
+  background: linear-gradient(150deg, #07272e 0%, #0c6b70 78%, #128f89 100%);
 }
 
 .grad-cta {
-  background: linear-gradient(120deg, #14417f, #2e6fd4);
+  background: linear-gradient(120deg, #0c6b70, #27b3a4);
 }
 
 .grad-offer {
-  background: linear-gradient(120deg, #14417f, #4d93f0);
+  background: linear-gradient(120deg, #0c6b70, #82d7c9);
 }
 
 .grad-progress {
-  background: linear-gradient(90deg, #14417f, #4d93f0);
+  background: linear-gradient(90deg, #0c6b70, #27b3a4);
 }
 
 .grad-confirm {
-  background: linear-gradient(160deg, #0a1f3f, #14417f);
+  background: linear-gradient(160deg, #07272e, #0c6b70);
+}
+
+/* Acento dorado para resaltar dinero (totales, hitos) */
+.grad-gold {
+  background: linear-gradient(120deg, #d9a13b, #eec06b);
 }
 
 @keyframes toastIn {
@@ -81,7 +124,7 @@
 
 .toast-pop {
   position: fixed;
-  bottom: 96px;
+  bottom: 104px;
   left: 50%;
   transform: translateX(-50%);
   animation: toastIn 0.25s ease;
@@ -103,4 +146,9 @@ input {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Cifras monetarias alineadas en tablas e historiales */
+.money {
+  font-variant-numeric: tabular-nums;
 }

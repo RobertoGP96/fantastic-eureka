@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  composeRatesScaled,
   convertMinor,
   crossRateScaled,
+  invertRateScaled,
   parseAmountToMinor,
   pow10,
   RATE_SCALE,
@@ -95,6 +97,41 @@ describe("crossRateScaled", () => {
   it("rechaza tasas no positivas", () => {
     expect(() => crossRateScaled(0, 100)).toThrow();
     expect(() => crossRateScaled(100, 0)).toThrow();
+  });
+});
+
+describe("invertRateScaled", () => {
+  it("invierte tasas (USD→CUP 435.5 ⇒ CUP→USD 0.0023)", () => {
+    expect(invertRateScaled(4_355_000)).toBe(23);
+    // y viceversa, recuperando ≈434.78 (precisión de 4 decimales)
+    expect(invertRateScaled(23)).toBe(4_347_826);
+  });
+
+  it("la identidad se invierte a sí misma", () => {
+    expect(invertRateScaled(RATE_SCALE)).toBe(RATE_SCALE);
+  });
+
+  it("rechaza tasas no positivas o no enteras", () => {
+    expect(() => invertRateScaled(0)).toThrow();
+    expect(() => invertRateScaled(-3)).toThrow();
+    expect(() => invertRateScaled(1.5)).toThrow();
+  });
+});
+
+describe("composeRatesScaled", () => {
+  it("compone EUR→USD ∘ USD→CUP = EUR→CUP", () => {
+    // 1 EUR = 1.08 USD; 1 USD = 435.5 CUP ⇒ 1 EUR = 470.34 CUP
+    expect(composeRatesScaled(10_800, 4_355_000)).toBe(4_703_400);
+  });
+
+  it("componer con la identidad no cambia la tasa", () => {
+    expect(composeRatesScaled(4_355_000, RATE_SCALE)).toBe(4_355_000);
+    expect(composeRatesScaled(RATE_SCALE, 4_355_000)).toBe(4_355_000);
+  });
+
+  it("rechaza tasas no positivas", () => {
+    expect(() => composeRatesScaled(0, 100)).toThrow();
+    expect(() => composeRatesScaled(100, -1)).toThrow();
   });
 });
 

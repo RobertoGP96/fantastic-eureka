@@ -5,8 +5,8 @@ import { prisma } from "@/lib/db";
 import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
 import { exchangeRateSchema, type ActionResult } from "@/lib/schemas";
 
-// La tasa se captura como texto decimal y se guarda escalada ×10 000
-// (4 decimales de precisión), siempre contra la moneda base.
+// La tasa relaciona un PAR de monedas: unidades de destino por 1 de origen,
+// escalada ×10 000 (4 decimales de precisión).
 export async function createExchangeRate(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
@@ -17,19 +17,17 @@ export async function createExchangeRate(
       error: parsed.error.issues[0]?.message ?? "Datos inválidos",
     };
   }
+  if (parsed.data.fromCurrencyId === parsed.data.toCurrencyId) {
+    return { success: false, error: "Elige dos monedas distintas" };
+  }
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data.currencyId },
-    });
-    if (!currency || !currency.active) {
+    const [from, to] = await Promise.all([
+      prisma.currency.findUnique({ where: { id: parsed.data.fromCurrencyId } }),
+      prisma.currency.findUnique({ where: { id: parsed.data.toCurrencyId } }),
+    ]);
+    if (!from || !from.active || !to || !to.active) {
       return { success: false, error: "Moneda no válida" };
-    }
-    if (currency.isBase) {
-      return {
-        success: false,
-        error: "La moneda base no necesita tasa (siempre vale 1)",
-      };
     }
 
     const rateScaled = parseAmountToMinor(parsed.data.rate, {
@@ -44,7 +42,8 @@ export async function createExchangeRate(
 
     const rate = await prisma.exchangeRate.create({
       data: {
-        currencyId: currency.id,
+        fromCurrencyId: from.id,
+        toCurrencyId: to.id,
         rateScaled,
         effectiveAt: parsed.data.effectiveAt ?? new Date(),
       },
@@ -52,6 +51,8 @@ export async function createExchangeRate(
 
     revalidatePath("/");
     revalidatePath("/tasas");
+    revalidatePath("/cuentas");
+    revalidatePath("/movimientos");
     return { success: true, data: { id: rate.id } };
   } catch (error) {
     console.error("createExchangeRate:", error);

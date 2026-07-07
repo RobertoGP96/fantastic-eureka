@@ -1,15 +1,18 @@
 // Esquema de Caja: cuentas, movimientos, arqueos, tasas y deudas.
-// SQLite no soporta enums: los campos "kind"/"status"/"direction" usan
-// constantes de src/lib/domain.ts validadas con Zod en las server actions.
+// Los campos "kind"/"status"/"direction" son strings validados con las
+// constantes de src/lib/domain.ts + Zod (herencia de SQLite; se mantiene).
 // Montos SIEMPRE en unidades menores (enteros); tasas escaladas ×10 000.
 
 generator client {
   provider = "prisma-client-js"
 }
 
+// Neon Postgres: DATABASE_URL es el endpoint con pooler (runtime);
+// DIRECT_URL el directo (migraciones).
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Currency {
@@ -24,7 +27,8 @@ model Currency {
   denominations Denomination[]
   accounts      Account[]
   transactions  Transaction[]
-  rates         ExchangeRate[]
+  ratesFrom     ExchangeRate[] @relation("RateFrom")
+  ratesTo       ExchangeRate[] @relation("RateTo")
   debts         Debt[]
   paymentPlans  PaymentPlan[]
 }
@@ -42,15 +46,27 @@ model Denomination {
   @@unique([currencyId, valueMinor, kind])
 }
 
+// Agrupación libre de cuentas (Negocio, Personal, etc.). Borrar un grupo
+// deja sus cuentas "Sin grupo" (onDelete: SetNull).
+model AccountGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  accounts Account[]
+}
+
 model Account {
-  id         String   @id @default(cuid())
+  id         String        @id @default(cuid())
   name       String
   type       String // CASH | BANK | DIGITAL
   currencyId String
-  currency   Currency @relation(fields: [currencyId], references: [id])
+  currency   Currency      @relation(fields: [currencyId], references: [id])
+  groupId    String?
+  group      AccountGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   icon       String?
-  archived   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  archived   Boolean       @default(false)
+  createdAt  DateTime      @default(now())
 
   transactions        Transaction[] @relation("AccountTx")
   counterTransactions Transaction[] @relation("CounterAccountTx")
@@ -98,18 +114,22 @@ model Transaction {
   @@index([occurredAt])
 }
 
-// Tasa manual: unidades de la moneda BASE por 1 unidad de `currency`, ×10 000.
-// Histórico puro: nunca se sobreescribe, la vigente es la de mayor effectiveAt.
+// Tasa manual entre un PAR de monedas: unidades de `toCurrency` por 1 unidad
+// de `fromCurrency`, ×10 000. Histórico puro: nunca se sobreescribe, la
+// vigente por par es la de mayor effectiveAt. Si falta el par directo, la
+// app usa el inverso (o compone vía la moneda base).
 model ExchangeRate {
-  id          String   @id @default(cuid())
-  currencyId  String
-  currency    Currency @relation(fields: [currencyId], references: [id])
-  rateScaled  Int
-  source      String   @default("MANUAL")
-  effectiveAt DateTime @default(now())
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  fromCurrencyId String
+  fromCurrency   Currency @relation("RateFrom", fields: [fromCurrencyId], references: [id])
+  toCurrencyId   String
+  toCurrency     Currency @relation("RateTo", fields: [toCurrencyId], references: [id])
+  rateScaled     Int
+  source         String   @default("MANUAL")
+  effectiveAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  @@index([currencyId, effectiveAt])
+  @@index([fromCurrencyId, toCurrencyId, effectiveAt])
 }
 
 model CashCount {
@@ -209,4 +229,25 @@ model DebtPayment {
   transaction   Transaction @relation(fields: [transactionId], references: [id])
   amountMinor   Int
   paidAt        DateTime    @default(now())
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+
+  sessions Session[]
+}
+
+// Sesión con token opaco: la cookie lleva el token en claro y en BD se
+// guarda su hash SHA-256. Expiración fija de 30 días, sin renovación.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

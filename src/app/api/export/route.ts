@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 import { minorToInput } from "@/lib/format";
 import { buildTxWhere } from "@/lib/report";
 import {
@@ -18,6 +19,11 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
 });
 
 export async function GET(request: Request) {
+  const user = await getSessionUser();
+  if (!user) {
+    return new Response("No autorizado", { status: 401 });
+  }
+
   const url = new URL(request.url);
   const filters = {
     mes: url.searchParams.get("mes") ?? undefined,

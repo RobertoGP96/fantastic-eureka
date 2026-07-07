@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sumMinor } from "@/lib/money";
+import { latestPairRates, resolvePairRate } from "@/lib/rates";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -58,6 +59,7 @@ export interface AccountWithBalance {
     symbol: string;
     decimalPlaces: number;
   };
+  group: { id: string; name: string } | null;
   balanceMinor: number;
 }
 
@@ -66,7 +68,10 @@ export async function listAccountsWithBalances(options?: {
 }): Promise<AccountWithBalance[]> {
   const accounts = await prisma.account.findMany({
     where: options?.includeArchived ? {} : { archived: false },
-    include: { currency: true },
+    include: {
+      currency: true,
+      group: { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -83,26 +88,33 @@ export async function listAccountsWithBalances(options?: {
         symbol: account.currency.symbol,
         decimalPlaces: account.currency.decimalPlaces,
       },
+      group: account.group,
       balanceMinor: await accountBalanceMinor(account.id),
     }))
   );
 }
 
-/** Última tasa vigente (mayor effectiveAt) de cada moneda contra la base. */
+/**
+ * Tasa vigente de cada moneda CONTRA LA BASE, resuelta desde los pares
+ * registrados (directo o inverso). Mantiene la interfaz histórica
+ * Map<currencyId, {rateScaled, effectiveAt}> que consume el resto de la app.
+ */
 export async function latestRatesByCurrency(): Promise<
   Map<string, { rateScaled: number; effectiveAt: Date }>
 > {
-  const rates = await prisma.exchangeRate.findMany({
-    orderBy: { effectiveAt: "desc" },
-  });
-  const latest = new Map<string, { rateScaled: number; effectiveAt: Date }>();
-  for (const rate of rates) {
-    if (!latest.has(rate.currencyId)) {
-      latest.set(rate.currencyId, {
-        rateScaled: rate.rateScaled,
-        effectiveAt: rate.effectiveAt,
-      });
-    }
+  const [base, currencies, pairs] = await Promise.all([
+    prisma.currency.findFirst({ where: { isBase: true }, select: { id: true } }),
+    prisma.currency.findMany({ select: { id: true } }),
+    latestPairRates(),
+  ]);
+
+  const map = new Map<string, { rateScaled: number; effectiveAt: Date }>();
+  if (!base) return map;
+
+  for (const currency of currencies) {
+    if (currency.id === base.id) continue;
+    const resolved = resolvePairRate(pairs, currency.id, base.id);
+    if (resolved) map.set(currency.id, resolved);
   }
-  return latest;
+  return map;
 }

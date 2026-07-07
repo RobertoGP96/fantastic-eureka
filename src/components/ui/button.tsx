@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 type ButtonVariant = "default" | "outline" | "ghost" | "chip" | "danger";
-type ButtonSize = "default" | "sm" | "lg";
+type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   default: "bg-brand text-white hover:bg-brand-mid",
@@ -17,6 +17,7 @@ const SIZES: Record<ButtonSize, string> = {
   default: "rounded-xl px-[22px] py-[11px] text-[13.5px]",
   sm: "rounded-lg px-[11px] py-1.5 text-[11.5px]",
   lg: "rounded-[13px] px-[26px] py-3.5 text-[14.5px]",
+  icon: "size-9 rounded-lg p-0 [&_svg]:size-4",
 };
 
 interface ButtonProps extends React.ComponentProps<"button"> {

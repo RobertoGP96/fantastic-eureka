@@ -72,6 +72,29 @@ export function convertMinor(
   return result;
 }
 
+/** Invierte una tasa: X→Y escalada ⇒ Y→X escalada (1e8 / tasa, half-up). */
+export function invertRateScaled(rateScaled: number): number {
+  if (!Number.isInteger(rateScaled) || rateScaled <= 0) {
+    throw new Error("Tasa inválida");
+  }
+  const result = Math.round((RATE_SCALE * RATE_SCALE) / rateScaled);
+  if (result <= 0) throw new Error("Tasa resultante fuera de rango");
+  return result;
+}
+
+/** Compone tasas escaladas: a (X→Y) ∘ b (Y→Z) ⇒ X→Z. BigInt, half-up. */
+export function composeRatesScaled(aScaled: number, bScaled: number): number {
+  if (aScaled <= 0 || bScaled <= 0) throw new Error("Tasa inválida");
+  const result = Number(
+    (BigInt(aScaled) * BigInt(bScaled) + BigInt(RATE_SCALE / 2)) /
+      BigInt(RATE_SCALE)
+  );
+  if (result <= 0 || !Number.isSafeInteger(result)) {
+    throw new Error("Tasa resultante fuera de rango");
+  }
+  return result;
+}
+
 /**
  * Tasa X→Y derivada de las tasas de X e Y contra la moneda base.
  * Ej.: USD→EUR = tasa(USD→base) / tasa(EUR→base).

@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   ACCOUNT_TYPES,
   DEBT_DIRECTIONS,
+  DENOMINATION_KINDS,
   FREQUENCIES,
   PLAN_KINDS,
 } from "@/lib/domain";
@@ -22,6 +23,43 @@ export const createAccountSchema = z.object({
   type: z.enum(ACCOUNT_TYPES),
   currencyId: idSchema,
   initialAmount: amountText.optional(),
+  groupId: idSchema.optional(),
+  icon: z.string().max(40).optional(),
+});
+
+export const accountIconSchema = z.object({
+  accountId: idSchema,
+  icon: z.string().max(40).nullable(),
+});
+
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
+  email: z.string().trim().toLowerCase().email("Correo inválido").max(120),
+});
+
+export const updatePasswordSchema = z
+  .object({
+    current: z.string().min(1, "Indica tu contraseña actual"),
+    next: z
+      .string()
+      .min(8, "La nueva contraseña debe tener al menos 8 caracteres")
+      .max(100),
+    confirm: z.string(),
+  })
+  .refine((data) => data.next === data.confirm, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirm"],
+  });
+
+export const groupSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(40),
+});
+
+export const renameGroupSchema = groupSchema.extend({ id: idSchema });
+
+export const assignGroupSchema = z.object({
+  accountId: idSchema,
+  groupId: idSchema.nullable(),
 });
 
 export const updateAccountSchema = z.object({
@@ -63,7 +101,8 @@ export const cashCountSchema = z.object({
 });
 
 export const exchangeRateSchema = z.object({
-  currencyId: idSchema,
+  fromCurrencyId: idSchema,
+  toCurrencyId: idSchema,
   rate: amountText,
   effectiveAt: z.coerce.date().optional(),
 });
@@ -116,6 +155,48 @@ export const debtPaymentSchema = z.object({
   accountId: idSchema,
   amount: amountText,
   note: z.string().trim().max(200).optional(),
+});
+
+export const currencySchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{2,6}$/, "Código de 2 a 6 letras (ej. USD)"),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
+  symbol: z.string().trim().min(1, "El símbolo es obligatorio").max(4),
+  decimalPlaces: z.number().int().min(0).max(4),
+});
+
+export const denominationSchema = z.object({
+  currencyId: idSchema,
+  value: amountText,
+  kind: z.enum(DENOMINATION_KINDS),
+});
+
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Correo inválido")
+      .max(120),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres")
+      .max(100),
+    confirm: z.string(),
+  })
+  .refine((data) => data.password === data.confirm, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirm"],
+  });
+
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Correo inválido"),
+  password: z.string().min(1, "La contraseña es obligatoria"),
 });
 
 export type ActionResult<T = undefined> =

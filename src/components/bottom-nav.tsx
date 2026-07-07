@@ -43,7 +43,9 @@ const RIGHT: NavItem[] = [
       p.startsWith("/mas") ||
       p.startsWith("/tasas") ||
       p.startsWith("/movimientos") ||
-      p.startsWith("/categorias"),
+      p.startsWith("/categorias") ||
+      p.startsWith("/monedas") ||
+      p.startsWith("/perfil"),
   },
 ];
 
@@ -53,15 +55,18 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   return (
     <Link
       href={item.href}
-      className={`relative flex w-14 flex-col items-center gap-[3px] text-[10.5px] font-semibold transition-colors ${
-        active ? "text-brand" : "text-muted-2"
-      }`}
+      className="relative flex w-16 flex-col items-center gap-[3px] py-0.5 text-[10.5px] font-semibold"
     >
-      <Icon
-        className={`h-[19px] w-[19px] transition-transform ${active ? "scale-110" : ""}`}
-        strokeWidth={active ? 2.4 : 2}
-      />
-      {item.label}
+      <span
+        className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+          active ? "bg-chip text-brand" : "text-muted-2"
+        }`}
+      >
+        <Icon className="h-[19px] w-[19px]" strokeWidth={active ? 2.4 : 2} />
+      </span>
+      <span className={active ? "text-brand" : "text-muted-2"}>
+        {item.label}
+      </span>
     </Link>
   );
 }
@@ -70,20 +75,22 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 mt-auto flex items-end justify-around rounded-t-[20px] border-t border-[#E2E8F1] bg-white px-2 pt-[11px] pb-[17px] shadow-[0_-4px_16px_rgba(10,31,63,.06)] md:hidden">
-      {LEFT.map((item) => (
-        <NavLink key={item.href} item={item} pathname={pathname} />
-      ))}
-      <Link
-        href="/registrar"
-        aria-label="Registrar movimiento"
-        className="grad-cta -mt-8 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(20,65,127,.4)] transition-transform active:scale-95"
-      >
-        <Plus className="h-6 w-6" strokeWidth={2.4} />
-      </Link>
-      {RIGHT.map((item) => (
-        <NavLink key={item.href} item={item} pathname={pathname} />
-      ))}
+    <nav className="sticky bottom-0 z-40 mt-auto rounded-t-3xl border-t border-line-2 bg-white/92 pb-[max(env(safe-area-inset-bottom),10px)] shadow-[0_-6px_24px_rgba(7,39,46,.10)] backdrop-blur-md md:hidden">
+      <div className="flex items-end justify-around px-2 pt-2.5">
+        {LEFT.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+        <Link
+          href="/registrar"
+          aria-label="Registrar movimiento"
+          className="grad-cta -mt-9 flex h-14 w-14 items-center justify-center rounded-[20px] text-white shadow-[0_10px_24px_rgba(12,107,112,.45)] ring-4 ring-app transition-transform active:scale-95"
+        >
+          <Plus className="h-6 w-6" strokeWidth={2.4} />
+        </Link>
+        {RIGHT.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+      </div>
     </nav>
   );
 }

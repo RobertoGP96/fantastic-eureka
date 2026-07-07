@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
+import { ACCOUNT_ICON_NAMES } from "@/lib/account-icons";
 import {
+  accountIconSchema,
   createAccountSchema,
   updateAccountSchema,
   type ActionResult,
@@ -28,6 +30,17 @@ export async function createAccount(
       return { success: false, error: "Moneda no válida" };
     }
 
+    if (parsed.data.groupId) {
+      const group = await prisma.accountGroup.findUnique({
+        where: { id: parsed.data.groupId },
+      });
+      if (!group) return { success: false, error: "Grupo no válido" };
+    }
+
+    if (parsed.data.icon && !ACCOUNT_ICON_NAMES.includes(parsed.data.icon)) {
+      return { success: false, error: "Icono no válido" };
+    }
+
     const initialMinor = parsed.data.initialAmount
       ? parseAmountToMinor(parsed.data.initialAmount, currency)
       : 0;
@@ -39,6 +52,8 @@ export async function createAccount(
           name: parsed.data.name,
           type: parsed.data.type,
           currencyId: currency.id,
+          groupId: parsed.data.groupId,
+          icon: parsed.data.icon,
         },
       });
       if (initialMinor !== 0) {
@@ -61,6 +76,33 @@ export async function createAccount(
   } catch (error) {
     console.error("createAccount:", error);
     return { success: false, error: "No se pudo crear la cuenta" };
+  }
+}
+
+export async function setAccountIcon(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = accountIconSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+  if (parsed.data.icon && !ACCOUNT_ICON_NAMES.includes(parsed.data.icon)) {
+    return { success: false, error: "Icono no válido" };
+  }
+
+  try {
+    const account = await prisma.account.update({
+      where: { id: parsed.data.accountId },
+      data: { icon: parsed.data.icon },
+    });
+    revalidatePath("/");
+    revalidatePath("/cuentas");
+    revalidatePath(`/cuentas/${account.id}`);
+    revalidatePath("/conteo");
+    return { success: true, data: { id: account.id } };
+  } catch (error) {
+    console.error("setAccountIcon:", error);
+    return { success: false, error: "No se pudo actualizar el icono" };
   }
 }
 
