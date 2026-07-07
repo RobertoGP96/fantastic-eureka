@@ -93,17 +93,20 @@ export function CategoryManager({
               category.active ? "" : "opacity-55"
             }`}
           >
-            <div className="flex items-center gap-2.5">
-              <span className="text-[13px] font-semibold text-navy">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="min-w-0 truncate text-[13px] font-semibold text-navy">
                 {category.name}
               </span>
               {category.usageCount > 0 && (
-                <Badge variant="neutral">{category.usageCount} mov.</Badge>
+                <Badge variant="neutral" className="flex-none">
+                  {category.usageCount} mov.
+                </Badge>
               )}
             </div>
             <Button
               variant="ghost"
               size="sm"
+              className="flex-none"
               onClick={() => void toggle(category.id)}
             >
               {category.active ? "Ocultar" : "Activar"}

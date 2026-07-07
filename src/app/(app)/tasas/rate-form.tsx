@@ -60,51 +60,58 @@ export function RateForm({ currencies }: { currencies: CurrencyOption[] }) {
         void submit();
       }}
     >
-      <div className="flex items-center gap-2">
-        <Select value={fromCurrencyId} onValueChange={setFromCurrencyId}>
-          <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
-            <SelectValue placeholder="De" />
-          </SelectTrigger>
-          <SelectContent>
-            {currencies.map((currency) => (
-              <SelectItem key={currency.id} value={currency.id}>
-                {currency.code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ArrowRight className="h-4 w-4 flex-none text-muted-2" />
-        <Select value={toCurrencyId} onValueChange={setToCurrencyId}>
-          <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
-            <SelectValue placeholder="A" />
-          </SelectTrigger>
-          <SelectContent>
-            {currencies.map((currency) => (
-              <SelectItem key={currency.id} value={currency.id}>
-                {currency.code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={rate}
-          onChange={(e) => setRate(e.target.value)}
-          inputMode="decimal"
-          placeholder="435.5"
-          required
-        />
-        <Button
-          type="submit"
-          disabled={
-            saving ||
-            !rate.trim() ||
-            !fromCurrencyId ||
-            !toCurrencyId ||
-            fromCurrencyId === toCurrencyId
-          }
-        >
-          {saving ? "…" : "Guardar"}
-        </Button>
+      {/* flex-wrap: en pantallas estrechas el grupo input+botón baja a una
+          segunda línea en vez de desbordar la tarjeta */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-none items-center gap-2">
+          <Select value={fromCurrencyId} onValueChange={setFromCurrencyId}>
+            <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
+              <SelectValue placeholder="De" />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((currency) => (
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ArrowRight className="h-4 w-4 flex-none text-muted-2" />
+          <Select value={toCurrencyId} onValueChange={setToCurrencyId}>
+            <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
+              <SelectValue placeholder="A" />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((currency) => (
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex min-w-0 flex-1 basis-44 items-center gap-2">
+          <Input
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            inputMode="decimal"
+            placeholder="435.5"
+            required
+          />
+          <Button
+            type="submit"
+            className="flex-none"
+            disabled={
+              saving ||
+              !rate.trim() ||
+              !fromCurrencyId ||
+              !toCurrencyId ||
+              fromCurrencyId === toCurrencyId
+            }
+          >
+            {saving ? "…" : "Guardar"}
+          </Button>
+        </div>
       </div>
       {from && to && (
         <p className="mt-2 text-[11.5px] text-muted">
