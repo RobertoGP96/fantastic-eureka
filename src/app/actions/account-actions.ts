@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
 import { ACCOUNT_ICON_NAMES } from "@/lib/account-icons";
+import { getSessionUser } from "@/lib/auth";
 import {
   accountIconSchema,
   createAccountSchema,
@@ -14,6 +15,11 @@ import {
 export async function createAccount(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = createAccountSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -23,16 +29,16 @@ export async function createAccount(
   }
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data.currencyId },
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data.currencyId, userId: user.id },
     });
     if (!currency || !currency.active) {
       return { success: false, error: "Moneda no válida" };
     }
 
     if (parsed.data.groupId) {
-      const group = await prisma.accountGroup.findUnique({
-        where: { id: parsed.data.groupId },
+      const group = await prisma.accountGroup.findFirst({
+        where: { id: parsed.data.groupId, userId: user.id },
       });
       if (!group) return { success: false, error: "Grupo no válido" };
     }
@@ -54,6 +60,7 @@ export async function createAccount(
           currencyId: currency.id,
           groupId: parsed.data.groupId,
           icon: parsed.data.icon,
+          userId: user.id,
         },
       });
       if (initialMinor !== 0) {
@@ -64,6 +71,7 @@ export async function createAccount(
             amountMinor: initialMinor,
             currencyId: currency.id,
             note: "Saldo inicial",
+            userId: user.id,
           },
         });
       }
@@ -82,6 +90,11 @@ export async function createAccount(
 export async function setAccountIcon(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = accountIconSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
@@ -92,7 +105,7 @@ export async function setAccountIcon(
 
   try {
     const account = await prisma.account.update({
-      where: { id: parsed.data.accountId },
+      where: { id: parsed.data.accountId, userId: user.id },
       data: { icon: parsed.data.icon },
     });
     revalidatePath("/");
@@ -109,6 +122,11 @@ export async function setAccountIcon(
 export async function updateAccount(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = updateAccountSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -119,7 +137,7 @@ export async function updateAccount(
 
   try {
     const account = await prisma.account.update({
-      where: { id: parsed.data.id },
+      where: { id: parsed.data.id, userId: user.id },
       data: {
         name: parsed.data.name,
         ...(parsed.data.archived === undefined

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { TxList } from "@/components/tx-list";
 import { GroupSelect } from "@/components/group-select";
 import { AccountIconEditor } from "@/components/account-icon-editor";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { fmtMinor } from "@/lib/format";
@@ -20,9 +21,10 @@ export default async function CuentaDetallePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await requireSessionUser();
 
-  const account = await prisma.account.findUnique({
-    where: { id },
+  const account = await prisma.account.findFirst({
+    where: { id, userId: user.id },
     include: { currency: true },
   });
   if (!account) notFound();
@@ -30,7 +32,10 @@ export default async function CuentaDetallePage({
   const [balanceMinor, transactions, groups] = await Promise.all([
     accountBalanceMinor(account.id),
     prisma.transaction.findMany({
-      where: { OR: [{ accountId: account.id }, { counterAccountId: account.id }] },
+      where: {
+        userId: user.id,
+        OR: [{ accountId: account.id }, { counterAccountId: account.id }],
+      },
       include: {
         account: { select: { name: true } },
         counterAccount: { select: { name: true } },
@@ -41,6 +46,7 @@ export default async function CuentaDetallePage({
       take: 30,
     }),
     prisma.accountGroup.findMany({
+      where: { userId: user.id },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

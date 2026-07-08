@@ -32,9 +32,11 @@ export function currentMonthParam(): string {
 }
 
 export function buildTxWhere(
+  userId: string,
   params: TxFilterParams
 ): Prisma.TransactionWhereInput {
-  const where: Prisma.TransactionWhereInput = {};
+  // userId SIEMPRE presente: es la frontera multi-tenant de movimientos/export.
+  const where: Prisma.TransactionWhereInput = { userId };
 
   const range = monthRange(params.mes);
   if (range) where.occurredAt = { gte: range.start, lt: range.end };

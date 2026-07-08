@@ -4,6 +4,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import {
@@ -20,12 +21,13 @@ export default async function DeudasPage({
 }: {
   searchParams: Promise<{ dir?: string }>;
 }) {
+  const user = await requireSessionUser();
   const { dir } = await searchParams;
   const direction = dir === "pagar" ? "PAYABLE" : "RECEIVABLE";
 
   const [debts, standalonePlans] = await Promise.all([
     prisma.debt.findMany({
-      where: { direction, status: "OPEN" },
+      where: { userId: user.id, direction, status: "OPEN" },
       include: {
         contact: true,
         currency: true,
@@ -44,7 +46,7 @@ export default async function DeudasPage({
       orderBy: { createdAt: "desc" },
     }),
     prisma.paymentPlan.findMany({
-      where: { active: true, debtId: null },
+      where: { userId: user.id, active: true, debtId: null },
       include: {
         currency: true,
         contact: true,

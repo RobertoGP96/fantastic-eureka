@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/empty-state";
 import { UpcomingInstallments } from "@/components/upcoming-installments";
 import { MonthlyBars } from "@/components/monthly-bars";
 import { UserMenu } from "@/components/user-menu";
-import { getSessionUser } from "@/lib/auth";
+import { requireSessionUser } from "@/lib/auth";
 import { APP_NAME } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import {
@@ -38,13 +38,13 @@ const QUICK_ACTIONS = [
 ];
 
 export default async function HomePage() {
-  const [accounts, base, rates, user] = await Promise.all([
-    listAccountsWithBalances(),
-    prisma.currency.findFirst({ where: { isBase: true } }),
-    latestRatesByCurrency(),
-    getSessionUser(),
+  const user = await requireSessionUser();
+  const [accounts, base, rates] = await Promise.all([
+    listAccountsWithBalances(user.id),
+    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
+    latestRatesByCurrency(user.id),
   ]);
-  const metrics = base ? await dashboardMetrics(base) : null;
+  const metrics = base ? await dashboardMetrics(user.id, base) : null;
 
   let consolidatedMinor = 0;
   const missingRates = new Set<string>(metrics?.missingRates ?? []);
@@ -88,11 +88,9 @@ export default async function HomePage() {
       <ScreenHeader
         title={APP_NAME}
         actions={
-          user && (
-            <div className="md:hidden">
-              <UserMenu userName={user.name} userEmail={user.email} />
-            </div>
-          )
+          <div className="md:hidden">
+            <UserMenu userName={user.name} userEmail={user.email} />
+          </div>
         }
       >
         <div className="mt-3">
@@ -257,7 +255,7 @@ export default async function HomePage() {
           </div>
         )}
 
-        <UpcomingInstallments />
+        <UpcomingInstallments userId={user.id} />
 
         <section>
           <div className="mb-2.5 flex items-center justify-between">

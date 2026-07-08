@@ -4,11 +4,17 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { sumMinor } from "@/lib/money";
+import { getSessionUser } from "@/lib/auth";
 import { cashCountSchema, type ActionResult } from "@/lib/schemas";
 
 export async function createCashCount(
   input: unknown
 ): Promise<ActionResult<{ id: string; differenceMinor: number }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = cashCountSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -18,8 +24,8 @@ export async function createCashCount(
   }
 
   try {
-    const account = await prisma.account.findUnique({
-      where: { id: parsed.data.accountId },
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data.accountId, userId: user.id },
       include: { currency: true },
     });
     if (!account || account.archived || account.type !== "CASH") {
@@ -27,7 +33,11 @@ export async function createCashCount(
     }
 
     const denominations = await prisma.denomination.findMany({
-      where: { currencyId: account.currencyId, active: true },
+      where: {
+        currencyId: account.currencyId,
+        active: true,
+        currency: { userId: user.id },
+      },
     });
     const byId = new Map(denominations.map((d) => [d.id, d]));
 
@@ -57,6 +67,7 @@ export async function createCashCount(
           expectedMinor,
           differenceMinor,
           note: parsed.data.note || undefined,
+          userId: user.id,
           lines: {
             create: storedLines.map((line) => ({
               denominationId: line.denominationId,
@@ -74,6 +85,7 @@ export async function createCashCount(
             amountMinor: differenceMinor,
             currencyId: account.currencyId,
             note: "Ajuste por arqueo",
+            userId: user.id,
           },
         });
         await tx.cashCount.update({

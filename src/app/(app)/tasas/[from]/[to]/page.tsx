@@ -4,6 +4,7 @@ import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { RateLineChart } from "@/components/rate-line-chart";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { fmtRate } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
 
@@ -20,20 +21,25 @@ export default async function TasaDetallePage({
 }: {
   params: Promise<{ from: string; to: string }>;
 }) {
+  const user = await requireSessionUser();
   const { from, to } = await params;
   const fromCode = decodeURIComponent(from).toUpperCase();
   const toCode = decodeURIComponent(to).toUpperCase();
 
   const [fromCurrency, toCurrency] = await Promise.all([
-    prisma.currency.findUnique({ where: { code: fromCode } }),
-    prisma.currency.findUnique({ where: { code: toCode } }),
+    prisma.currency.findFirst({ where: { userId: user.id, code: fromCode } }),
+    prisma.currency.findFirst({ where: { userId: user.id, code: toCode } }),
   ]);
   if (!fromCurrency || !toCurrency || fromCurrency.id === toCurrency.id) {
     notFound();
   }
 
   const history = await prisma.exchangeRate.findMany({
-    where: { fromCurrencyId: fromCurrency.id, toCurrencyId: toCurrency.id },
+    where: {
+      userId: user.id,
+      fromCurrencyId: fromCurrency.id,
+      toCurrencyId: toCurrency.id,
+    },
     orderBy: { effectiveAt: "asc" },
   });
 

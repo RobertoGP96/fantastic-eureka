@@ -7,6 +7,7 @@ import { parseAmountToMinor } from "@/lib/money";
 import { fmtMinor } from "@/lib/format";
 import { nextDueDate } from "@/lib/dates";
 import { debtRemainingMinor } from "@/lib/debts";
+import { getSessionUser } from "@/lib/auth";
 import type { Frequency } from "@/lib/domain";
 import {
   ActionError,
@@ -27,6 +28,11 @@ function revalidatePlanPaths(planId: string, debtId?: string | null) {
 export async function createPlan(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = createPlanSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -36,8 +42,8 @@ export async function createPlan(
   }
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data.currencyId },
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data.currencyId, userId: user.id },
     });
     if (!currency || !currency.active) {
       return { success: false, error: "Moneda no válida" };
@@ -45,8 +51,8 @@ export async function createPlan(
 
     let accountId: string | null = null;
     if (parsed.data.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: parsed.data.accountId },
+      const account = await prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
       });
       if (!account || account.archived) {
         return { success: false, error: "Cuenta no válida" };
@@ -74,6 +80,7 @@ export async function createPlan(
     const plan = await prisma.paymentPlan.create({
       data: {
         contactId: parsed.data.contactId,
+        userId: user.id,
         kind: parsed.data.kind,
         description: parsed.data.description,
         currencyId: currency.id,
@@ -103,14 +110,19 @@ export async function createPlan(
 export async function setPlanAccount(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = setPlanAccountSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
   }
 
   try {
-    const plan = await prisma.paymentPlan.findUnique({
-      where: { id: parsed.data.planId },
+    const plan = await prisma.paymentPlan.findFirst({
+      where: { id: parsed.data.planId, userId: user.id },
       include: { currency: true },
     });
     if (!plan) {
@@ -118,8 +130,8 @@ export async function setPlanAccount(
     }
 
     if (parsed.data.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: parsed.data.accountId },
+      const account = await prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
       });
       if (!account || account.archived) {
         return { success: false, error: "Cuenta no válida" };
@@ -133,7 +145,7 @@ export async function setPlanAccount(
     }
 
     await prisma.paymentPlan.update({
-      where: { id: plan.id },
+      where: { id: plan.id, userId: user.id },
       data: { accountId: parsed.data.accountId },
     });
 
@@ -158,6 +170,10 @@ interface PlanWithDebt {
 /**
  * Genera la siguiente cuota tras saldar/omitir la actual, o desactiva el plan
  * si la frecuencia es única, se alcanzó endAt o la deuda quedó saldada.
+ *
+ * Los updates por id (sin userId) son seguros: el `plan` que llega aquí ya
+ * fue validado como propiedad del usuario por quien llama (settleInstallment
+ * / skipInstallment) antes de invocar este helper.
  */
 async function advancePlan(
   tx: Prisma.TransactionClient,
@@ -197,6 +213,11 @@ async function advancePlan(
 export async function settleInstallment(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = settleInstallmentSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -206,8 +227,8 @@ export async function settleInstallment(
   }
 
   try {
-    const installment = await prisma.installment.findUnique({
-      where: { id: parsed.data.installmentId },
+    const installment = await prisma.installment.findFirst({
+      where: { id: parsed.data.installmentId, plan: { userId: user.id } },
       include: { plan: { include: { currency: true } } },
     });
     if (!installment || installment.status !== "PENDING") {
@@ -215,8 +236,8 @@ export async function settleInstallment(
     }
     const plan = installment.plan;
 
-    const account = await prisma.account.findUnique({
-      where: { id: parsed.data.accountId },
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data.accountId, userId: user.id },
     });
     if (!account || account.archived) {
       return { success: false, error: "Cuenta no válida" };
@@ -256,6 +277,7 @@ export async function settleInstallment(
           amountMinor,
           currencyId: plan.currencyId,
           note: parsed.data.note || `${plan.description} · cuota`,
+          userId: user.id,
         },
       });
 
@@ -278,7 +300,7 @@ export async function settleInstallment(
         });
         if (debtSettled) {
           await tx.debt.update({
-            where: { id: plan.debtId },
+            where: { id: plan.debtId, userId: user.id },
             data: { status: "PAID" },
           });
         }
@@ -304,14 +326,19 @@ export async function settleInstallment(
 export async function skipInstallment(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
   }
 
   try {
-    const installment = await prisma.installment.findUnique({
-      where: { id: parsed.data },
+    const installment = await prisma.installment.findFirst({
+      where: { id: parsed.data, plan: { userId: user.id } },
       include: { plan: true },
     });
     if (!installment || installment.status !== "PENDING") {
@@ -337,6 +364,11 @@ export async function skipInstallment(
 export async function deactivatePlan(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
@@ -344,11 +376,11 @@ export async function deactivatePlan(
 
   try {
     const plan = await prisma.paymentPlan.update({
-      where: { id: parsed.data },
+      where: { id: parsed.data, userId: user.id },
       data: { active: false },
     });
     await prisma.installment.updateMany({
-      where: { planId: plan.id, status: "PENDING" },
+      where: { planId: plan.id, plan: { userId: user.id }, status: "PENDING" },
       data: { status: "SKIPPED" },
     });
 

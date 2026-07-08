@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createSession, destroySession } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { bootstrapUserDefaults } from "@/lib/user-defaults";
 import {
   loginSchema,
   registerSchema,
@@ -13,7 +14,8 @@ import {
 export async function registerUser(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
-  // En producción pública conviene cerrar el registro (datos compartidos).
+  // Cada usuario tiene sus propios datos; el flag permite cerrar el
+  // registro en despliegues privados (ALLOW_REGISTRATION=false).
   if (process.env.ALLOW_REGISTRATION === "false") {
     return { success: false, error: "El registro está deshabilitado" };
   }
@@ -27,12 +29,18 @@ export async function registerUser(
   }
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email,
-        passwordHash: hashPassword(parsed.data.password),
-      },
+    // Usuario + sus datos por defecto (monedas, denominaciones y categorías)
+    // en una sola transacción: nunca queda un usuario "vacío" a medias.
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name: parsed.data.name,
+          email: parsed.data.email,
+          passwordHash: hashPassword(parsed.data.password),
+        },
+      });
+      await bootstrapUserDefaults(tx, created.id);
+      return created;
     });
 
     await createSession(user.id);

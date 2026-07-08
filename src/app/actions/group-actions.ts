@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 import {
   assignGroupSchema,
   groupSchema,
@@ -22,6 +23,11 @@ function revalidateGroupPaths(accountId?: string) {
 export async function createAccountGroup(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = groupSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -32,7 +38,7 @@ export async function createAccountGroup(
 
   try {
     const group = await prisma.accountGroup.create({
-      data: { name: parsed.data.name },
+      data: { name: parsed.data.name, userId: user.id },
     });
     revalidateGroupPaths();
     return { success: true, data: { id: group.id } };
@@ -51,6 +57,11 @@ export async function createAccountGroup(
 export async function renameAccountGroup(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = renameGroupSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -61,7 +72,7 @@ export async function renameAccountGroup(
 
   try {
     const group = await prisma.accountGroup.update({
-      where: { id: parsed.data.id },
+      where: { id: parsed.data.id, userId: user.id },
       data: { name: parsed.data.name },
     });
     revalidateGroupPaths();
@@ -81,13 +92,18 @@ export async function renameAccountGroup(
 export async function deleteAccountGroup(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Datos inválidos" };
 
   try {
     // onDelete: SetNull deja las cuentas del grupo como "Sin grupo".
     const group = await prisma.accountGroup.delete({
-      where: { id: parsed.data },
+      where: { id: parsed.data, userId: user.id },
     });
     revalidateGroupPaths();
     return { success: true, data: { id: group.id } };
@@ -100,19 +116,24 @@ export async function deleteAccountGroup(
 export async function assignAccountGroup(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = assignGroupSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Datos inválidos" };
 
   try {
     if (parsed.data.groupId) {
-      const group = await prisma.accountGroup.findUnique({
-        where: { id: parsed.data.groupId },
+      const group = await prisma.accountGroup.findFirst({
+        where: { id: parsed.data.groupId, userId: user.id },
       });
       if (!group) return { success: false, error: "Grupo no válido" };
     }
 
     const account = await prisma.account.update({
-      where: { id: parsed.data.accountId },
+      where: { id: parsed.data.accountId, userId: user.id },
       data: { groupId: parsed.data.groupId },
     });
     revalidateGroupPaths(account.id);

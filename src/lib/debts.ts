@@ -23,13 +23,17 @@ export async function debtRemainingMinor(
 }
 
 /** Cuotas pendientes vencidas o que vencen dentro de `withinDays` días. */
-export async function upcomingInstallments(withinDays = 7) {
+export async function upcomingInstallments(userId: string, withinDays = 7) {
   const limit = new Date();
   limit.setDate(limit.getDate() + withinDays);
   limit.setHours(23, 59, 59, 999);
 
   return prisma.installment.findMany({
-    where: { status: "PENDING", dueAt: { lte: limit }, plan: { active: true } },
+    where: {
+      status: "PENDING",
+      dueAt: { lte: limit },
+      plan: { active: true, userId },
+    },
     include: {
       plan: {
         include: {

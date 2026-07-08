@@ -8,6 +8,7 @@ import {
   PRISMA_INT_MAX,
   RATE_SCALE,
 } from "@/lib/money";
+import { getSessionUser } from "@/lib/auth";
 import {
   incomeExpenseSchema,
   transferSchema,
@@ -24,6 +25,11 @@ function revalidateMovementPaths(accountIds: string[]) {
 export async function registerIncomeExpense(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = incomeExpenseSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -33,8 +39,8 @@ export async function registerIncomeExpense(
   }
 
   try {
-    const account = await prisma.account.findUnique({
-      where: { id: parsed.data.accountId },
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data.accountId, userId: user.id },
       include: { currency: true },
     });
     if (!account || account.archived) {
@@ -50,8 +56,8 @@ export async function registerIncomeExpense(
     }
 
     if (parsed.data.categoryId) {
-      const category = await prisma.category.findUnique({
-        where: { id: parsed.data.categoryId },
+      const category = await prisma.category.findFirst({
+        where: { id: parsed.data.categoryId, userId: user.id },
       });
       if (!category || category.kind !== parsed.data.kind) {
         return { success: false, error: "Categoría no válida" };
@@ -67,6 +73,7 @@ export async function registerIncomeExpense(
         categoryId: parsed.data.categoryId,
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),
+        userId: user.id,
       },
     });
 
@@ -81,6 +88,11 @@ export async function registerIncomeExpense(
 export async function registerTransfer(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = transferSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -94,12 +106,12 @@ export async function registerTransfer(
 
   try {
     const [from, to] = await Promise.all([
-      prisma.account.findUnique({
-        where: { id: parsed.data.accountId },
+      prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
         include: { currency: true },
       }),
-      prisma.account.findUnique({
-        where: { id: parsed.data.counterAccountId },
+      prisma.account.findFirst({
+        where: { id: parsed.data.counterAccountId, userId: user.id },
         include: { currency: true },
       }),
     ]);
@@ -154,6 +166,7 @@ export async function registerTransfer(
         rateScaled,
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),
+        userId: user.id,
       },
     });
 

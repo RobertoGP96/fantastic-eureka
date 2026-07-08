@@ -79,8 +79,10 @@ reales, y las categorías básicas de gastos/ingresos.
    - `DATABASE_URL`: cadena **pooled** de Neon con
      `&schema=caja&pgbouncer=true&connect_timeout=15&connection_limit=10`.
    - `DIRECT_URL`: cadena directa (host sin `-pooler`), con `&schema=caja`.
-   - `ALLOW_REGISTRATION`: `false` (recomendado — los usuarios comparten los
-     datos; crea las cuentas necesarias antes de cerrar el registro).
+   - `ALLOW_REGISTRATION`: `true` (o elimínala). La app es multi-tenant:
+     cada usuario tiene sus propios datos (monedas, cuentas, tasas, deudas…)
+     y al registrarse recibe monedas y categorías por defecto. Ponla en
+     `false` solo si quieres cerrar el alta de usuarios nuevos.
 3. Migraciones: NO corren en el build. La BD actual ya está migrada; para
    futuras migraciones ejecuta `pnpm db:deploy` localmente contra Neon.
 

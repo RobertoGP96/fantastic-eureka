@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ScreenHeader } from "@/components/screen-header";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { CategoryManager, type CategoryItem } from "./category-manager";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +11,12 @@ export default async function CategoriasPage({
 }: {
   searchParams: Promise<{ tipo?: string }>;
 }) {
+  const user = await requireSessionUser();
   const { tipo } = await searchParams;
   const kind = tipo === "ingresos" ? "INCOME" : "EXPENSE";
 
   const categories = await prisma.category.findMany({
-    where: { kind },
+    where: { userId: user.id, kind },
     include: { _count: { select: { transactions: true } } },
     orderBy: [{ active: "desc" }, { name: "asc" }],
   });

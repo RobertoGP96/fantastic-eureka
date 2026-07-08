@@ -3,11 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 import { categorySchema, idSchema, type ActionResult } from "@/lib/schemas";
 
 export async function createCategory(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -18,7 +24,7 @@ export async function createCategory(
 
   try {
     const category = await prisma.category.create({
-      data: { name: parsed.data.name, kind: parsed.data.kind },
+      data: { name: parsed.data.name, kind: parsed.data.kind, userId: user.id },
     });
     revalidatePath("/categorias");
     revalidatePath("/registrar");
@@ -38,19 +44,24 @@ export async function createCategory(
 export async function toggleCategory(
   input: unknown
 ): Promise<ActionResult<{ id: string; active: boolean }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
   }
 
   try {
-    const category = await prisma.category.findUnique({
-      where: { id: parsed.data },
+    const category = await prisma.category.findFirst({
+      where: { id: parsed.data, userId: user.id },
     });
     if (!category) return { success: false, error: "Categoría no encontrada" };
 
     const updated = await prisma.category.update({
-      where: { id: category.id },
+      where: { id: category.id, userId: user.id },
       data: { active: !category.active },
     });
     revalidatePath("/categorias");

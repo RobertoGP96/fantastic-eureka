@@ -4,6 +4,7 @@ import { getAccountIcon } from "@/lib/account-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { fmtMinor, fmtSignedMinor } from "@/lib/format";
@@ -18,9 +19,11 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
 });
 
 export default async function ConteoPage() {
+  const user = await requireSessionUser();
   const [accounts, counts] = await Promise.all([
-    listAccountsWithBalances(),
+    listAccountsWithBalances(user.id),
     prisma.cashCount.findMany({
+      where: { userId: user.id },
       include: { account: { include: { currency: true } } },
       orderBy: { countedAt: "desc" },
       take: 10,

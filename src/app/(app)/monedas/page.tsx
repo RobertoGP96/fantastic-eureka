@@ -1,11 +1,14 @@
 import { ScreenHeader } from "@/components/screen-header";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { CurrencyManager, type CurrencyItem } from "./currency-manager";
 
 export const dynamic = "force-dynamic";
 
 export default async function MonedasPage() {
+  const user = await requireSessionUser();
   const currencies = await prisma.currency.findMany({
+    where: { userId: user.id },
     orderBy: [{ isBase: "desc" }, { code: "asc" }],
     include: {
       _count: { select: { accounts: true, denominations: true } },

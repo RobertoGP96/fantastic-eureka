@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
+import { getSessionUser } from "@/lib/auth";
 import {
   currencySchema,
   denominationSchema,
@@ -25,6 +26,11 @@ function revalidateCurrencyPaths(currencyId?: string) {
 export async function createCurrency(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = currencySchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -40,6 +46,7 @@ export async function createCurrency(
         name: parsed.data.name,
         symbol: parsed.data.symbol,
         decimalPlaces: parsed.data.decimalPlaces,
+        userId: user.id,
       },
     });
     revalidateCurrencyPaths(currency.id);
@@ -59,12 +66,17 @@ export async function createCurrency(
 export async function toggleCurrency(
   input: unknown
 ): Promise<ActionResult<{ id: string; active: boolean }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Datos inválidos" };
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data },
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data, userId: user.id },
     });
     if (!currency) return { success: false, error: "Moneda no encontrada" };
     if (currency.isBase && currency.active) {
@@ -75,7 +87,7 @@ export async function toggleCurrency(
     }
 
     const updated = await prisma.currency.update({
-      where: { id: currency.id },
+      where: { id: currency.id, userId: user.id },
       data: { active: !currency.active },
     });
     revalidateCurrencyPaths(updated.id);
@@ -89,12 +101,17 @@ export async function toggleCurrency(
 export async function setBaseCurrency(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Datos inválidos" };
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data },
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data, userId: user.id },
     });
     if (!currency) return { success: false, error: "Moneda no encontrada" };
     if (currency.isBase) {
@@ -102,9 +119,12 @@ export async function setBaseCurrency(
     }
 
     await prisma.$transaction([
-      prisma.currency.updateMany({ data: { isBase: false } }),
+      prisma.currency.updateMany({
+        where: { userId: user.id },
+        data: { isBase: false },
+      }),
       prisma.currency.update({
-        where: { id: currency.id },
+        where: { id: currency.id, userId: user.id },
         data: { isBase: true, active: true },
       }),
     ]);
@@ -121,6 +141,11 @@ export async function setBaseCurrency(
 export async function createDenomination(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = denominationSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -130,8 +155,8 @@ export async function createDenomination(
   }
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: parsed.data.currencyId },
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data.currencyId, userId: user.id },
     });
     if (!currency) return { success: false, error: "Moneda no válida" };
 
@@ -164,17 +189,24 @@ export async function createDenomination(
 export async function toggleDenomination(
   input: unknown
 ): Promise<ActionResult<{ id: string; active: boolean }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Datos inválidos" };
 
   try {
-    const denomination = await prisma.denomination.findUnique({
-      where: { id: parsed.data },
+    const denomination = await prisma.denomination.findFirst({
+      where: { id: parsed.data, currency: { userId: user.id } },
     });
     if (!denomination) {
       return { success: false, error: "Denominación no encontrada" };
     }
 
+    // Update por id: ya validado arriba que la denominación pertenece al
+    // usuario (vía su moneda), no hace falta repetir la condición.
     const updated = await prisma.denomination.update({
       where: { id: denomination.id },
       data: { active: !denomination.active },

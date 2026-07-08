@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import {
@@ -29,10 +30,11 @@ export default async function PlanDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await requireSessionUser();
   const { id } = await params;
 
-  const plan = await prisma.paymentPlan.findUnique({
-    where: { id },
+  const plan = await prisma.paymentPlan.findFirst({
+    where: { id, userId: user.id },
     include: {
       currency: true,
       contact: true,
@@ -47,7 +49,7 @@ export default async function PlanDetallePage({
     .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())[0];
 
   const accounts = await prisma.account.findMany({
-    where: { archived: false, currencyId: plan.currencyId },
+    where: { userId: user.id, archived: false, currencyId: plan.currencyId },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });

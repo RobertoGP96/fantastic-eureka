@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { RateSparkline } from "@/components/rate-sparkline";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { pairRateSeries } from "@/lib/rates";
 import { fmtRate } from "@/lib/format";
 import { RateForm } from "./rate-form";
@@ -17,11 +18,13 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
 });
 
 export default async function TasasPage() {
+  const user = await requireSessionUser();
   const [currencies, series] = await Promise.all([
     prisma.currency.findMany({
+      where: { userId: user.id },
       orderBy: [{ isBase: "desc" }, { code: "asc" }],
     }),
-    pairRateSeries(),
+    pairRateSeries(user.id),
   ]);
 
   const activeCurrencies = currencies.filter((c) => c.active);

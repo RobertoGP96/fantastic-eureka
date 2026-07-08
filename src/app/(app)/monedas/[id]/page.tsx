@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/components/screen-header";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import {
   DenominationManager,
   type DenominationItem,
@@ -13,10 +14,11 @@ export default async function MonedaDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await requireSessionUser();
   const { id } = await params;
 
-  const currency = await prisma.currency.findUnique({
-    where: { id },
+  const currency = await prisma.currency.findFirst({
+    where: { id, userId: user.id },
     include: {
       denominations: {
         orderBy: [{ kind: "asc" }, { valueMinor: "desc" }],

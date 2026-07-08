@@ -12,8 +12,8 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - `pnpm tsx prisma/reset-data.ts` — limpia datos conservando seed
 - `pnpm db:deploy` — `prisma migrate deploy` (producción; no corre en build)
 - Deploy: Vercel (build = `prisma generate && next build`); env vars
-  DATABASE_URL, DIRECT_URL y ALLOW_REGISTRATION=false (registro cerrado;
-  los usuarios comparten datos)
+  DATABASE_URL, DIRECT_URL y ALLOW_REGISTRATION=true (registro abierto;
+  app multi-tenant, `false` solo para cerrar el alta en instancias privadas)
 - `pnpm test:e2e` — Playwright E2E (levanta su propio dev server; requiere
   puerto 3002 LIBRE — parar `pnpm dev` antes)
 
@@ -40,8 +40,22 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `src/lib/auth.ts`). `src/middleware.ts` solo comprueba presencia de cookie
   (edge, sin Prisma) y la validación real está en `src/app/(app)/layout.tsx`
   (`getSessionUser` → redirect a /auth/login). Páginas protegidas viven en el
-  grupo `(app)`; login/registro en `src/app/auth/`. Los usuarios comparten
-  datos (sin multi-tenancy).
+  grupo `(app)`; login/registro en `src/app/auth/`.
+- **Multi-tenancy**: TODOS los modelos raíz llevan `userId` obligatorio
+  (Currency, AccountGroup, Account, Category, Transaction, ExchangeRate,
+  CashCount, Contact, Debt, PaymentPlan; onDelete: Cascade). Los hijos
+  (Denomination, CashCountLine, Installment, DebtPayment) se acotan vía
+  padre (`plan: { userId }`, `currency: { userId }`). Unicidades por
+  usuario: `[userId, code]` (Currency), `[userId, name]` (AccountGroup),
+  `[userId, name, kind]` (Category). Las páginas usan
+  `requireSessionUser()` (`src/lib/auth.ts`, redirige a /auth/salir) y las
+  server actions `getSessionUser()` + error amigable; las lecturas por id
+  usan `findFirst({ id, userId })` (id ajeno = inexistente). Las funciones
+  de `src/lib/{balances,metrics,rates,debts,report}.ts` reciben `userId`
+  como primer argumento. Al registrarse, `bootstrapUserDefaults`
+  (`src/lib/user-defaults.ts`, sin server-only) crea monedas +
+  denominaciones + categorías del usuario en la misma transacción;
+  `prisma/seed.ts` aplica esos defaults a usuarios existentes sin monedas.
 - **Server actions** en `src/app/actions/*.ts`: validan con Zod
   (`src/lib/schemas.ts`), devuelven `ActionResult<T>` ({success, data|error}),
   loguean errores con console.error y mensajes amigables al UI.

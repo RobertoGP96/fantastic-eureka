@@ -2,6 +2,7 @@ import { History } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { TxList } from "@/components/tx-list";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { latestRatesByCurrency } from "@/lib/balances";
 import { toTxRow } from "@/lib/tx-rows";
@@ -23,6 +24,7 @@ export default async function MovimientosPage({
   }>;
 }) {
   const params = await searchParams;
+  const user = await requireSessionUser();
   const filters = {
     mes: params.mes ?? currentMonthParam(),
     cuenta: params.cuenta ?? "",
@@ -32,7 +34,7 @@ export default async function MovimientosPage({
 
   const [transactions, accounts, categories, base, rates] = await Promise.all([
     prisma.transaction.findMany({
-      where: buildTxWhere(filters),
+      where: buildTxWhere(user.id, filters),
       include: {
         account: { select: { name: true } },
         counterAccount: { select: { name: true } },
@@ -43,17 +45,17 @@ export default async function MovimientosPage({
       take: 200,
     }),
     prisma.account.findMany({
-      where: { archived: false },
+      where: { archived: false, userId: user.id },
       select: { id: true, name: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.category.findMany({
-      where: { active: true },
+      where: { active: true, userId: user.id },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    prisma.currency.findFirst({ where: { isBase: true } }),
-    latestRatesByCurrency(),
+    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
+    latestRatesByCurrency(user.id),
   ]);
 
   // Totales y reporte por categoría convertidos a moneda base con la tasa vigente.

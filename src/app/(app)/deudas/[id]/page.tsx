@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import {
@@ -25,10 +26,11 @@ export default async function DeudaDetallePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await requireSessionUser();
   const { id } = await params;
 
-  const debt = await prisma.debt.findUnique({
-    where: { id },
+  const debt = await prisma.debt.findFirst({
+    where: { id, userId: user.id },
     include: {
       contact: true,
       currency: true,
@@ -63,7 +65,7 @@ export default async function DeudaDetallePage({
     .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
 
   const accounts = await prisma.account.findMany({
-    where: { archived: false, currencyId: debt.currencyId },
+    where: { userId: user.id, archived: false, currencyId: debt.currencyId },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });

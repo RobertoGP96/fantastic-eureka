@@ -1,4 +1,5 @@
 import { ScreenHeader } from "@/components/screen-header";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { RegisterForm } from "./register-form";
 
@@ -13,17 +14,18 @@ export default async function RegistrarPage({
   searchParams: Promise<{ tipo?: string; cuenta?: string }>;
 }) {
   const { tipo, cuenta } = await searchParams;
+  const user = await requireSessionUser();
 
   const [accounts, categories] = await Promise.all([
     prisma.account.findMany({
-      where: { archived: false },
+      where: { archived: false, userId: user.id },
       include: {
         currency: { select: { id: true, code: true, decimalPlaces: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
     prisma.category.findMany({
-      where: { active: true },
+      where: { active: true, userId: user.id },
       orderBy: { name: "asc" },
       select: { id: true, name: true, kind: true },
     }),

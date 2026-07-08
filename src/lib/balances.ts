@@ -63,11 +63,14 @@ export interface AccountWithBalance {
   balanceMinor: number;
 }
 
-export async function listAccountsWithBalances(options?: {
-  includeArchived?: boolean;
-}): Promise<AccountWithBalance[]> {
+export async function listAccountsWithBalances(
+  userId: string,
+  options?: {
+    includeArchived?: boolean;
+  }
+): Promise<AccountWithBalance[]> {
   const accounts = await prisma.account.findMany({
-    where: options?.includeArchived ? {} : { archived: false },
+    where: { userId, ...(options?.includeArchived ? {} : { archived: false }) },
     include: {
       currency: true,
       group: { select: { id: true, name: true } },
@@ -99,13 +102,16 @@ export async function listAccountsWithBalances(options?: {
  * registrados (directo o inverso). Mantiene la interfaz histórica
  * Map<currencyId, {rateScaled, effectiveAt}> que consume el resto de la app.
  */
-export async function latestRatesByCurrency(): Promise<
-  Map<string, { rateScaled: number; effectiveAt: Date }>
-> {
+export async function latestRatesByCurrency(
+  userId: string
+): Promise<Map<string, { rateScaled: number; effectiveAt: Date }>> {
   const [base, currencies, pairs] = await Promise.all([
-    prisma.currency.findFirst({ where: { isBase: true }, select: { id: true } }),
-    prisma.currency.findMany({ select: { id: true } }),
-    latestPairRates(),
+    prisma.currency.findFirst({
+      where: { userId, isBase: true },
+      select: { id: true },
+    }),
+    prisma.currency.findMany({ where: { userId }, select: { id: true } }),
+    latestPairRates(userId),
   ]);
 
   const map = new Map<string, { rateScaled: number; effectiveAt: Date }>();

@@ -6,8 +6,8 @@ import { daysUntil, dueLabel } from "@/lib/dates";
 import { fmtMinor } from "@/lib/format";
 import { PLAN_KIND_LABELS, type PlanKind } from "@/lib/domain";
 
-export async function UpcomingInstallments() {
-  const rows = await upcomingInstallments(7);
+export async function UpcomingInstallments({ userId }: { userId: string }) {
+  const rows = await upcomingInstallments(userId, 7);
   if (rows.length === 0) return null;
 
   return (

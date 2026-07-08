@@ -3,6 +3,7 @@ import { FolderOpen, Plus, Wallet } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   latestRatesByCurrency,
@@ -54,14 +55,16 @@ interface Section {
 }
 
 export default async function CuentasPage() {
+  const user = await requireSessionUser();
   const [accounts, groups, base, rates] = await Promise.all([
-    listAccountsWithBalances(),
+    listAccountsWithBalances(user.id),
     prisma.accountGroup.findMany({
+      where: { userId: user.id },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.currency.findFirst({ where: { isBase: true } }),
-    latestRatesByCurrency(),
+    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
+    latestRatesByCurrency(user.id),
   ]);
 
   const sections: Section[] =

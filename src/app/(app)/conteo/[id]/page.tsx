@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/components/screen-header";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { fmtMinor } from "@/lib/format";
@@ -13,9 +14,10 @@ export default async function ConteoCajaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await requireSessionUser();
 
-  const account = await prisma.account.findUnique({
-    where: { id },
+  const account = await prisma.account.findFirst({
+    where: { id, userId: user.id },
     include: { currency: true },
   });
   if (!account || account.type !== "CASH") notFound();
@@ -23,7 +25,11 @@ export default async function ConteoCajaPage({
   const [expectedMinor, denominations] = await Promise.all([
     accountBalanceMinor(account.id),
     prisma.denomination.findMany({
-      where: { currencyId: account.currencyId, active: true },
+      where: {
+        currencyId: account.currencyId,
+        active: true,
+        currency: { userId: user.id },
+      },
       orderBy: [{ kind: "asc" }, { valueMinor: "desc" }],
     }),
   ]);

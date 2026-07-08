@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE } from "@/lib/auth-shared";
 
@@ -64,6 +65,18 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     email: session.user.email,
   };
 });
+
+/**
+ * Usuario de la sesión o redirección a /auth/salir (limpia la cookie).
+ * Para páginas y route handlers del grupo (app): garantiza el userId con el
+ * que se acotan TODAS las consultas multi-tenant. Las server actions NO la
+ * usan (devuelven ActionResult con error en vez de redirigir).
+ */
+export async function requireSessionUser(): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) redirect("/auth/salir");
+  return user;
+}
 
 /** Cierra las demás sesiones del usuario, conservando la actual. */
 export async function invalidateOtherSessions(userId: string): Promise<void> {

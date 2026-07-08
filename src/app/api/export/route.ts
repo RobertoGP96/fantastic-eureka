@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   };
 
   const transactions = await prisma.transaction.findMany({
-    where: buildTxWhere(filters),
+    where: buildTxWhere(user.id, filters),
     include: {
       account: { select: { name: true } },
       counterAccount: { select: { name: true } },

@@ -20,6 +20,7 @@ export interface DashboardMetrics {
 
 /** Métricas del dashboard convertidas a la moneda base (últimos `months` meses). */
 export async function dashboardMetrics(
+  userId: string,
   base: BaseCurrencyInfo & { code: string },
   months = 6
 ): Promise<DashboardMetrics> {
@@ -29,9 +30,10 @@ export async function dashboardMetrics(
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
   const [rates, transactions, openDebts] = await Promise.all([
-    latestRatesByCurrency(),
+    latestRatesByCurrency(userId),
     prisma.transaction.findMany({
       where: {
+        userId,
         kind: { in: ["INCOME", "EXPENSE"] },
         occurredAt: { gte: rangeStart },
       },
@@ -44,7 +46,7 @@ export async function dashboardMetrics(
       },
     }),
     prisma.debt.findMany({
-      where: { status: "OPEN" },
+      where: { userId, status: "OPEN" },
       include: {
         currency: { select: { id: true, code: true, decimalPlaces: true } },
         payments: { select: { amountMinor: true } },

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
 import { fmtMinor } from "@/lib/format";
 import { debtRemainingMinor } from "@/lib/debts";
+import { getSessionUser } from "@/lib/auth";
 import {
   ActionError,
   createDebtSchema,
@@ -27,6 +28,11 @@ function revalidateDebtPaths(debtId: string, accountId?: string) {
 export async function createDebt(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = createDebtSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -46,8 +52,8 @@ export async function createDebt(
   }
 
   try {
-    const currency = await prisma.currency.findUnique({
-      where: { id: data.currencyId },
+    const currency = await prisma.currency.findFirst({
+      where: { id: data.currencyId, userId: user.id },
     });
     if (!currency || !currency.active) {
       return { success: false, error: "Moneda no válida" };
@@ -56,8 +62,8 @@ export async function createDebt(
     // Solo validaciones antes de escribir: el contacto nuevo se crea dentro
     // de la transacción para no dejar contactos huérfanos si algo falla.
     if (data.contactId) {
-      const contact = await prisma.contact.findUnique({
-        where: { id: data.contactId },
+      const contact = await prisma.contact.findFirst({
+        where: { id: data.contactId, userId: user.id },
       });
       if (!contact) return { success: false, error: "Contacto no válido" };
     } else if (!data.contactName) {
@@ -66,8 +72,8 @@ export async function createDebt(
 
     let accountId: string | null = null;
     if (data.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: data.accountId },
+      const account = await prisma.account.findFirst({
+        where: { id: data.accountId, userId: user.id },
       });
       if (!account || account.archived) {
         return { success: false, error: "Cuenta no válida" };
@@ -100,7 +106,11 @@ export async function createDebt(
     const debt = await prisma.$transaction(async (tx) => {
       const contactId =
         data.contactId ??
-        (await tx.contact.create({ data: { name: data.contactName! } })).id;
+        (
+          await tx.contact.create({
+            data: { name: data.contactName!, userId: user.id },
+          })
+        ).id;
       const created = await tx.debt.create({
         data: {
           contactId,
@@ -109,6 +119,7 @@ export async function createDebt(
           totalMinor,
           currencyId: currency.id,
           accountId,
+          userId: user.id,
         },
       });
 
@@ -117,6 +128,7 @@ export async function createDebt(
           data: {
             debtId: created.id,
             contactId,
+            userId: user.id,
             kind: data.direction === "RECEIVABLE" ? "COLLECT" : "PAY",
             description: data.description,
             currencyId: currency.id,
@@ -150,14 +162,19 @@ export async function createDebt(
 export async function setDebtAccount(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = setDebtAccountSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Datos inválidos" };
   }
 
   try {
-    const debt = await prisma.debt.findUnique({
-      where: { id: parsed.data.debtId },
+    const debt = await prisma.debt.findFirst({
+      where: { id: parsed.data.debtId, userId: user.id },
       include: { currency: true },
     });
     if (!debt) {
@@ -165,8 +182,8 @@ export async function setDebtAccount(
     }
 
     if (parsed.data.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: parsed.data.accountId },
+      const account = await prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
       });
       if (!account || account.archived) {
         return { success: false, error: "Cuenta no válida" };
@@ -180,7 +197,7 @@ export async function setDebtAccount(
     }
 
     await prisma.debt.update({
-      where: { id: debt.id },
+      where: { id: debt.id, userId: user.id },
       data: { accountId: parsed.data.accountId },
     });
 
@@ -195,6 +212,11 @@ export async function setDebtAccount(
 export async function registerDebtPayment(
   input: unknown
 ): Promise<ActionResult<{ id: string; settled: boolean }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = debtPaymentSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -205,11 +227,13 @@ export async function registerDebtPayment(
 
   try {
     const [debt, account] = await Promise.all([
-      prisma.debt.findUnique({
-        where: { id: parsed.data.debtId },
+      prisma.debt.findFirst({
+        where: { id: parsed.data.debtId, userId: user.id },
         include: { currency: true },
       }),
-      prisma.account.findUnique({ where: { id: parsed.data.accountId } }),
+      prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
+      }),
     ]);
     if (!debt || debt.status !== "OPEN") {
       return { success: false, error: "La deuda no está abierta" };
@@ -247,6 +271,7 @@ export async function registerDebtPayment(
           amountMinor,
           currencyId: debt.currencyId,
           note: parsed.data.note || `Abono · ${debt.description}`,
+          userId: user.id,
         },
       });
 
@@ -260,16 +285,19 @@ export async function registerDebtPayment(
 
       if (settled) {
         await tx.debt.update({
-          where: { id: debt.id },
+          where: { id: debt.id, userId: user.id },
           data: { status: "PAID" },
         });
         // La deuda quedó saldada: sus cuotas pendientes ya no aplican.
         await tx.installment.updateMany({
-          where: { plan: { debtId: debt.id }, status: "PENDING" },
+          where: {
+            plan: { debtId: debt.id, userId: user.id },
+            status: "PENDING",
+          },
           data: { status: "SKIPPED" },
         });
         await tx.paymentPlan.updateMany({
-          where: { debtId: debt.id },
+          where: { debtId: debt.id, userId: user.id },
           data: { active: false },
         });
       }

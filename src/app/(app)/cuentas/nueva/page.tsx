@@ -1,17 +1,20 @@
 import { ScreenHeader } from "@/components/screen-header";
+import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AccountForm } from "./account-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevaCuentaPage() {
+  const user = await requireSessionUser();
   const [currencies, groups] = await Promise.all([
     prisma.currency.findMany({
-      where: { active: true },
+      where: { active: true, userId: user.id },
       orderBy: [{ isBase: "desc" }, { code: "asc" }],
       select: { id: true, code: true, name: true },
     }),
     prisma.accountGroup.findMany({
+      where: { userId: user.id },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

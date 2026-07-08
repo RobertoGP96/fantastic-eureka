@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
+import { getSessionUser } from "@/lib/auth";
 import { exchangeRateSchema, type ActionResult } from "@/lib/schemas";
 
 // La tasa relaciona un PAR de monedas: unidades de destino por 1 de origen,
@@ -10,6 +11,11 @@ import { exchangeRateSchema, type ActionResult } from "@/lib/schemas";
 export async function createExchangeRate(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
   const parsed = exchangeRateSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -23,8 +29,12 @@ export async function createExchangeRate(
 
   try {
     const [from, to] = await Promise.all([
-      prisma.currency.findUnique({ where: { id: parsed.data.fromCurrencyId } }),
-      prisma.currency.findUnique({ where: { id: parsed.data.toCurrencyId } }),
+      prisma.currency.findFirst({
+        where: { id: parsed.data.fromCurrencyId, userId: user.id },
+      }),
+      prisma.currency.findFirst({
+        where: { id: parsed.data.toCurrencyId, userId: user.id },
+      }),
     ]);
     if (!from || !from.active || !to || !to.active) {
       return { success: false, error: "Moneda no válida" };
@@ -46,6 +56,7 @@ export async function createExchangeRate(
         toCurrencyId: to.id,
         rateScaled,
         effectiveAt: parsed.data.effectiveAt ?? new Date(),
+        userId: user.id,
       },
     });
 

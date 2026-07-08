@@ -14,8 +14,11 @@ export interface PairRate {
  * cronológico ascendente y con una sola consulta. El último elemento de
  * cada serie es la tasa vigente del par.
  */
-export async function pairRateSeries(): Promise<Map<string, PairRate[]>> {
+export async function pairRateSeries(
+  userId: string
+): Promise<Map<string, PairRate[]>> {
   const rates = await prisma.exchangeRate.findMany({
+    where: { userId },
     orderBy: { effectiveAt: "asc" },
   });
   const series = new Map<string, PairRate[]>();
@@ -36,8 +39,11 @@ export async function pairRateSeries(): Promise<Map<string, PairRate[]>> {
 }
 
 /** Última tasa vigente por PAR (clave `fromId→toId`). */
-export async function latestPairRates(): Promise<Map<string, PairRate>> {
+export async function latestPairRates(
+  userId: string
+): Promise<Map<string, PairRate>> {
   const rates = await prisma.exchangeRate.findMany({
+    where: { userId },
     orderBy: { effectiveAt: "desc" },
   });
   const latest = new Map<string, PairRate>();
