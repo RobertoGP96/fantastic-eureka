@@ -141,6 +141,11 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   el runtime de Next). El CLI de Prisma solo lee `.env` — si algo falla,
   restaurar `.env` desde `.env.local`. No crear `prisma/.env` (Prisma aborta
   si duplica variables).
+- Config del CLI en `prisma.config.ts` (el bloque `package.json#prisma` está
+  deprecado): el seed vive en `migrations.seed`. Con config file Prisma NO
+  carga `.env` solo — lo repone el `import "dotenv/config"` de ese archivo
+  (dotenv no pisa variables ya definidas, así el override de DATABASE_URL
+  en `e2e/setup-db.ts` sigue ganando).
 - Playwright E2E (`e2e/`, config en `playwright.config.ts`): BD aislada
   `prisma/test.db` recreada en cada corrida (migrate deploy + seed vía
   `e2e/setup-db.ts`, encadenado en el comando del webServer porque este
