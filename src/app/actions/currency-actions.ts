@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth";
+import { basicDenominations } from "@/lib/user-defaults";
 import {
   currencySchema,
   denominationSchema,
@@ -40,14 +41,24 @@ export async function createCurrency(
   }
 
   try {
-    const currency = await prisma.currency.create({
-      data: {
-        code: parsed.data.code,
-        name: parsed.data.name,
-        symbol: parsed.data.symbol,
-        decimalPlaces: parsed.data.decimalPlaces,
-        userId: user.id,
-      },
+    // La moneda nace con denominaciones básicas (serie 1-2-5) para que el
+    // arqueo funcione desde el primer momento; se ajustan en /monedas/[id].
+    const currency = await prisma.$transaction(async (tx) => {
+      const created = await tx.currency.create({
+        data: {
+          code: parsed.data.code,
+          name: parsed.data.name,
+          symbol: parsed.data.symbol,
+          decimalPlaces: parsed.data.decimalPlaces,
+          userId: user.id,
+        },
+      });
+      await tx.denomination.createMany({
+        data: basicDenominations(created.decimalPlaces).map(
+          (denomination) => ({ ...denomination, currencyId: created.id })
+        ),
+      });
+      return created;
     });
     revalidateCurrencyPaths(currency.id);
     return { success: true, data: { id: currency.id } };

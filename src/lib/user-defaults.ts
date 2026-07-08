@@ -77,6 +77,30 @@ export const DEFAULT_CURRENCIES: DefaultCurrency[] = [
   },
 ];
 
+/**
+ * Denominaciones básicas para una moneda NUEVA creada por el usuario
+ * (serie 1-2-5 genérica). Billetes de 1 a 500 unidades y, si la moneda
+ * tiene decimales, las monedas fraccionarias más comunes (se descartan las
+ * que no den un entero en unidades menores). El usuario puede desactivar
+ * o añadir denominaciones en /monedas/[id].
+ */
+export function basicDenominations(
+  decimalPlaces: number
+): DefaultDenomination[] {
+  const factor = 10 ** decimalPlaces;
+  const bills = [500, 200, 100, 50, 20, 10, 5, 1].map((value) =>
+    bill(value * factor)
+  );
+  const coins =
+    decimalPlaces > 0
+      ? [0.5, 0.25, 0.1, 0.05]
+          .map((value) => value * factor)
+          .filter(Number.isInteger)
+          .map((value) => coin(value))
+      : [coin(1)];
+  return [...bills, ...coins];
+}
+
 export const DEFAULT_EXPENSE_CATEGORIES = [
   "Alimentación",
   "Transporte",
