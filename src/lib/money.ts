@@ -43,6 +43,28 @@ export function parseAmountToMinor(
   return negative ? -minor : minor;
 }
 
+/**
+ * Convierte unidades menores a texto editable para un input ("1234.5"),
+ * sin separadores de miles y sin ceros decimales sobrantes.
+ */
+export function minorToAmountInput(
+  valueMinor: number,
+  currency: MinorCurrency
+): string {
+  const dec = currency.decimalPlaces;
+  const negative = valueMinor < 0;
+  const abs = Math.abs(valueMinor);
+  const intPart = Math.floor(abs / pow10(dec));
+  const frac =
+    dec > 0
+      ? String(abs % pow10(dec))
+          .padStart(dec, "0")
+          .replace(/0+$/, "")
+      : "";
+  const result = frac ? `${intPart}.${frac}` : String(intPart);
+  return negative ? `-${result}` : result;
+}
+
 export function sumMinor(values: number[]): number {
   const total = values.reduce((acc, v) => acc + v, 0);
   if (!Number.isSafeInteger(total)) throw new Error("Suma fuera de rango");

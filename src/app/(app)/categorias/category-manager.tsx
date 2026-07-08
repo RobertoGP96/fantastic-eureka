@@ -2,12 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import {
+  EllipsisVertical,
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   createCategory,
+  deleteCategory,
+  renameCategory,
   toggleCategory,
 } from "@/app/actions/category-actions";
 import { useUI } from "@/lib/ui-store";
@@ -32,6 +47,9 @@ export function CategoryManager({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const add = async () => {
     setSaving(true);
@@ -55,6 +73,42 @@ export function CategoryManager({
     } else {
       showToast(result.error);
     }
+  };
+
+  const rename = async (id: string) => {
+    setSaving(true);
+    const result = await renameCategory({ id, name: editName });
+    setSaving(false);
+    if (result.success) {
+      showToast("Categoría renombrada");
+      setEditingId(null);
+      router.refresh();
+    } else {
+      showToast(result.error);
+    }
+  };
+
+  const remove = async (id: string) => {
+    setSaving(true);
+    const result = await deleteCategory(id);
+    setSaving(false);
+    setConfirmDeleteId(null);
+    if (result.success) {
+      showToast("Categoría eliminada");
+      router.refresh();
+    } else {
+      showToast(result.error);
+    }
+  };
+
+  const requestDelete = (category: CategoryItem) => {
+    // Con movimientos no se puede borrar (se perdería la clasificación);
+    // avisamos directo sin pasar por la confirmación.
+    if (category.usageCount > 0) {
+      showToast("Tiene movimientos asociados; ocúltala en su lugar");
+      return;
+    }
+    setConfirmDeleteId(category.id);
   };
 
   return (
@@ -89,28 +143,112 @@ export function CategoryManager({
         {categories.map((category) => (
           <div
             key={category.id}
-            className={`flex items-center justify-between rounded-[13px] border border-line bg-white px-3.5 py-2.5 ${
+            className={`rounded-[13px] border border-line bg-white px-3.5 py-2 ${
               category.active ? "" : "opacity-55"
             }`}
           >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="min-w-0 truncate text-[13px] font-semibold text-navy">
-                {category.name}
-              </span>
-              {category.usageCount > 0 && (
-                <Badge variant="neutral" className="flex-none">
-                  {category.usageCount} mov.
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-none"
-              onClick={() => void toggle(category.id)}
-            >
-              {category.active ? "Ocultar" : "Activar"}
-            </Button>
+            {editingId === category.id ? (
+              <form
+                className="flex items-center gap-2 py-0.5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void rename(category.id);
+                }}
+              >
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  maxLength={40}
+                  className="h-9"
+                  autoFocus
+                  required
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={saving || !editName.trim()}
+                >
+                  Guardar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => setEditingId(null)}
+                >
+                  Cancelar
+                </Button>
+              </form>
+            ) : confirmDeleteId === category.id ? (
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
+                  ¿Eliminar “{category.name}”? No se puede deshacer.
+                </span>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={saving}
+                  onClick={() => void remove(category.id)}
+                >
+                  Eliminar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => setConfirmDeleteId(null)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="min-w-0 truncate text-[13px] font-semibold text-navy">
+                    {category.name}
+                  </span>
+                  {category.usageCount > 0 && (
+                    <Badge variant="neutral" className="flex-none">
+                      {category.usageCount} mov.
+                    </Badge>
+                  )}
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="flex-none"
+                      aria-label={`Opciones de ${category.name}`}
+                    >
+                      <EllipsisVertical />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-44">
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setEditingId(category.id);
+                        setEditName(category.name);
+                      }}
+                    >
+                      <Pencil />
+                      Renombrar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => void toggle(category.id)}>
+                      {category.active ? <EyeOff /> : <Eye />}
+                      {category.active ? "Ocultar" : "Activar"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => requestDelete(category)}
+                    >
+                      <Trash2 />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
         ))}
         {categories.length === 0 && (
@@ -119,6 +257,11 @@ export function CategoryManager({
           </div>
         )}
       </div>
+
+      <p className="text-[11.5px] text-muted">
+        Las categorías con movimientos no se pueden eliminar para conservar el
+        historial; ocúltalas y dejarán de aparecer al registrar.
+      </p>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   currencySchema,
   denominationSchema,
   idSchema,
+  updateDenominationSchema,
   type ActionResult,
 } from "@/lib/schemas";
 
@@ -194,6 +195,105 @@ export async function createDenomination(
     }
     console.error("createDenomination:", error);
     return { success: false, error: "No se pudo crear la denominación" };
+  }
+}
+
+export async function updateDenomination(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = updateDenominationSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
+    };
+  }
+
+  try {
+    const denomination = await prisma.denomination.findFirst({
+      where: { id: parsed.data.id, currency: { userId: user.id } },
+      include: {
+        currency: true,
+        _count: { select: { countLines: true } },
+      },
+    });
+    if (!denomination) {
+      return { success: false, error: "Denominación no encontrada" };
+    }
+    // Cambiar el valor de una denominación ya usada alteraría los arqueos
+    // guardados (sus líneas referencian esta denominación).
+    if (denomination._count.countLines > 0) {
+      return {
+        success: false,
+        error: "Ya se usó en arqueos; ocúltala y crea una nueva",
+      };
+    }
+
+    const valueMinor = parseAmountToMinor(
+      parsed.data.value,
+      denomination.currency
+    );
+    if (valueMinor <= 0) {
+      return { success: false, error: "El valor debe ser mayor que cero" };
+    }
+
+    const updated = await prisma.denomination.update({
+      where: { id: denomination.id },
+      data: { valueMinor, kind: parsed.data.kind },
+    });
+    revalidateCurrencyPaths(denomination.currencyId);
+    return { success: true, data: { id: updated.id } };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { success: false, error: "Ya existe esa denominación" };
+    }
+    console.error("updateDenomination:", error);
+    return { success: false, error: "No se pudo editar la denominación" };
+  }
+}
+
+export async function deleteDenomination(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Datos inválidos" };
+
+  try {
+    const denomination = await prisma.denomination.findFirst({
+      where: { id: parsed.data, currency: { userId: user.id } },
+      include: { _count: { select: { countLines: true } } },
+    });
+    if (!denomination) {
+      return { success: false, error: "Denominación no encontrada" };
+    }
+    // La FK de CashCountLine es Restrict: borrar una usada rompería los
+    // arqueos guardados. Mejor mensaje amigable que error de BD.
+    if (denomination._count.countLines > 0) {
+      return {
+        success: false,
+        error: "Se usó en arqueos guardados; ocúltala en su lugar",
+      };
+    }
+
+    await prisma.denomination.delete({ where: { id: denomination.id } });
+    revalidateCurrencyPaths(denomination.currencyId);
+    return { success: true, data: { id: denomination.id } };
+  } catch (error) {
+    console.error("deleteDenomination:", error);
+    return { success: false, error: "No se pudo eliminar la denominación" };
   }
 }
 

@@ -112,6 +112,11 @@ export const categorySchema = z.object({
   kind: z.enum(["EXPENSE", "INCOME"]),
 });
 
+export const renameCategorySchema = z.object({
+  id: idSchema,
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(40),
+});
+
 export const contactSchema = z.object({
   name: z.string().trim().min(1).max(60),
   phone: z.string().trim().max(30).optional(),
@@ -185,6 +190,12 @@ export const currencySchema = z.object({
 
 export const denominationSchema = z.object({
   currencyId: idSchema,
+  value: amountText,
+  kind: z.enum(DENOMINATION_KINDS),
+});
+
+export const updateDenominationSchema = z.object({
+  id: idSchema,
   value: amountText,
   kind: z.enum(DENOMINATION_KINDS),
 });

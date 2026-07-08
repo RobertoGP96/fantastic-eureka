@@ -74,7 +74,12 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
   de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
 - **Monedas**: gestionables en `/monedas` (crear, ocultar, cambiar base,
-  denominaciones por divisa).
+  denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
+  (`/categorias`) se editan/renombran y eliminan desde un menú ⋮ por ítem;
+  eliminar (y editar denominaciones) solo si no tienen uso (arqueos/
+  movimientos) — con uso, ocultar (validado en la action y avisado en el UI).
+  `minorToAmountInput()` en `src/lib/money.ts` convierte menores → texto de
+  input (inverso de `parseAmountToMinor`).
 - **Tasas por PARES**: `ExchangeRate` relaciona fromCurrency→toCurrency
   (destino por 1 de origen, ×10 000). Resolución en `src/lib/rate-resolve.ts`
   (pura: directo → inverso → compuesto vía base) y `src/lib/rates.ts`

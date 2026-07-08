@@ -4,6 +4,7 @@ import {
   convertMinor,
   crossRateScaled,
   invertRateScaled,
+  minorToAmountInput,
   parseAmountToMinor,
   pow10,
   RATE_SCALE,
@@ -47,6 +48,35 @@ describe("parseAmountToMinor", () => {
     expect(() => parseAmountToMinor("abc", USD)).toThrow();
     expect(() => parseAmountToMinor("12.34.56", USD)).toThrow();
     expect(() => parseAmountToMinor("12,34,56", USD)).toThrow();
+  });
+});
+
+describe("minorToAmountInput", () => {
+  it("convierte menores a texto con 2 decimales", () => {
+    expect(minorToAmountInput(123456, USD)).toBe("1234.56");
+  });
+
+  it("omite los ceros decimales sobrantes", () => {
+    expect(minorToAmountInput(1250, USD)).toBe("12.5");
+    expect(minorToAmountInput(1200, USD)).toBe("12");
+  });
+
+  it("convierte con 0 decimales", () => {
+    expect(minorToAmountInput(4750, CUP)).toBe("4750");
+  });
+
+  it("rellena fracciones pequeñas con ceros a la izquierda", () => {
+    expect(minorToAmountInput(5, USD)).toBe("0.05");
+  });
+
+  it("acepta negativos", () => {
+    expect(minorToAmountInput(-1250, USD)).toBe("-12.5");
+  });
+
+  it("es inverso de parseAmountToMinor", () => {
+    expect(parseAmountToMinor(minorToAmountInput(123456, USD), USD)).toBe(
+      123456
+    );
   });
 });
 
