@@ -72,6 +72,12 @@ export const incomeExpenseSchema = z.object({
   kind: z.enum(["INCOME", "EXPENSE"]),
   accountId: idSchema,
   amount: amountText,
+  // Operación multi-moneda: el monto viene en otra divisa y se convierte a la
+  // de la cuenta con la tasa indicada (la definida, prellenada, u otra manual).
+  amountCurrencyId: idSchema.optional(),
+  rate: amountText.optional(),
+  // AMOUNT_TO_ACCOUNT: X de la cuenta por 1 del monto; ACCOUNT_TO_AMOUNT: al revés.
+  rateDirection: z.enum(["AMOUNT_TO_ACCOUNT", "ACCOUNT_TO_AMOUNT"]).optional(),
   categoryId: idSchema.optional(),
   note: z.string().trim().max(200).optional(),
   occurredAt: z.coerce.date().optional(),

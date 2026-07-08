@@ -39,6 +39,7 @@ export default async function MovimientosPage({
         account: { select: { name: true } },
         counterAccount: { select: { name: true } },
         currency: { select: { id: true, code: true, decimalPlaces: true } },
+        counterCurrency: { select: { code: true, decimalPlaces: true } },
         category: { select: { name: true } },
       },
       orderBy: { occurredAt: "desc" },

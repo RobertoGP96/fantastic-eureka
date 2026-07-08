@@ -94,6 +94,48 @@ export function convertMinor(
   return result;
 }
 
+/**
+ * Convierte un monto entre monedas con la tasa citada en sentido INVERSO
+ * (unidades de `from` por 1 unidad de `to`, ×RATE_SCALE). Divide con BigInt
+ * en vez de invertir la tasa, para no perder precisión.
+ */
+export function convertMinorInverse(
+  amountMinor: number,
+  from: MinorCurrency,
+  to: MinorCurrency,
+  rateScaled: number
+): number {
+  if (!Number.isInteger(rateScaled) || rateScaled <= 0) {
+    throw new Error("Tasa inválida");
+  }
+  const numerator =
+    BigInt(amountMinor) * BigInt(RATE_SCALE) * BigInt(pow10(to.decimalPlaces));
+  const denominator = BigInt(rateScaled) * BigInt(pow10(from.decimalPlaces));
+  const half = numerator < 0n ? -(denominator / 2n) : denominator / 2n;
+  const result = Number((numerator + half) / denominator);
+  if (!Number.isSafeInteger(result)) throw new Error("Conversión fuera de rango");
+  return result;
+}
+
+/**
+ * Tasa implícita entre dos montos ya conocidos: unidades de la moneda de
+ * `counterMinor` por 1 unidad de la de `amountMinor`, ×RATE_SCALE. Solo
+ * informativa; devuelve null si no cabe en un Int de Prisma o queda en 0.
+ */
+export function impliedRateScaled(
+  amountMinor: number,
+  from: MinorCurrency,
+  counterMinor: number,
+  to: MinorCurrency
+): number | null {
+  if (amountMinor <= 0 || counterMinor <= 0) return null;
+  const numerator =
+    BigInt(counterMinor) * BigInt(RATE_SCALE) * BigInt(pow10(from.decimalPlaces));
+  const denominator = BigInt(amountMinor) * BigInt(pow10(to.decimalPlaces));
+  const implied = Number((numerator + denominator / 2n) / denominator);
+  return implied >= 1 && implied <= PRISMA_INT_MAX ? implied : null;
+}
+
 /** Invierte una tasa: X→Y escalada ⇒ Y→X escalada (1e8 / tasa, half-up). */
 export function invertRateScaled(rateScaled: number): number {
   if (!Number.isInteger(rateScaled) || rateScaled <= 0) {

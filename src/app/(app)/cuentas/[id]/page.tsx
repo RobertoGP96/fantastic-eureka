@@ -40,6 +40,7 @@ export default async function CuentaDetallePage({
         account: { select: { name: true } },
         counterAccount: { select: { name: true } },
         currency: { select: { code: true, decimalPlaces: true } },
+        counterCurrency: { select: { code: true, decimalPlaces: true } },
         category: { select: { name: true } },
       },
       orderBy: { occurredAt: "desc" },

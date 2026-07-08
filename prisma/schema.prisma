@@ -26,13 +26,14 @@ model Currency {
   isBase        Boolean @default(false)
   active        Boolean @default(true)
 
-  denominations Denomination[]
-  accounts      Account[]
-  transactions  Transaction[]
-  ratesFrom     ExchangeRate[] @relation("RateFrom")
-  ratesTo       ExchangeRate[] @relation("RateTo")
-  debts         Debt[]
-  paymentPlans  PaymentPlan[]
+  denominations       Denomination[]
+  accounts            Account[]
+  transactions        Transaction[]
+  counterTransactions Transaction[]  @relation("CounterCurrencyTx")
+  ratesFrom           ExchangeRate[] @relation("RateFrom")
+  ratesTo             ExchangeRate[] @relation("RateTo")
+  debts               Debt[]
+  paymentPlans        PaymentPlan[]
 
   @@unique([userId, code])
 }
@@ -117,6 +118,10 @@ model Transaction {
   currencyId         String
   currency           Currency  @relation(fields: [currencyId], references: [id])
   counterAmountMinor Int?
+  // Moneda de counterAmountMinor: en TRANSFER, la de la cuenta destino; en
+  // INCOME/EXPENSE multi-moneda, la moneda original en que se hizo la operación.
+  counterCurrencyId  String?
+  counterCurrency    Currency? @relation("CounterCurrencyTx", fields: [counterCurrencyId], references: [id])
   rateScaled         Int?
   categoryId         String?
   category           Category? @relation(fields: [categoryId], references: [id])

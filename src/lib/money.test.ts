@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   composeRatesScaled,
   convertMinor,
+  convertMinorInverse,
   crossRateScaled,
+  impliedRateScaled,
   invertRateScaled,
   minorToAmountInput,
   parseAmountToMinor,
@@ -111,6 +113,64 @@ describe("convertMinor", () => {
     expect(() => convertMinor(100, USD, CUP, 0)).toThrow();
     expect(() => convertMinor(100, USD, CUP, -5)).toThrow();
     expect(() => convertMinor(100, USD, CUP, 1.5)).toThrow();
+  });
+});
+
+describe("convertMinorInverse", () => {
+  it("convierte CUP a USD con la tasa citada como CUP por USD", () => {
+    // 10 000 CUP ÷ 400 = 25.00 USD
+    expect(convertMinorInverse(10000, CUP, USD, 4_000_000)).toBe(2500);
+  });
+
+  it("no pierde precisión frente a invertir la tasa", () => {
+    // 10 000 CUP ÷ 385 = 25.97 USD (invertir la tasa daría 26.00)
+    expect(convertMinorInverse(10000, CUP, USD, 3_850_000)).toBe(2597);
+    expect(convertMinor(10000, CUP, USD, invertRateScaled(3_850_000))).toBe(
+      2600
+    );
+  });
+
+  it("es inversa de convertMinor con la misma tasa", () => {
+    // 100.00 USD × 435.5 = 43 550 CUP; y de vuelta con la MISMA tasa
+    expect(convertMinor(10000, USD, CUP, 4_355_000)).toBe(43550);
+    expect(convertMinorInverse(43550, CUP, USD, 4_355_000)).toBe(10000);
+  });
+
+  it("redondea half-up", () => {
+    // 1 CUP ÷ 400 = 0.0025 USD → 0.00 (half-up sobre 0.25 centavos → 0)
+    expect(convertMinorInverse(1, CUP, USD, 4_000_000)).toBe(0);
+    // 2 CUP ÷ 400 = 0.005 USD → 0.01
+    expect(convertMinorInverse(2, CUP, USD, 4_000_000)).toBe(1);
+  });
+
+  it("rechaza tasas inválidas", () => {
+    expect(() => convertMinorInverse(100, CUP, USD, 0)).toThrow();
+    expect(() => convertMinorInverse(100, CUP, USD, -5)).toThrow();
+    expect(() => convertMinorInverse(100, CUP, USD, 1.5)).toThrow();
+  });
+});
+
+describe("impliedRateScaled", () => {
+  it("deriva la tasa contraria por 1 unidad principal", () => {
+    // 25.00 USD ↔ 10 000 CUP ⇒ 400 CUP por USD
+    expect(impliedRateScaled(2500, USD, 10000, CUP)).toBe(4_000_000);
+  });
+
+  it("funciona con la dirección débil→fuerte", () => {
+    // 10 000 CUP ↔ 25.00 USD ⇒ 0.0025 USD por CUP
+    expect(impliedRateScaled(10000, CUP, 2500, USD)).toBe(25);
+  });
+
+  it("devuelve null si la tasa no cabe o queda en 0", () => {
+    // Tasa implícita < 0.0001 ⇒ 0 ⇒ null
+    expect(impliedRateScaled(100_000_000, CUP, 1, USD)).toBeNull();
+    // Tasa gigantesca fuera del Int de Prisma ⇒ null
+    expect(impliedRateScaled(1, USD, 2_000_000_000, CUP)).toBeNull();
+  });
+
+  it("devuelve null con montos no positivos", () => {
+    expect(impliedRateScaled(0, USD, 100, CUP)).toBeNull();
+    expect(impliedRateScaled(100, USD, -5, CUP)).toBeNull();
   });
 });
 

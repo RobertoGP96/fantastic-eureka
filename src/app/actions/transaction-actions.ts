@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import {
+  convertMinor,
+  convertMinorInverse,
+  impliedRateScaled,
   parseAmountToMinor,
-  pow10,
   PRISMA_INT_MAX,
-  RATE_SCALE,
 } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth";
 import {
@@ -47,12 +48,83 @@ export async function registerIncomeExpense(
       return { success: false, error: "Cuenta no válida" };
     }
 
-    const amountMinor = parseAmountToMinor(
-      parsed.data.amount,
-      account.currency
-    );
-    if (amountMinor <= 0) {
-      return { success: false, error: "El monto debe ser mayor que cero" };
+    // Operación multi-moneda: el monto viene en otra divisa y se convierte a
+    // la de la cuenta con la tasa indicada. El movimiento se guarda en la
+    // moneda de la cuenta (los saldos no cambian de lógica) y el monto
+    // original + la tasa quedan en counterAmountMinor/counterCurrencyId/rateScaled.
+    const crossCurrency =
+      !!parsed.data.amountCurrencyId &&
+      parsed.data.amountCurrencyId !== account.currencyId;
+
+    let amountMinor: number;
+    let counterAmountMinor: number | undefined;
+    let counterCurrencyId: string | undefined;
+    let rateScaled: number | null = null;
+
+    if (crossCurrency) {
+      const opCurrency = await prisma.currency.findFirst({
+        where: { id: parsed.data.amountCurrencyId, userId: user.id },
+      });
+      if (!opCurrency) {
+        return { success: false, error: "Moneda no válida" };
+      }
+
+      const opMinor = parseAmountToMinor(parsed.data.amount, opCurrency);
+      if (opMinor <= 0) {
+        return { success: false, error: "El monto debe ser mayor que cero" };
+      }
+      if (opMinor > PRISMA_INT_MAX) {
+        return { success: false, error: "Monto demasiado grande" };
+      }
+
+      if (!parsed.data.rate) {
+        return {
+          success: false,
+          error: `Indica la tasa ${opCurrency.code}/${account.currency.code}`,
+        };
+      }
+      // La tasa se parsea con la misma precisión con que se almacena (×10 000).
+      const enteredRateScaled = parseAmountToMinor(parsed.data.rate, {
+        decimalPlaces: 4,
+      });
+      if (enteredRateScaled <= 0 || enteredRateScaled > PRISMA_INT_MAX) {
+        return { success: false, error: "Tasa inválida" };
+      }
+
+      amountMinor =
+        parsed.data.rateDirection === "ACCOUNT_TO_AMOUNT"
+          ? convertMinorInverse(
+              opMinor,
+              opCurrency,
+              account.currency,
+              enteredRateScaled
+            )
+          : convertMinor(opMinor, opCurrency, account.currency, enteredRateScaled);
+      if (amountMinor <= 0) {
+        return {
+          success: false,
+          error: "El monto convertido queda en cero: revisa la tasa",
+        };
+      }
+      if (amountMinor > PRISMA_INT_MAX) {
+        return { success: false, error: "El monto convertido es demasiado grande" };
+      }
+
+      counterAmountMinor = opMinor;
+      counterCurrencyId = opCurrency.id;
+      // Igual que en transferencias: tasa implícita informativa
+      // (moneda original por 1 unidad de la moneda de la cuenta).
+      rateScaled = impliedRateScaled(
+        amountMinor,
+        account.currency,
+        opMinor,
+        opCurrency
+      );
+    } else {
+      amountMinor = parseAmountToMinor(parsed.data.amount, account.currency);
+      if (amountMinor <= 0) {
+        return { success: false, error: "El monto debe ser mayor que cero" };
+      }
     }
 
     if (parsed.data.categoryId) {
@@ -70,6 +142,9 @@ export async function registerIncomeExpense(
         accountId: account.id,
         amountMinor,
         currencyId: account.currencyId,
+        counterAmountMinor,
+        counterCurrencyId,
+        rateScaled,
         categoryId: parsed.data.categoryId,
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),
@@ -142,17 +217,14 @@ export async function registerTransfer(
       if (counterAmountMinor <= 0) {
         return { success: false, error: "El monto recibido debe ser mayor que cero" };
       }
-      // Tasa implícita (destino por 1 origen, ×RATE_SCALE), solo informativa.
-      // BigInt para no perder precisión con montos grandes; si no cabe en un
-      // Int de Prisma se guarda null.
-      const numerator =
-        BigInt(counterAmountMinor) *
-        BigInt(RATE_SCALE) *
-        BigInt(pow10(from.currency.decimalPlaces));
-      const denominator =
-        BigInt(amountMinor) * BigInt(pow10(to.currency.decimalPlaces));
-      const implied = Number((numerator + denominator / 2n) / denominator);
-      rateScaled = implied >= 1 && implied <= PRISMA_INT_MAX ? implied : null;
+      // Tasa implícita (destino por 1 origen), solo informativa; null si no
+      // cabe en un Int de Prisma.
+      rateScaled = impliedRateScaled(
+        amountMinor,
+        from.currency,
+        counterAmountMinor,
+        to.currency
+      );
     }
 
     const transaction = await prisma.transaction.create({
@@ -163,6 +235,7 @@ export async function registerTransfer(
         amountMinor,
         currencyId: from.currencyId,
         counterAmountMinor,
+        counterCurrencyId: to.currencyId,
         rateScaled,
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),

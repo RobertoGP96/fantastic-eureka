@@ -1,6 +1,7 @@
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { latestPairRatesLite } from "@/lib/rates";
 import { RegisterForm } from "./register-form";
 
 export const dynamic = "force-dynamic";
@@ -16,20 +17,31 @@ export default async function RegistrarPage({
   const { tipo, cuenta } = await searchParams;
   const user = await requireSessionUser();
 
-  const [accounts, categories] = await Promise.all([
-    prisma.account.findMany({
-      where: { archived: false, userId: user.id },
-      include: {
-        currency: { select: { id: true, code: true, decimalPlaces: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.category.findMany({
-      where: { active: true, userId: user.id },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, kind: true },
-    }),
-  ]);
+  const [accounts, categories, currencies, base, pairRates] =
+    await Promise.all([
+      prisma.account.findMany({
+        where: { archived: false, userId: user.id },
+        include: {
+          currency: { select: { id: true, code: true, decimalPlaces: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.category.findMany({
+        where: { active: true, userId: user.id },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, kind: true },
+      }),
+      prisma.currency.findMany({
+        where: { active: true, userId: user.id },
+        orderBy: { code: "asc" },
+        select: { id: true, code: true, decimalPlaces: true },
+      }),
+      prisma.currency.findFirst({
+        where: { isBase: true, userId: user.id },
+        select: { id: true },
+      }),
+      latestPairRatesLite(user.id),
+    ]);
 
   const initialMode: Mode = VALID_MODES.includes(tipo as Mode)
     ? (tipo as Mode)
@@ -46,6 +58,9 @@ export default async function RegistrarPage({
             currency: account.currency,
           }))}
           categories={categories}
+          currencies={currencies}
+          pairRates={pairRates}
+          baseCurrencyId={base?.id ?? null}
           initialMode={initialMode}
           initialAccountId={
             accounts.some((account) => account.id === cuenta)

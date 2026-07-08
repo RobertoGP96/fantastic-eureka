@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import { invertRateScaled } from "@/lib/money";
-import { pairKey } from "@/lib/rate-resolve";
+import { pairKey, type PairRateLite } from "@/lib/rate-resolve";
 
 export interface PairRate {
   rateScaled: number;
@@ -55,6 +55,33 @@ export async function latestPairRates(
         effectiveAt: rate.effectiveAt,
       });
     }
+  }
+  return latest;
+}
+
+/**
+ * Última tasa vigente por PAR en formato plano y serializable, para pasarla
+ * a componentes cliente que resuelven con `rate-resolve`.
+ */
+export async function latestPairRatesLite(
+  userId: string
+): Promise<PairRateLite[]> {
+  const rates = await prisma.exchangeRate.findMany({
+    where: { userId },
+    orderBy: { effectiveAt: "desc" },
+    select: { fromCurrencyId: true, toCurrencyId: true, rateScaled: true },
+  });
+  const seen = new Set<string>();
+  const latest: PairRateLite[] = [];
+  for (const rate of rates) {
+    const key = pairKey(rate.fromCurrencyId, rate.toCurrencyId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    latest.push({
+      fromId: rate.fromCurrencyId,
+      toId: rate.toCurrencyId,
+      rateScaled: rate.rateScaled,
+    });
   }
   return latest;
 }

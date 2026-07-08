@@ -1,6 +1,7 @@
 import "server-only";
 
 import { TRANSACTION_KIND_LABELS, type TransactionKind } from "@/lib/domain";
+import { fmtMinor } from "@/lib/format";
 import type { TxRow } from "@/components/tx-list";
 
 interface TxWithRelations {
@@ -14,6 +15,7 @@ interface TxWithRelations {
   account: { name: string };
   counterAccount: { name: string } | null;
   currency: { code: string; decimalPlaces: number };
+  counterCurrency: { code: string; decimalPlaces: number } | null;
   category: { name: string } | null;
 }
 
@@ -63,6 +65,15 @@ export function toTxRow(
 
   const subtitleParts: string[] = [];
   if (perspectiveAccountId === undefined) subtitleParts.push(tx.account.name);
+  // Ingreso/gasto multi-moneda: se muestra el monto original de la operación
+  // (el principal ya va convertido a la moneda de la cuenta).
+  if (
+    (tx.kind === "INCOME" || tx.kind === "EXPENSE") &&
+    tx.counterAmountMinor !== null &&
+    tx.counterCurrency
+  ) {
+    subtitleParts.push(fmtMinor(tx.counterAmountMinor, tx.counterCurrency));
+  }
   if (tx.note && title !== tx.note) subtitleParts.push(tx.note);
 
   return {

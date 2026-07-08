@@ -34,6 +34,17 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Saldos derivados**: nunca se almacenan; ver `src/lib/balances.ts`
   (INCOME/ADJUSTMENT suman, EXPENSE/TRANSFER restan, transferencias entrantes
   suman `counterAmountMinor`).
+- **Ingresos/gastos multi-moneda**: en /registrar se puede anotar el monto en
+  otra divisa; se convierte a la moneda de la cuenta con la tasa indicada
+  (prellenada desde los pares vía `rate-resolve`, editable, dirección
+  invertible ⇄). El movimiento se GUARDA en la moneda de la cuenta
+  (`amountMinor`, saldos/métricas intactos) y el original queda en
+  `counterAmountMinor` + `counterCurrencyId` (columna nueva; en TRANSFER
+  ahora guarda la moneda destino) + `rateScaled` (implícita, informativa,
+  `impliedRateScaled` en money.ts). Conversión con tasa inversa por división
+  BigInt (`convertMinorInverse`) para no perder precisión. El historial
+  (`tx-rows.ts`) muestra el monto original en el subtítulo — los `include`
+  de transacciones deben traer `counterCurrency`.
 - **Auth**: User + Session en Prisma. Contraseñas con scrypt
   (`src/lib/password.ts`, sin deps); sesiones de 30 días con token opaco
   (cookie `caja_session` httpOnly, SHA-256 del token en BD,
