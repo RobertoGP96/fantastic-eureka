@@ -10,8 +10,9 @@ import { useUI } from "@/lib/ui-store";
 
 /**
  * Gestión de la cuenta desde su detalle: renombrar, archivar/activar y
- * eliminar (solo sin uso; con movimientos o arqueos la action lo rechaza
- * y aquí se avisa directo, igual que con las categorías).
+ * eliminar. Eliminar borra también todo el historial de la cuenta
+ * (movimientos, arqueos y abonos vinculados), así que la confirmación
+ * inline avisa explícitamente cuando la cuenta tiene uso.
  */
 export function AccountEditor({
   accountId,
@@ -75,10 +76,6 @@ export function AccountEditor({
   };
 
   const requestDelete = () => {
-    if (hasUsage) {
-      showToast("Tiene movimientos o arqueos; archívala en su lugar");
-      return;
-    }
     setConfirmDelete(true);
   };
 
@@ -115,7 +112,9 @@ export function AccountEditor({
       ) : confirmDelete ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="min-w-0 flex-1 text-[12px] text-muted">
-            ¿Eliminar “{name}”? No se puede deshacer.
+            {hasUsage
+              ? `¿Eliminar “${name}”? Se borrarán también TODOS sus movimientos y arqueos (incluidas transferencias con otras cuentas y abonos vinculados). No se puede deshacer.`
+              : `¿Eliminar “${name}”? No se puede deshacer.`}
           </span>
           <Button
             size="sm"
@@ -177,8 +176,9 @@ export function AccountEditor({
         </div>
       )}
       <p className="text-[11px] text-muted">
-        Las cuentas con movimientos o arqueos no se pueden eliminar para
-        conservar el historial; archívalas y dejarán de aparecer al registrar.
+        Eliminar una cuenta borra también todo su historial (movimientos,
+        arqueos y abonos vinculados). Si prefieres conservarlo, archívala y
+        dejará de aparecer al registrar.
       </p>
     </div>
   );

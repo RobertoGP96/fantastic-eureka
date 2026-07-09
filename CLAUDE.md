@@ -78,7 +78,13 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
   derivado (PENDING + dueAt pasado), no hay cron. Las saldadas/canceladas NO
   desaparecen: `/deudas` lista sin filtro de estado y las muestra en la
-  sección «Historial» (badge Saldada/Cancelada) por dirección.
+  sección «Historial» (badge Saldada/Cancelada) por dirección. Deudas y
+  planes se pueden ELIMINAR desde su detalle
+  (`src/components/delete-entity-button.tsx`, confirmación inline →
+  `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
+  vinculados y cuotas — DebtPayment es Restrict y se borra antes; las
+  cuotas caen por Cascade) pero los movimientos de las cuentas se
+  CONSERVAN (los saldos no cambian; el movimiento solo pierde el vínculo).
 - **Cuenta vinculada**: `Debt.accountId` y `PaymentPlan.accountId` (opcionales,
   onDelete: SetNull, misma moneda validada en la action) guardan la cuenta
   preferida; se elige al crear y se edita en el detalle
@@ -125,9 +131,14 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   rojo si hay vencidas.
 - **Editar/eliminar cuentas**: en el detalle,
   `src/components/account-editor.tsx` (renombrar, archivar/activar y
-  eliminar con confirmación inline). `deleteAccount` solo si la cuenta no
-  tiene movimientos ni arqueos (mismo patrón que categorías: con uso,
-  archivar); Debt/PaymentPlan vinculados quedan en null (SetNull).
+  eliminar con confirmación inline que avisa del borrado del historial).
+  `deleteAccount` borra en cascada TODO el historial: movimientos por ambos
+  lados (incluidas transferencias con otras cuentas), arqueos y los
+  DebtPayment de esos movimientos (FK Restrict — se borran antes y el
+  pendiente de la deuda reaparece al ser derivado).
+  Installment.transactionId queda en null (SetNull; la cuota sigue PAID) y
+  Debt/PaymentPlan vinculados en null (SetNull). Archivar sigue siendo la
+  opción que conserva el historial.
 - **Detalle de movimiento**: `/movimientos/[id]` (todas las filas de
   `tx-list.tsx` enlazan ahí). Muestra cuentas origen/destino, monto original
   multi-moneda, tasa (`fmtRate`, counterCurrency por 1 de la moneda del

@@ -391,3 +391,36 @@ export async function deactivatePlan(
     return { success: false, error: "No se pudo desactivar el plan" };
   }
 }
+
+// Eliminar un plan borra también todas sus cuotas (Cascade). Los movimientos
+// de cuotas ya saldadas se CONSERVAN (Installment solo los vincula): los
+// saldos de las cuentas no cambian. El UI confirma antes de llamar aquí.
+export async function deletePlan(
+  input: unknown
+): Promise<ActionResult<undefined>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const plan = await prisma.paymentPlan.findFirst({
+      where: { id: parsed.data, userId: user.id },
+    });
+    if (!plan) return { success: false, error: "Plan no encontrado" };
+
+    await prisma.paymentPlan.delete({ where: { id: plan.id } });
+
+    revalidatePlanPaths(plan.id, plan.debtId);
+    revalidatePath("/movimientos");
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("deletePlan:", error);
+    return { success: false, error: "No se pudo eliminar el plan" };
+  }
+}

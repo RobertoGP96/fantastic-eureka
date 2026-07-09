@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
@@ -204,6 +205,10 @@ export default async function DeudaDetallePage({
             </div>
           </section>
         )}
+
+        <div className="flex justify-end">
+          <DeleteEntityButton kind="debt" targetId={debt.id} />
+        </div>
       </div>
     </main>
   );

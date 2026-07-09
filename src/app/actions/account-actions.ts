@@ -157,8 +157,11 @@ export async function updateAccount(
   }
 }
 
-// Eliminar solo cuentas sin uso: con movimientos o arqueos se perdería el
-// historial (y los saldos derivados), así que ahí la opción es archivar.
+// Eliminar la cuenta borra en cascada TODO su historial: movimientos donde
+// participa por cualquiera de los dos lados (incluidas transferencias con
+// otras cuentas), arqueos y abonos vinculados a esos movimientos. El UI pide
+// confirmación explícita antes de llamar aquí; la alternativa que conserva
+// el historial sigue siendo archivar.
 export async function deleteAccount(
   input: unknown
 ): Promise<ActionResult<undefined>> {
@@ -178,27 +181,33 @@ export async function deleteAccount(
     });
     if (!account) return { success: false, error: "Cuenta no encontrada" };
 
-    const [txCount, countCount] = await Promise.all([
-      prisma.transaction.count({
-        where: {
-          OR: [{ accountId: account.id }, { counterAccountId: account.id }],
-        },
-      }),
-      prisma.cashCount.count({ where: { accountId: account.id } }),
-    ]);
-    if (txCount > 0 || countCount > 0) {
-      return {
-        success: false,
-        error: "La cuenta tiene movimientos o arqueos; archívala en su lugar",
-      };
-    }
+    const touchesAccount = {
+      OR: [{ accountId: account.id }, { counterAccountId: account.id }],
+    };
 
-    // Debt.accountId y PaymentPlan.accountId quedan en null (onDelete: SetNull).
-    await prisma.account.delete({ where: { id: account.id } });
+    // Orden dictado por las claves foráneas: DebtPayment.transactionId es
+    // Restrict (hay que borrar el abono antes que su movimiento — la deuda
+    // vuelve a mostrar ese pendiente al ser derivado), mientras que
+    // Installment.transactionId es SetNull (la cuota saldada conserva su
+    // estado, solo pierde el vínculo). Los desgloses de denominaciones y las
+    // líneas de arqueo caen por Cascade.
+    await prisma.$transaction(async (tx) => {
+      await tx.cashCount.deleteMany({ where: { accountId: account.id } });
+      await tx.debtPayment.deleteMany({
+        where: { transaction: touchesAccount },
+      });
+      await tx.transaction.deleteMany({
+        where: { userId: user.id, ...touchesAccount },
+      });
+      // Debt.accountId y PaymentPlan.accountId quedan en null (onDelete: SetNull).
+      await tx.account.delete({ where: { id: account.id } });
+    });
 
     revalidatePath("/");
     revalidatePath("/cuentas");
     revalidatePath("/conteo");
+    revalidatePath("/movimientos");
+    revalidatePath("/deudas");
     return { success: true, data: undefined };
   } catch (error) {
     console.error("deleteAccount:", error);

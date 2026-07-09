@@ -10,6 +10,7 @@ import {
   ActionError,
   createDebtSchema,
   debtPaymentSchema,
+  idSchema,
   setDebtAccountSchema,
   type ActionResult,
 } from "@/lib/schemas";
@@ -313,5 +314,44 @@ export async function registerDebtPayment(
     }
     console.error("registerDebtPayment:", error);
     return { success: false, error: "No se pudo registrar el abono" };
+  }
+}
+
+// Eliminar una deuda quita el SEGUIMIENTO: sus abonos (DebtPayment, FK
+// Restrict — se borran antes que la deuda) y sus planes de cuotas (las
+// cuotas caen por Cascade). Los movimientos de las cuentas se CONSERVAN:
+// el dinero se movió de verdad y los saldos no deben cambiar; el detalle
+// del movimiento solo pierde el vínculo a la deuda. El UI confirma antes.
+export async function deleteDebt(
+  input: unknown
+): Promise<ActionResult<undefined>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const debt = await prisma.debt.findFirst({
+      where: { id: parsed.data, userId: user.id },
+    });
+    if (!debt) return { success: false, error: "Deuda no encontrada" };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.debtPayment.deleteMany({ where: { debtId: debt.id } });
+      await tx.paymentPlan.deleteMany({ where: { debtId: debt.id } });
+      await tx.debt.delete({ where: { id: debt.id } });
+    });
+
+    revalidateDebtPaths(debt.id);
+    revalidatePath("/movimientos");
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("deleteDebt:", error);
+    return { success: false, error: "No se pudo eliminar la deuda" };
   }
 }
