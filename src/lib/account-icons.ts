@@ -66,6 +66,7 @@ export const ACCOUNT_ICON_NAMES = ACCOUNT_ICONS.map((def) => def.name);
 
 const TYPE_FALLBACK: Record<string, LucideIcon> = {
   CASH: Banknote,
+  CASH_BOX: Coins,
   BANK: Landmark,
   DIGITAL: CreditCard,
 };

@@ -6,6 +6,7 @@ import { accountBalanceMinor } from "@/lib/balances";
 import { sumMinor } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth";
 import { cashCountSchema, type ActionResult } from "@/lib/schemas";
+import { isCashLikeType } from "@/lib/domain";
 
 export async function createCashCount(
   input: unknown
@@ -28,7 +29,7 @@ export async function createCashCount(
       where: { id: parsed.data.accountId, userId: user.id },
       include: { currency: true },
     });
-    if (!account || account.archived || account.type !== "CASH") {
+    if (!account || account.archived || !isCashLikeType(account.type)) {
       return { success: false, error: "Solo se pueden arquear cajas de efectivo" };
     }
 

@@ -12,7 +12,12 @@ import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { fmtMinor } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
-import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
+import {
+  ACCOUNT_TYPE_LABELS,
+  isCashLikeType,
+  type AccountType,
+} from "@/lib/domain";
+import { DenominationAvailability } from "@/components/denomination-availability";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +102,7 @@ export default async function CuentaDetallePage({
             <Plus className="h-4 w-4" />
             Registrar
           </Link>
-          {account.type === "CASH" && (
+          {isCashLikeType(account.type) && (
             <Link
               href={`/conteo/${account.id}`}
               className="flex flex-1 items-center justify-center gap-2 rounded-[13px] border border-line bg-white py-3 text-[13px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
@@ -135,6 +140,13 @@ export default async function CuentaDetallePage({
           archived={account.archived}
           hasUsage={txCount + countCount > 0}
         />
+
+        {account.type === "CASH_BOX" && (
+          <DenominationAvailability
+            accountId={account.id}
+            currency={account.currency}
+          />
+        )}
 
         <section>
           <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">

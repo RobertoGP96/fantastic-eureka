@@ -4,12 +4,14 @@ import {
   ArrowUpRight,
   ArrowRightLeft,
   Banknote,
+  Calculator,
   Wallet,
 } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { UpcomingInstallments } from "@/components/upcoming-installments";
+import { InstallmentNotifications } from "@/components/installment-notifications";
 import { MonthlyBars } from "@/components/monthly-bars";
 import { UserMenu } from "@/components/user-menu";
 import { requireSessionUser } from "@/lib/auth";
@@ -35,6 +37,7 @@ const QUICK_ACTIONS = [
     label: "Transferir",
   },
   { href: "/conteo", icon: Banknote, label: "Arqueo" },
+  { href: "/calculadora", icon: Calculator, label: "Calcular" },
 ];
 
 export default async function HomePage() {
@@ -88,8 +91,11 @@ export default async function HomePage() {
       <ScreenHeader
         title={APP_NAME}
         actions={
-          <div className="md:hidden">
-            <UserMenu userName={user.name} userEmail={user.email} />
+          <div className="flex items-center gap-2.5">
+            <InstallmentNotifications userId={user.id} />
+            <div className="md:hidden">
+              <UserMenu userName={user.name} userEmail={user.email} />
+            </div>
           </div>
         }
       >
@@ -112,7 +118,7 @@ export default async function HomePage() {
       </ScreenHeader>
 
       <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:px-0">
-        <div className="grid grid-cols-4 gap-2.5 md:max-w-md">
+        <div className="grid grid-cols-5 gap-2 md:max-w-lg">
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
             return (

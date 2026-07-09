@@ -86,6 +86,24 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
   onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
   de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
+- **Tipos de cuenta**: CASH | CASH_BOX | BANK | DIGITAL (`domain.ts`).
+  CASH_BOX («Caja (denominaciones)») es como CASH pero su detalle muestra
+  «Denominaciones en caja» (`src/components/denomination-availability.tsx`),
+  derivado del ÚLTIMO arqueo (no se almacena stock por denominación). Los
+  guards de arqueo usan `isCashLikeType()` (CASH y CASH_BOX) — nunca
+  comparar `type === "CASH"` a mano.
+- **Conteo por denominaciones**: filas compartidas en
+  `src/components/denomination-counter.tsx` (subtotal en línea propia bajo
+  la fila: no se desborda en móvil) sobre la lógica pura de
+  `src/lib/counting.ts` (clampQty/countedTotalMinor, con tests). Las usan el
+  arqueo (`/conteo/[id]`) y la calculadora `/calculadora` (contar efectivo
+  por moneda SIN cuenta ni escritura en BD; accesos con icono calculadora en
+  Inicio, /conteo, /mas y el sidebar).
+- **Notificaciones de cuotas**: campana en el header de Inicio
+  (`src/components/installment-notifications.tsx` server →
+  `notifications-bell.tsx` client, dropdown shadcn): cuotas PENDING vencidas
+  o que vencen en ≤7 días (`upcomingInstallments`, máx 8), badge dorado o
+  rojo si hay vencidas.
 - **Editar/eliminar cuentas**: en el detalle,
   `src/components/account-editor.tsx` (renombrar, archivar/activar y
   eliminar con confirmación inline). `deleteAccount` solo si la cuenta no

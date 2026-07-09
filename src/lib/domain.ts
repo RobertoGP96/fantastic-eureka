@@ -1,14 +1,23 @@
 // Constantes de dominio compartidas entre Prisma (SQLite no soporta enums),
 // las server actions (validación Zod) y la UI (etiquetas en español).
 
-export const ACCOUNT_TYPES = ["CASH", "BANK", "DIGITAL"] as const;
+export const ACCOUNT_TYPES = ["CASH", "CASH_BOX", "BANK", "DIGITAL"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   CASH: "Efectivo",
+  CASH_BOX: "Caja (denominaciones)",
   BANK: "Banco",
   DIGITAL: "Digital",
 };
+
+// Tipos que admiten arqueo físico con denominaciones. CASH_BOX además
+// muestra la disponibilidad por denominación (según el último arqueo).
+export const CASH_LIKE_TYPES: readonly AccountType[] = ["CASH", "CASH_BOX"];
+
+export function isCashLikeType(type: string): boolean {
+  return CASH_LIKE_TYPES.includes(type as AccountType);
+}
 
 export const TRANSACTION_KINDS = [
   "INCOME",

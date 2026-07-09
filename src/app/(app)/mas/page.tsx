@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Banknote,
   ArrowRightLeft,
+  Calculator,
   Coins,
   History,
   Tags,
@@ -28,6 +29,12 @@ const ITEMS: MenuItem[] = [
     icon: Banknote,
     title: "Conteo de efectivo",
     description: "Arqueo de cajas con denominaciones",
+  },
+  {
+    href: "/calculadora",
+    icon: Calculator,
+    title: "Calculadora de efectivo",
+    description: "Cuenta billetes y monedas sin elegir cuenta",
   },
   {
     href: "/tasas",

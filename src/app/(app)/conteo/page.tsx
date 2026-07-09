@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Banknote, ChevronRight } from "lucide-react";
+import { Banknote, Calculator, ChevronRight } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
@@ -8,6 +8,7 @@ import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { fmtMinor, fmtSignedMinor } from "@/lib/format";
+import { isCashLikeType } from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
@@ -29,18 +30,38 @@ export default async function ConteoPage() {
       take: 10,
     }),
   ]);
-  const cashAccounts = accounts.filter((account) => account.type === "CASH");
+  const cashAccounts = accounts.filter((account) =>
+    isCashLikeType(account.type)
+  );
 
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Conteo de efectivo" backHref="/mas" />
 
       <div className="anim-fade-up flex flex-1 flex-col gap-6 px-5 pt-5 md:max-w-2xl md:px-0">
+        <Link
+          href="/calculadora"
+          className="flex items-center gap-3.5 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+        >
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-brand">
+            <Calculator className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-semibold text-navy">
+              Calculadora de efectivo
+            </div>
+            <div className="text-[11.5px] text-muted">
+              Cuenta billetes y monedas sin elegir cuenta
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-2" />
+        </Link>
+
         {cashAccounts.length === 0 ? (
           <EmptyState
             icon={Banknote}
             title="Sin cajas de efectivo"
-            description="Crea una cuenta de tipo Efectivo para poder hacer arqueos."
+            description="Crea una cuenta de tipo Efectivo o Caja (denominaciones) para poder hacer arqueos."
             ctaLabel="Crear cuenta"
             ctaHref="/cuentas/nueva"
           />

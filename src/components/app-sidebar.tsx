@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightLeft,
   Banknote,
+  Calculator,
   Coins,
   HandCoins,
   History,
@@ -68,6 +69,12 @@ const TOOLS: NavItem[] = [
     icon: Banknote,
     label: "Conteo de efectivo",
     isActive: (p) => p.startsWith("/conteo"),
+  },
+  {
+    href: "/calculadora",
+    icon: Calculator,
+    label: "Calculadora de efectivo",
+    isActive: (p) => p.startsWith("/calculadora"),
   },
   {
     href: "/tasas",

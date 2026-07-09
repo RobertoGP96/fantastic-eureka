@@ -2,25 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createCashCount } from "@/app/actions/cash-count-actions";
+import {
+  DenominationCounter,
+  type CounterDenomination,
+} from "@/components/denomination-counter";
+import { countedTotalMinor } from "@/lib/counting";
 import { useUI } from "@/lib/ui-store";
 import { fmtMinor, fmtSignedMinor, type DisplayCurrency } from "@/lib/format";
-import {
-  DENOMINATION_KIND_LABELS,
-  type DenominationKind,
-} from "@/lib/domain";
-
-interface DenominationInfo {
-  id: string;
-  valueMinor: number;
-  kind: string;
-}
-
-const MAX_QTY = 1_000_000;
 
 export function CountForm({
   account,
@@ -30,7 +22,7 @@ export function CountForm({
 }: {
   account: { id: string; name: string };
   currency: DisplayCurrency;
-  denominations: DenominationInfo[];
+  denominations: CounterDenomination[];
   expectedMinor: number;
 }) {
   const router = useRouter();
@@ -41,17 +33,12 @@ export function CountForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const setQty = (id: string, value: number) => {
-    const qty = Math.max(0, Math.min(MAX_QTY, Math.trunc(value) || 0));
+  const setQty = (id: string, qty: number) => {
     setQuantities((prev) => ({ ...prev, [id]: qty }));
   };
 
   const totalMinor = useMemo(
-    () =>
-      denominations.reduce(
-        (acc, d) => acc + d.valueMinor * (quantities[d.id] ?? 0),
-        0
-      ),
+    () => countedTotalMinor(denominations, quantities),
     [denominations, quantities]
   );
   const differenceMinor = totalMinor - expectedMinor;
@@ -86,57 +73,12 @@ export function CountForm({
         void submit();
       }}
     >
-      <div className="flex flex-col gap-2">
-        {denominations.map((d) => {
-          const qty = quantities[d.id] ?? 0;
-          const subtotal = d.valueMinor * qty;
-          return (
-            <div
-              key={d.id}
-              className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-2.5"
-            >
-              <div className="w-[76px] flex-none">
-                <div className="text-[13.5px] font-bold text-navy">
-                  {fmtMinor(d.valueMinor, currency)}
-                </div>
-                <div className="text-[10.5px] text-muted">
-                  {DENOMINATION_KIND_LABELS[d.kind as DenominationKind] ??
-                    d.kind}
-                </div>
-              </div>
-              <div className="flex flex-1 items-center justify-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setQty(d.id, qty - 1)}
-                  aria-label={`Quitar ${fmtMinor(d.valueMinor, currency)}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-app text-brand-mid transition-[color,transform] hover:text-brand active:scale-90"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <Input
-                  value={qty === 0 ? "" : String(qty)}
-                  onChange={(e) => setQty(d.id, Number(e.target.value))}
-                  inputMode="numeric"
-                  placeholder="0"
-                  className="h-9 w-16 rounded-[10px] px-1 text-center font-semibold"
-                  aria-label={`Cantidad de ${fmtMinor(d.valueMinor, currency)}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setQty(d.id, qty + 1)}
-                  aria-label={`Añadir ${fmtMinor(d.valueMinor, currency)}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-app text-brand-mid transition-[color,transform] hover:text-brand active:scale-90"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="w-[92px] flex-none text-right text-[12.5px] font-semibold text-ink-soft">
-                {subtotal > 0 ? fmtMinor(subtotal, currency) : "—"}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <DenominationCounter
+        denominations={denominations}
+        quantities={quantities}
+        onQtyChange={setQty}
+        currency={currency}
+      />
 
       <div className="rounded-[18px] border border-line bg-white p-4">
         <div className="flex items-center justify-between">

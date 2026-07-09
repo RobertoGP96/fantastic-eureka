@@ -90,7 +90,7 @@ export function AccountForm({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[12.5px] font-semibold text-ink-soft">Tipo</span>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {ACCOUNT_TYPES.map((accountType) => (
             <button
               key={accountType}

@@ -45,6 +45,7 @@ const RIGHT: NavItem[] = [
       p.startsWith("/movimientos") ||
       p.startsWith("/categorias") ||
       p.startsWith("/monedas") ||
+      p.startsWith("/calculadora") ||
       p.startsWith("/perfil"),
   },
 ];

@@ -4,6 +4,7 @@ import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { fmtMinor } from "@/lib/format";
+import { isCashLikeType } from "@/lib/domain";
 import { CountForm } from "./count-form";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function ConteoCajaPage({
     where: { id, userId: user.id },
     include: { currency: true },
   });
-  if (!account || account.type !== "CASH") notFound();
+  if (!account || !isCashLikeType(account.type)) notFound();
 
   const [expectedMinor, denominations] = await Promise.all([
     accountBalanceMinor(account.id),
