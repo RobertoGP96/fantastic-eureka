@@ -73,7 +73,9 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Deudas**: saldo pendiente = totalMinor − Σ DebtPayment. Saldar/omitir una
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
-  derivado (PENDING + dueAt pasado), no hay cron.
+  derivado (PENDING + dueAt pasado), no hay cron. Las saldadas/canceladas NO
+  desaparecen: `/deudas` lista sin filtro de estado y las muestra en la
+  sección «Historial» (badge Saldada/Cancelada) por dirección.
 - **Cuenta vinculada**: `Debt.accountId` y `PaymentPlan.accountId` (opcionales,
   onDelete: SetNull, misma moneda validada en la action) guardan la cuenta
   preferida; se elige al crear y se edita en el detalle
@@ -84,6 +86,16 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
   onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
   de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
+- **Editar/eliminar cuentas**: en el detalle,
+  `src/components/account-editor.tsx` (renombrar, archivar/activar y
+  eliminar con confirmación inline). `deleteAccount` solo si la cuenta no
+  tiene movimientos ni arqueos (mismo patrón que categorías: con uso,
+  archivar); Debt/PaymentPlan vinculados quedan en null (SetNull).
+- **Detalle de movimiento**: `/movimientos/[id]` (todas las filas de
+  `tx-list.tsx` enlazan ahí). Muestra cuentas origen/destino, monto original
+  multi-moneda, tasa (`fmtRate`, counterCurrency por 1 de la moneda del
+  movimiento), categoría, nota, fechas y el vínculo a deuda/plan si el
+  movimiento nació de un abono o cuota.
 - **Monedas**: gestionables en `/monedas` (crear, ocultar, cambiar base,
   denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
   (`/categorias`) se editan/renombran y eliminan desde un menú ⋮ por ítem;
@@ -111,7 +123,11 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados
   (navy/brand/chip/ok/warn/danger + nuevo `gold`) con valores nuevos, así el
   UI entero se re-viste sin tocar componentes. Gradientes `.grad-*` (+
-  `.grad-gold`). Componentes base en `src/components/ui/`.
+  `.grad-gold`). Componentes base en `src/components/ui/`. Logotipo FE
+  («pecera»: F y E partidas por una ola senoidal, azul arriba/blanco bajo el
+  agua): `src/app/icon.svg` (favicon) y `src/components/brand-mark.tsx`
+  (sidebar, header md y auth; en el sidebar va envuelto en un span para
+  esquivar el `[&>svg]:size-4` del SidebarMenuButton).
 - **Perfil**: `/perfil` (editar nombre/correo y contraseña). Cambiar la
   contraseña invalida las demás sesiones (`invalidateOtherSessions` en
   `src/lib/auth.ts`). Actions en `src/app/actions/profile-actions.ts`.

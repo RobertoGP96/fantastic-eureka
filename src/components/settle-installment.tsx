@@ -87,9 +87,9 @@ export function SettleInstallment({
           {kind === "COLLECT" ? "cobro" : "pago"}.
         </p>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-9 min-w-0 flex-1 rounded-[10px] border border-line bg-white px-2.5 text-[12px] text-ink">
+            <SelectTrigger className="h-9 min-w-[9rem] flex-1 rounded-[10px] border border-line bg-white px-2.5 text-[12px] text-ink">
               <SelectValue placeholder="Cuenta" />
             </SelectTrigger>
             <SelectContent>

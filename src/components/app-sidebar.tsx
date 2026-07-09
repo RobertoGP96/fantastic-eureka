@@ -30,6 +30,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { logoutUser } from "@/app/actions/auth-actions";
+import { BrandMark } from "@/components/brand-mark";
 import { APP_NAME } from "@/lib/config";
 
 interface NavItem {
@@ -130,8 +131,9 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild tooltip={APP_NAME}>
               <Link href="/">
-                <span className="grad-cta flex size-8 shrink-0 items-center justify-center rounded-lg text-white">
-                  <Coins className="size-4" />
+                {/* span: esquiva el [&>svg]:size-4 del SidebarMenuButton */}
+                <span className="flex size-8 shrink-0 items-center justify-center">
+                  <BrandMark className="size-8" />
                 </span>
                 <span className="text-[15px] font-bold tracking-[-0.3px] text-white">
                   {APP_NAME}

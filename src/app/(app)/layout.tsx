@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { BrandMark } from "@/components/brand-mark";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -31,6 +32,7 @@ export default async function AppLayout({
         <header className="sticky top-0 z-30 hidden h-12 shrink-0 items-center gap-3 border-b border-line-2 bg-app/85 px-4 backdrop-blur md:flex">
           <SidebarTrigger className="text-ink-soft hover:bg-chip hover:text-brand" />
           <Separator orientation="vertical" className="h-5" />
+          <BrandMark className="size-5 shrink-0" />
           <span className="text-[13px] font-semibold text-ink-soft">
             {APP_NAME}
           </span>

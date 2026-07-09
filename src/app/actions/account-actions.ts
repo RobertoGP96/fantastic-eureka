@@ -8,6 +8,7 @@ import { getSessionUser } from "@/lib/auth";
 import {
   accountIconSchema,
   createAccountSchema,
+  idSchema,
   updateAccountSchema,
   type ActionResult,
 } from "@/lib/schemas";
@@ -153,5 +154,54 @@ export async function updateAccount(
   } catch (error) {
     console.error("updateAccount:", error);
     return { success: false, error: "No se pudo actualizar la cuenta" };
+  }
+}
+
+// Eliminar solo cuentas sin uso: con movimientos o arqueos se perdería el
+// historial (y los saldos derivados), así que ahí la opción es archivar.
+export async function deleteAccount(
+  input: unknown
+): Promise<ActionResult<undefined>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data, userId: user.id },
+    });
+    if (!account) return { success: false, error: "Cuenta no encontrada" };
+
+    const [txCount, countCount] = await Promise.all([
+      prisma.transaction.count({
+        where: {
+          OR: [{ accountId: account.id }, { counterAccountId: account.id }],
+        },
+      }),
+      prisma.cashCount.count({ where: { accountId: account.id } }),
+    ]);
+    if (txCount > 0 || countCount > 0) {
+      return {
+        success: false,
+        error: "La cuenta tiene movimientos o arqueos; archívala en su lugar",
+      };
+    }
+
+    // Debt.accountId y PaymentPlan.accountId quedan en null (onDelete: SetNull).
+    await prisma.account.delete({ where: { id: account.id } });
+
+    revalidatePath("/");
+    revalidatePath("/cuentas");
+    revalidatePath("/conteo");
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("deleteAccount:", error);
+    return { success: false, error: "No se pudo eliminar la cuenta" };
   }
 }

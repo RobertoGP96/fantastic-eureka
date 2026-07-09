@@ -8,8 +8,10 @@ import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import {
+  DEBT_STATUS_LABELS,
   FREQUENCY_LABELS,
   PLAN_KIND_LABELS,
+  type DebtStatus,
   type Frequency,
   type PlanKind,
 } from "@/lib/domain";
@@ -25,9 +27,10 @@ export default async function DeudasPage({
   const { dir } = await searchParams;
   const direction = dir === "pagar" ? "PAYABLE" : "RECEIVABLE";
 
+  // Sin filtro de estado: las saldadas/canceladas se quedan en el historial.
   const [debts, standalonePlans] = await Promise.all([
     prisma.debt.findMany({
-      where: { userId: user.id, direction, status: "OPEN" },
+      where: { userId: user.id, direction },
       include: {
         contact: true,
         currency: true,
@@ -60,12 +63,15 @@ export default async function DeudasPage({
     }),
   ]);
 
+  const openDebts = debts.filter((debt) => debt.status === "OPEN");
+  const closedDebts = debts.filter((debt) => debt.status !== "OPEN");
+
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Deudas y cobros" />
 
       <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
             <Link
               href="/deudas"
@@ -106,7 +112,7 @@ export default async function DeudasPage({
           </div>
         </div>
 
-        {debts.length === 0 ? (
+        {openDebts.length === 0 ? (
           <EmptyState
             icon={HandCoins}
             title={
@@ -120,7 +126,7 @@ export default async function DeudasPage({
           />
         ) : (
           <div className="flex flex-col gap-2.5">
-            {debts.map((debt) => {
+            {openDebts.map((debt) => {
               const paid = debt.payments.reduce(
                 (acc, p) => acc + p.amountMinor,
                 0
@@ -216,6 +222,44 @@ export default async function DeudasPage({
                   </Link>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {closedDebts.length > 0 && (
+          <section>
+            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+              Historial
+            </h2>
+            <div className="flex flex-col gap-2">
+              {closedDebts.map((debt) => (
+                <Link
+                  key={debt.id}
+                  href={`/deudas/${debt.id}`}
+                  className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-semibold text-navy">
+                      {debt.contact.name}
+                    </div>
+                    <div className="truncate text-[11.5px] text-muted">
+                      {debt.description}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[13px] font-bold whitespace-nowrap text-navy">
+                      {fmtMinor(debt.totalMinor, debt.currency)}
+                    </span>
+                    <Badge
+                      variant={debt.status === "PAID" ? "ok" : "neutral"}
+                    >
+                      {DEBT_STATUS_LABELS[debt.status as DebtStatus] ??
+                        debt.status}
+                    </Badge>
+                  </div>
+                  <ChevronRight className="h-4 w-4 flex-none text-muted-2" />
+                </Link>
+              ))}
             </div>
           </section>
         )}

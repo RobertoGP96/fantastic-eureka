@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownLeft,
@@ -39,9 +40,10 @@ export function TxList({ rows }: { rows: TxRow[] }) {
         const Icon = KIND_ICONS[row.kind] ?? ArrowRightLeft;
         const positive = row.amountMinor > 0;
         return (
-          <div
+          <Link
             key={row.id}
-            className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3"
+            href={`/movimientos/${row.id}`}
+            className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
           >
             <span
               className={`flex h-9 w-9 flex-none items-center justify-center rounded-[12px] ${
@@ -66,7 +68,7 @@ export function TxList({ rows }: { rows: TxRow[] }) {
             >
               {fmtSignedMinor(row.amountMinor, row.currency)}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

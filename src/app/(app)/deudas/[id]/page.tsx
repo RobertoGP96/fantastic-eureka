@@ -100,7 +100,7 @@ export default async function DeudaDetallePage({
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-xl md:px-0">
+      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
         {isOpen && pendingInstallments.length > 0 && (
           <section>
             <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">

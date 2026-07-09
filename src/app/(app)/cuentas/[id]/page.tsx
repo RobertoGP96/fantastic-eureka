@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { TxList } from "@/components/tx-list";
 import { GroupSelect } from "@/components/group-select";
 import { AccountIconEditor } from "@/components/account-icon-editor";
+import { AccountEditor } from "@/components/account-editor";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
@@ -29,29 +30,36 @@ export default async function CuentaDetallePage({
   });
   if (!account) notFound();
 
-  const [balanceMinor, transactions, groups] = await Promise.all([
-    accountBalanceMinor(account.id),
-    prisma.transaction.findMany({
-      where: {
-        userId: user.id,
-        OR: [{ accountId: account.id }, { counterAccountId: account.id }],
-      },
-      include: {
-        account: { select: { name: true } },
-        counterAccount: { select: { name: true } },
-        currency: { select: { code: true, decimalPlaces: true } },
-        counterCurrency: { select: { code: true, decimalPlaces: true } },
-        category: { select: { name: true } },
-      },
-      orderBy: { occurredAt: "desc" },
-      take: 30,
-    }),
-    prisma.accountGroup.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const [balanceMinor, transactions, groups, txCount, countCount] =
+    await Promise.all([
+      accountBalanceMinor(account.id),
+      prisma.transaction.findMany({
+        where: {
+          userId: user.id,
+          OR: [{ accountId: account.id }, { counterAccountId: account.id }],
+        },
+        include: {
+          account: { select: { name: true } },
+          counterAccount: { select: { name: true } },
+          currency: { select: { code: true, decimalPlaces: true } },
+          counterCurrency: { select: { code: true, decimalPlaces: true } },
+          category: { select: { name: true } },
+        },
+        orderBy: { occurredAt: "desc" },
+        take: 30,
+      }),
+      prisma.accountGroup.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      prisma.transaction.count({
+        where: {
+          OR: [{ accountId: account.id }, { counterAccountId: account.id }],
+        },
+      }),
+      prisma.cashCount.count({ where: { accountId: account.id } }),
+    ]);
 
   const rows = transactions.map((tx) =>
     toTxRow(tx, account.id, account.currency)
@@ -120,6 +128,13 @@ export default async function CuentaDetallePage({
             />
           </div>
         )}
+
+        <AccountEditor
+          accountId={account.id}
+          name={account.name}
+          archived={account.archived}
+          hasUsage={txCount + countCount > 0}
+        />
 
         <section>
           <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
