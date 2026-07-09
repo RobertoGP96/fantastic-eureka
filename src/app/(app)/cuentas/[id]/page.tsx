@@ -143,6 +143,7 @@ export default async function CuentaDetallePage({
 
         {account.type === "CASH_BOX" && (
           <DenominationAvailability
+            userId={user.id}
             accountId={account.id}
             currency={account.currency}
           />

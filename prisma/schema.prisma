@@ -47,6 +47,7 @@ model Denomination {
   active     Boolean  @default(true)
 
   countLines CashCountLine[]
+  txLines    TransactionDenomination[]
 
   @@unique([currencyId, valueMinor, kind])
 }
@@ -79,11 +80,12 @@ model Account {
   archived   Boolean       @default(false)
   createdAt  DateTime      @default(now())
 
-  transactions        Transaction[] @relation("AccountTx")
-  counterTransactions Transaction[] @relation("CounterAccountTx")
+  transactions        Transaction[]             @relation("AccountTx")
+  counterTransactions Transaction[]             @relation("CounterAccountTx")
   cashCounts          CashCount[]
   debts               Debt[]
   paymentPlans        PaymentPlan[]
+  txDenominations     TransactionDenomination[]
 
   @@index([userId])
 }
@@ -129,13 +131,33 @@ model Transaction {
   occurredAt         DateTime  @default(now())
   createdAt          DateTime  @default(now())
 
-  cashCount   CashCount?
-  installment Installment?
-  debtPayment DebtPayment?
+  cashCount         CashCount?
+  installment       Installment?
+  debtPayment       DebtPayment?
+  denominationLines TransactionDenomination[]
 
   @@index([accountId, occurredAt])
   @@index([occurredAt])
   @@index([userId, occurredAt])
+}
+
+// Desglose de denominaciones de un movimiento en una caja CASH_BOX.
+// accountId identifica el LADO del movimiento (en TRANSFER puede haber
+// desglose de origen y de destino); el signo se deriva del kind:
+// entra (+) INCOME y destino de TRANSFER; sale (−) EXPENSE y origen.
+// La disponibilidad de la caja = último arqueo ± estos desgloses.
+model TransactionDenomination {
+  id             String       @id @default(cuid())
+  transactionId  String
+  transaction    Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  denominationId String
+  denomination   Denomination @relation(fields: [denominationId], references: [id])
+  quantity       Int
+
+  @@unique([transactionId, accountId, denominationId])
+  @@index([accountId])
 }
 
 // Tasa manual entre un PAR de monedas: unidades de `toCurrency` por 1 unidad

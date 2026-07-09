@@ -85,9 +85,32 @@ export default async function MovimientoDetallePage({
           },
         },
       },
+      denominationLines: {
+        include: {
+          denomination: { select: { valueMinor: true, kind: true } },
+          account: { select: { id: true, name: true } },
+        },
+      },
     },
   });
   if (!tx) notFound();
+
+  // Desglose por lado (en TRANSFER puede haber salida y entrada); dentro de
+  // cada lado, mayor valor primero.
+  const breakdownSides = [
+    ...new Map(
+      tx.denominationLines.map((line) => [line.account.id, line.account])
+    ).values(),
+  ].map((account) => ({
+    account,
+    lines: tx.denominationLines
+      .filter((line) => line.account.id === account.id)
+      .sort(
+        (a, b) =>
+          a.denomination.kind.localeCompare(b.denomination.kind) ||
+          b.denomination.valueMinor - a.denomination.valueMinor
+      ),
+  }));
 
   const kindLabel =
     TRANSACTION_KIND_LABELS[tx.kind as TransactionKind] ?? tx.kind;
@@ -178,6 +201,53 @@ export default async function MovimientoDetallePage({
             {DATE_TIME_FMT.format(tx.createdAt)}
           </DetailRow>
         </section>
+
+        {breakdownSides.length > 0 && (
+          <section>
+            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+              Desglose de denominaciones
+            </h2>
+            <div className="flex flex-col gap-2.5">
+              {breakdownSides.map((side) => {
+                const isOrigin = side.account.id === tx.account.id;
+                const sideCurrency = isOrigin
+                  ? tx.currency
+                  : (tx.counterCurrency ?? tx.currency);
+                const enters = tx.kind === "INCOME" || !isOrigin;
+                return (
+                  <div
+                    key={side.account.id}
+                    className="rounded-[16px] border border-line bg-white px-4 py-2"
+                  >
+                    <div className="border-b border-line-2 py-2 text-[11.5px] font-semibold text-muted">
+                      {enters ? "Entra en" : "Sale de"} «{side.account.name}»
+                    </div>
+                    {side.lines.map((line) => (
+                      <div
+                        key={line.id}
+                        className="flex items-baseline justify-between gap-3 border-b border-line-2 py-2 last:border-b-0"
+                      >
+                        <span className="text-[12.5px] font-semibold text-navy">
+                          {fmtMinor(line.denomination.valueMinor, sideCurrency)}
+                          <span className="font-normal text-muted">
+                            {" "}
+                            × {line.quantity}
+                          </span>
+                        </span>
+                        <span className="text-[12.5px] font-semibold text-ink-soft tabular-nums">
+                          {fmtMinor(
+                            line.denomination.valueMinor * line.quantity,
+                            sideCurrency
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {(linkedDebt || linkedPlan) && (
           <section>

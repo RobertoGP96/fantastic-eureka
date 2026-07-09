@@ -10,6 +10,7 @@ import {
   PRISMA_INT_MAX,
 } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth";
+import { fmtMinor } from "@/lib/format";
 import {
   incomeExpenseSchema,
   transferSchema,
@@ -21,6 +22,75 @@ function revalidateMovementPaths(accountIds: string[]) {
   revalidatePath("/cuentas");
   revalidatePath("/movimientos");
   for (const id of accountIds) revalidatePath(`/cuentas/${id}`);
+}
+
+interface DenominationLineInput {
+  denominationId: string;
+  quantity: number;
+}
+
+type LinesCheck =
+  | { ok: true; lines: DenominationLineInput[] }
+  | { ok: false; error: string };
+
+/**
+ * Valida el desglose de denominaciones de UN lado del movimiento: la cuenta
+ * debe ser CASH_BOX, las denominaciones de su moneda (y del usuario) y la
+ * suma exactamente igual al monto de ese lado.
+ */
+async function checkDenominationLines(
+  userId: string,
+  account: {
+    id: string;
+    type: string;
+    currencyId: string;
+    currency: { code: string; decimalPlaces: number };
+  },
+  lines: DenominationLineInput[] | undefined,
+  expectedMinor: number
+): Promise<LinesCheck> {
+  if (!lines || lines.length === 0) return { ok: true, lines: [] };
+
+  if (account.type !== "CASH_BOX") {
+    return {
+      ok: false,
+      error: "El desglose de denominaciones solo aplica a cuentas tipo Caja",
+    };
+  }
+
+  const ids = lines.map((line) => line.denominationId);
+  if (new Set(ids).size !== ids.length) {
+    return { ok: false, error: "Hay denominaciones repetidas en el desglose" };
+  }
+
+  const denominations = await prisma.denomination.findMany({
+    where: {
+      id: { in: ids },
+      currencyId: account.currencyId,
+      currency: { userId },
+    },
+    select: { id: true, valueMinor: true },
+  });
+  if (denominations.length !== ids.length) {
+    return {
+      ok: false,
+      error: "Denominación no válida para la moneda de la caja",
+    };
+  }
+
+  const byId = new Map(denominations.map((d) => [d.id, d.valueMinor]));
+  const totalMinor = lines.reduce(
+    (acc, line) => acc + byId.get(line.denominationId)! * line.quantity,
+    0
+  );
+  if (totalMinor !== expectedMinor) {
+    return {
+      ok: false,
+      error: `El desglose suma ${fmtMinor(totalMinor, account.currency)} y el monto es ${fmtMinor(expectedMinor, account.currency)}`,
+    };
+  }
+
+  return { ok: true, lines };
 }
 
 export async function registerIncomeExpense(
@@ -136,6 +206,18 @@ export async function registerIncomeExpense(
       }
     }
 
+    // El desglose va en la moneda de la cuenta: en operaciones multi-moneda
+    // debe cuadrar con el monto YA convertido (amountMinor).
+    const linesCheck = await checkDenominationLines(
+      user.id,
+      account,
+      parsed.data.denominationLines,
+      amountMinor
+    );
+    if (!linesCheck.ok) {
+      return { success: false, error: linesCheck.error };
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         kind: parsed.data.kind,
@@ -149,6 +231,13 @@ export async function registerIncomeExpense(
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),
         userId: user.id,
+        denominationLines: {
+          create: linesCheck.lines.map((line) => ({
+            accountId: account.id,
+            denominationId: line.denominationId,
+            quantity: line.quantity,
+          })),
+        },
       },
     });
 
@@ -227,6 +316,25 @@ export async function registerTransfer(
       );
     }
 
+    // Desglose de salida (origen) y de entrada (destino), cada uno en la
+    // moneda y monto de su lado.
+    const [fromLines, toLines] = await Promise.all([
+      checkDenominationLines(
+        user.id,
+        from,
+        parsed.data.denominationLines,
+        amountMinor
+      ),
+      checkDenominationLines(
+        user.id,
+        to,
+        parsed.data.counterDenominationLines,
+        counterAmountMinor
+      ),
+    ]);
+    if (!fromLines.ok) return { success: false, error: fromLines.error };
+    if (!toLines.ok) return { success: false, error: toLines.error };
+
     const transaction = await prisma.transaction.create({
       data: {
         kind: "TRANSFER",
@@ -240,6 +348,20 @@ export async function registerTransfer(
         note: parsed.data.note || undefined,
         occurredAt: parsed.data.occurredAt ?? new Date(),
         userId: user.id,
+        denominationLines: {
+          create: [
+            ...fromLines.lines.map((line) => ({
+              accountId: from.id,
+              denominationId: line.denominationId,
+              quantity: line.quantity,
+            })),
+            ...toLines.lines.map((line) => ({
+              accountId: to.id,
+              denominationId: line.denominationId,
+              quantity: line.quantity,
+            })),
+          ],
+        },
       },
     });
 

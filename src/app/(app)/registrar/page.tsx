@@ -2,7 +2,8 @@ import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { latestPairRatesLite } from "@/lib/rates";
-import { RegisterForm } from "./register-form";
+import { accountDenominationStock } from "@/lib/denominations";
+import { RegisterForm, type CashBoxStockMap } from "./register-form";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,25 @@ export default async function RegistrarPage({
       latestPairRatesLite(user.id),
     ]);
 
+  // Stock derivado por caja CASH_BOX: alimenta el desglose obligatorio y
+  // el sugeridor de distribución del formulario.
+  const cashBoxes = accounts.filter((account) => account.type === "CASH_BOX");
+  const stocks = await Promise.all(
+    cashBoxes.map((account) => accountDenominationStock(user.id, account.id))
+  );
+  const cashBoxStock: CashBoxStockMap = {};
+  cashBoxes.forEach((account, i) => {
+    const denominations = stocks[i].lines
+      .filter((line) => line.active || line.quantity > 0)
+      .map((line) => ({
+        id: line.denominationId,
+        valueMinor: line.valueMinor,
+        kind: line.kind,
+        available: Math.max(0, line.quantity),
+      }));
+    if (denominations.length > 0) cashBoxStock[account.id] = denominations;
+  });
+
   const initialMode: Mode = VALID_MODES.includes(tipo as Mode)
     ? (tipo as Mode)
     : "gasto";
@@ -61,6 +81,7 @@ export default async function RegistrarPage({
           currencies={currencies}
           pairRates={pairRates}
           baseCurrencyId={base?.id ?? null}
+          cashBoxStock={cashBoxStock}
           initialMode={initialMode}
           initialAccountId={
             accounts.some((account) => account.id === cuenta)

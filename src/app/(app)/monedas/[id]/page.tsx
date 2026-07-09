@@ -22,7 +22,7 @@ export default async function MonedaDetallePage({
     include: {
       denominations: {
         orderBy: [{ kind: "asc" }, { valueMinor: "desc" }],
-        include: { _count: { select: { countLines: true } } },
+        include: { _count: { select: { countLines: true, txLines: true } } },
       },
     },
   });
@@ -33,7 +33,7 @@ export default async function MonedaDetallePage({
     valueMinor: d.valueMinor,
     kind: d.kind,
     active: d.active,
-    usageCount: d._count.countLines,
+    usageCount: d._count.countLines + d._count.txLines,
   }));
 
   return (

@@ -30,6 +30,11 @@ import {
   resolveRateScaled,
   type PairRateLite,
 } from "@/lib/rate-resolve";
+import { countedTotalMinor } from "@/lib/counting";
+import {
+  DenominationBreakdownField,
+  type BreakdownDenomination,
+} from "@/components/denomination-breakdown-field";
 import { useUI } from "@/lib/ui-store";
 
 export interface AccountOption {
@@ -37,6 +42,9 @@ export interface AccountOption {
   name: string;
   currency: { id: string; code: string; decimalPlaces: number };
 }
+
+/** Denominaciones (con stock derivado) por cuenta CASH_BOX. */
+export type CashBoxStockMap = Record<string, BreakdownDenomination[]>;
 
 export interface CategoryOption {
   id: string;
@@ -71,6 +79,7 @@ export function RegisterForm({
   currencies,
   pairRates,
   baseCurrencyId,
+  cashBoxStock,
   initialMode,
   initialAccountId,
 }: {
@@ -79,6 +88,7 @@ export function RegisterForm({
   currencies: CurrencyOption[];
   pairRates: PairRateLite[];
   baseCurrencyId: string | null;
+  cashBoxStock: CashBoxStockMap;
   initialMode: Mode;
   initialAccountId?: string;
 }) {
@@ -90,6 +100,9 @@ export function RegisterForm({
     initialAccountId ?? accounts[0]?.id ?? ""
   );
   const [counterAccountId, setCounterAccountId] = useState("");
+  // Desglose de denominaciones por lado (solo cuentas CASH_BOX)
+  const [originLines, setOriginLines] = useState<Record<string, number>>({});
+  const [destLines, setDestLines] = useState<Record<string, number>>({});
   const [amount, setAmount] = useState("");
   const [counterAmount, setCounterAmount] = useState("");
   // "" = misma moneda de la cuenta; otro id = operación multi-moneda
@@ -165,7 +178,7 @@ export function RegisterForm({
   }
 
   // Vista previa del monto convertido a la moneda de la cuenta
-  let convertedPreview: string | null = null;
+  let convertedMinor: number | null = null;
   if (crossCurrencyOp && opCurrency && accountCurrency) {
     try {
       const opMinor = parseAmountToMinor(amount, opCurrency);
@@ -175,12 +188,64 @@ export function RegisterForm({
           rateDirection === "ACCOUNT_TO_AMOUNT"
             ? convertMinorInverse(opMinor, opCurrency, accountCurrency, rateScaled)
             : convertMinor(opMinor, opCurrency, accountCurrency, rateScaled);
-        if (minor > 0) convertedPreview = fmtMinor(minor, accountCurrency);
+        if (minor > 0) convertedMinor = minor;
       }
     } catch {
-      convertedPreview = null;
+      convertedMinor = null;
     }
   }
+  const convertedPreview =
+    convertedMinor !== null && accountCurrency
+      ? fmtMinor(convertedMinor, accountCurrency)
+      : null;
+
+  // Monto parseado sin lanzar (para cuadrar el desglose antes de enviar)
+  const safeMinor = (
+    text: string,
+    cur: { decimalPlaces: number } | undefined
+  ): number | null => {
+    if (!cur) return null;
+    try {
+      const minor = parseAmountToMinor(text, cur);
+      return minor > 0 ? minor : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Desglose de denominaciones: aplica cuando el lado es una caja CASH_BOX
+  // con denominaciones. El monto a cuadrar va SIEMPRE en la moneda de la
+  // cuenta afectada (convertido si la operación es multi-moneda).
+  const originBoxDenoms = cashBoxStock[accountId];
+  const destBoxDenoms =
+    mode === "transferencia" ? cashBoxStock[counterAccountId] : undefined;
+
+  const originTarget =
+    mode === "transferencia" || !crossCurrencyOp
+      ? safeMinor(amount, from?.currency)
+      : convertedMinor;
+  const destTarget = crossCurrency
+    ? safeMinor(counterAmount, to?.currency)
+    : safeMinor(amount, from?.currency);
+
+  const originOutflow = mode !== "ingreso";
+  const originBreakdownOk =
+    !originBoxDenoms?.length ||
+    (originTarget !== null &&
+      countedTotalMinor(originBoxDenoms, originLines) === originTarget);
+  const destBreakdownOk =
+    !destBoxDenoms?.length ||
+    (destTarget !== null &&
+      countedTotalMinor(destBoxDenoms, destLines) === destTarget);
+
+  const linesPayload = (
+    lines: Record<string, number>
+  ): { denominationId: string; quantity: number }[] | undefined => {
+    const entries = Object.entries(lines)
+      .filter(([, qty]) => qty > 0)
+      .map(([denominationId, quantity]) => ({ denominationId, quantity }));
+    return entries.length > 0 ? entries : undefined;
+  };
 
   const flipRateDirection = () => {
     setRateDirection((d) =>
@@ -202,6 +267,8 @@ export function RegisterForm({
   const switchMode = (next: Mode) => {
     setMode(next);
     setCategoryId("");
+    setOriginLines({});
+    setDestLines({});
     setError(null);
   };
 
@@ -219,6 +286,12 @@ export function RegisterForm({
             counterAmount: crossCurrency ? counterAmount : undefined,
             note: note.trim() || undefined,
             occurredAt,
+            denominationLines: originBoxDenoms?.length
+              ? linesPayload(originLines)
+              : undefined,
+            counterDenominationLines: destBoxDenoms?.length
+              ? linesPayload(destLines)
+              : undefined,
           })
         : await registerIncomeExpense({
             kind,
@@ -231,6 +304,9 @@ export function RegisterForm({
             categoryId: categoryId || undefined,
             note: note.trim() || undefined,
             occurredAt,
+            denominationLines: originBoxDenoms?.length
+              ? linesPayload(originLines)
+              : undefined,
           });
 
     setSaving(false);
@@ -286,7 +362,13 @@ export function RegisterForm({
         <span className="text-[12.5px] font-semibold text-ink-soft">
           {mode === "transferencia" ? "Cuenta de origen" : "Cuenta"}
         </span>
-        <Select value={accountId} onValueChange={setAccountId}>
+        <Select
+          value={accountId}
+          onValueChange={(id) => {
+            setAccountId(id);
+            setOriginLines({});
+          }}
+        >
           <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue placeholder="Elige cuenta" />
           </SelectTrigger>
@@ -305,7 +387,13 @@ export function RegisterForm({
           <span className="text-[12.5px] font-semibold text-ink-soft">
             Cuenta de destino
           </span>
-          <Select value={counterAccountId} onValueChange={setCounterAccountId}>
+          <Select
+            value={counterAccountId}
+            onValueChange={(id) => {
+              setCounterAccountId(id);
+              setDestLines({});
+            }}
+          >
             <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue placeholder="Elige cuenta" />
             </SelectTrigger>
@@ -404,6 +492,22 @@ export function RegisterForm({
         </div>
       )}
 
+      {!!originBoxDenoms?.length && from && (
+        <DenominationBreakdownField
+          title={
+            originOutflow
+              ? `Sale de «${from.name}» (denominaciones)`
+              : `Entra en «${from.name}» (denominaciones)`
+          }
+          denominations={originBoxDenoms}
+          currency={from.currency}
+          targetMinor={originTarget}
+          quantities={originLines}
+          onQtyChange={setOriginLines}
+          outflow={originOutflow}
+        />
+      )}
+
       {crossCurrency && (
         <label className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-ink-soft">
@@ -420,6 +524,18 @@ export function RegisterForm({
             Las cuentas usan monedas distintas: indica cuánto entra en destino.
           </span>
         </label>
+      )}
+
+      {!!destBoxDenoms?.length && to && (
+        <DenominationBreakdownField
+          title={`Entra en «${to.name}» (denominaciones)`}
+          denominations={destBoxDenoms}
+          currency={to.currency}
+          targetMinor={destTarget}
+          quantities={destLines}
+          onQtyChange={setDestLines}
+          outflow={false}
+        />
       )}
 
       {mode !== "transferencia" && (
@@ -483,7 +599,9 @@ export function RegisterForm({
           !amount.trim() ||
           (crossCurrencyOp && !rate.trim()) ||
           (mode === "transferencia" &&
-            (!counterAccountId || (crossCurrency && !counterAmount.trim())))
+            (!counterAccountId || (crossCurrency && !counterAmount.trim()))) ||
+          !originBreakdownOk ||
+          !destBreakdownOk
         }
       >
         {saving ? "Guardando…" : "Guardar"}

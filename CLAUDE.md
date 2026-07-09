@@ -91,10 +91,26 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
 - **Tipos de cuenta**: CASH | CASH_BOX | BANK | DIGITAL (`domain.ts`).
   CASH_BOX («Caja (denominaciones)») es como CASH pero su detalle muestra
-  «Denominaciones en caja» (`src/components/denomination-availability.tsx`),
-  derivado del ÚLTIMO arqueo (no se almacena stock por denominación). Los
-  guards de arqueo usan `isCashLikeType()` (CASH y CASH_BOX) — nunca
+  «Denominaciones en caja» (`src/components/denomination-availability.tsx`).
+  Los guards de arqueo usan `isCashLikeType()` (CASH y CASH_BOX) — nunca
   comparar `type === "CASH"` a mano.
+- **Desglose de denominaciones en movimientos**: modelo
+  `TransactionDenomination` (transactionId + accountId del LADO afectado +
+  denominationId + quantity; un TRANSFER puede llevar desglose de origen y
+  de destino). En /registrar, si el lado es CASH_BOX con denominaciones, el
+  desglose es obligatorio (cliente,
+  `src/components/denomination-breakdown-field.tsx`) y la action lo valida
+  (`checkDenominationLines`: denominaciones de la moneda de la cuenta, sin
+  repetidas, Σ = monto YA convertido de ese lado). «Sugerir distribución» =
+  `suggestDistribution` en `counting.ts` (mayor-primero con backtracking —
+  cubre el billete de 3 CUP — y respeta stock en salidas). La disponibilidad
+  es DERIVADA en `src/lib/denominations.ts` (`accountDenominationStock`):
+  último arqueo ± desgloses con `occurredAt` posterior, signo por
+  `movementLineSign` (INCOME/destino +, EXPENSE/origen −, ADJUSTMENT 0).
+  Movimientos sin desglose (abonos, cuotas, actions externas) NO alteran el
+  stock: su efecto aflora como diferencia en el siguiente arqueo. El detalle
+  de movimiento muestra el desglose; editar/eliminar denominaciones cuenta
+  también `txLines` como uso.
 - **Conteo por denominaciones**: filas compartidas en
   `src/components/denomination-counter.tsx` (subtotal en línea propia bajo
   la fila: no se desborda en móvil) sobre la lógica pura de

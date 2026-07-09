@@ -13,6 +13,8 @@ export interface CounterDenomination {
   id: string;
   valueMinor: number;
   kind: string;
+  /** Texto extra junto al tipo (ej. "quedan 4" en cajas con stock). */
+  hint?: string;
 }
 
 // Filas de conteo por denominación compartidas por el arqueo y la
@@ -49,9 +51,10 @@ export function DenominationCounter({
                 <div className="truncate text-[13.5px] font-bold text-navy">
                   {valueLabel}
                 </div>
-                <div className="text-[10.5px] text-muted">
+                <div className="truncate text-[10.5px] text-muted">
                   {DENOMINATION_KIND_LABELS[d.kind as DenominationKind] ??
                     d.kind}
+                  {d.hint ? ` · ${d.hint}` : ""}
                 </div>
               </div>
               <div className="flex flex-none items-center gap-1.5">

@@ -219,18 +219,18 @@ export async function updateDenomination(
       where: { id: parsed.data.id, currency: { userId: user.id } },
       include: {
         currency: true,
-        _count: { select: { countLines: true } },
+        _count: { select: { countLines: true, txLines: true } },
       },
     });
     if (!denomination) {
       return { success: false, error: "Denominación no encontrada" };
     }
     // Cambiar el valor de una denominación ya usada alteraría los arqueos
-    // guardados (sus líneas referencian esta denominación).
-    if (denomination._count.countLines > 0) {
+    // o desgloses guardados (sus líneas referencian esta denominación).
+    if (denomination._count.countLines + denomination._count.txLines > 0) {
       return {
         success: false,
-        error: "Ya se usó en arqueos; ocúltala y crea una nueva",
+        error: "Ya se usó en arqueos o movimientos; ocúltala y crea una nueva",
       };
     }
 
@@ -274,17 +274,17 @@ export async function deleteDenomination(
   try {
     const denomination = await prisma.denomination.findFirst({
       where: { id: parsed.data, currency: { userId: user.id } },
-      include: { _count: { select: { countLines: true } } },
+      include: { _count: { select: { countLines: true, txLines: true } } },
     });
     if (!denomination) {
       return { success: false, error: "Denominación no encontrada" };
     }
-    // La FK de CashCountLine es Restrict: borrar una usada rompería los
-    // arqueos guardados. Mejor mensaje amigable que error de BD.
-    if (denomination._count.countLines > 0) {
+    // Las FK de CashCountLine/TransactionDenomination son Restrict: borrar
+    // una usada rompería lo guardado. Mejor mensaje amigable que error de BD.
+    if (denomination._count.countLines + denomination._count.txLines > 0) {
       return {
         success: false,
-        error: "Se usó en arqueos guardados; ocúltala en su lugar",
+        error: "Se usó en arqueos o movimientos guardados; ocúltala en su lugar",
       };
     }
 

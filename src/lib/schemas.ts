@@ -68,6 +68,17 @@ export const updateAccountSchema = z.object({
   archived: z.boolean().optional(),
 });
 
+// Desglose de denominaciones de un movimiento (cuentas CASH_BOX): solo
+// cantidades positivas; la suma debe igualar el monto (validado en la action).
+export const txDenominationLines = z
+  .array(
+    z.object({
+      denominationId: idSchema,
+      quantity: z.number().int().min(1).max(1_000_000),
+    })
+  )
+  .max(100);
+
 export const incomeExpenseSchema = z.object({
   kind: z.enum(["INCOME", "EXPENSE"]),
   accountId: idSchema,
@@ -81,6 +92,8 @@ export const incomeExpenseSchema = z.object({
   categoryId: idSchema.optional(),
   note: z.string().trim().max(200).optional(),
   occurredAt: z.coerce.date().optional(),
+  // Desglose en la moneda de la cuenta (si la cuenta es CASH_BOX)
+  denominationLines: txDenominationLines.optional(),
 });
 
 export const transferSchema = z.object({
@@ -90,6 +103,9 @@ export const transferSchema = z.object({
   counterAmount: amountText.optional(),
   note: z.string().trim().max(200).optional(),
   occurredAt: z.coerce.date().optional(),
+  // Desglose de salida (origen CASH_BOX) y de entrada (destino CASH_BOX)
+  denominationLines: txDenominationLines.optional(),
+  counterDenominationLines: txDenominationLines.optional(),
 });
 
 export const cashCountSchema = z.object({
