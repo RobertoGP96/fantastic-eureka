@@ -47,7 +47,7 @@ export function TxList({ rows }: { rows: TxRow[] }) {
           >
             <span
               className={`flex h-9 w-9 flex-none items-center justify-center rounded-[12px] ${
-                positive ? "bg-ok-bg text-ok" : "bg-chip text-brand"
+                positive ? "bg-ok-bg text-ok" : "bg-danger-bg text-danger"
               }`}
             >
               <Icon className="h-4 w-4" />
