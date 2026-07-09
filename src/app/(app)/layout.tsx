@@ -32,7 +32,7 @@ export default async function AppLayout({
         <header className="sticky top-0 z-30 hidden h-12 shrink-0 items-center gap-3 border-b border-line-2 bg-app/85 px-4 backdrop-blur md:flex">
           <SidebarTrigger className="text-ink-soft hover:bg-chip hover:text-brand" />
           <Separator orientation="vertical" className="h-5" />
-          <BrandMark className="size-5 shrink-0" />
+          <BrandMark className="size-5 shrink-0" idPrefix="fe-header" />
           <span className="text-[13px] font-semibold text-ink-soft">
             {APP_NAME}
           </span>

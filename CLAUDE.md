@@ -142,10 +142,16 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (navy/brand/chip/ok/warn/danger + nuevo `gold`) con valores nuevos, así el
   UI entero se re-viste sin tocar componentes. Gradientes `.grad-*` (+
   `.grad-gold`). Componentes base en `src/components/ui/`. Logotipo FE
-  («pecera»: F y E partidas por una ola senoidal, azul arriba/blanco bajo el
-  agua): `src/app/icon.svg` (favicon) y `src/components/brand-mark.tsx`
+  («pecera»: F y E partidas por una ola senoidal, verde petróleo arriba/
+  blanco bajo el agua, colores de la paleta brand/brand-light/chip; letras =
+  contornos de la fuente American Captain convertidos a path con opentype.js,
+  sin dependencia de fuente en runtime):
+  `src/app/icon.svg` (favicon) y `src/components/brand-mark.tsx`
   (sidebar, header md y auth; en el sidebar va envuelto en un span para
-  esquivar el `[&>svg]:size-4` del SidebarMenuButton).
+  esquivar el `[&>svg]:size-4` del SidebarMenuButton). Los ids internos del
+  SVG (clipPaths/gradiente) son deterministas vía prop `idPrefix` (uno
+  distinto por punto de montaje) — useId() rompía la hidratación dentro del
+  tooltip Radix del sidebar.
 - **Perfil**: `/perfil` (editar nombre/correo y contraseña). Cambiar la
   contraseña invalida las demás sesiones (`invalidateOtherSessions` en
   `src/lib/auth.ts`). Actions en `src/app/actions/profile-actions.ts`.

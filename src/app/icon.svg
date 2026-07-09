@@ -1,23 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Icono FE: cuadro redondeado partido por una ola senoidal (pecera).
-       Letras azules sobre la superficie y blancas bajo el agua. -->
+       Letras verde petróleo sobre la superficie y blancas bajo el agua
+       (paleta del design system: brand/brand-light/chip). -->
   <defs>
     <clipPath id="box"><rect width="512" height="512" rx="118"/></clipPath>
     <clipPath id="above"><path d="M0 262 C40 226 88 226 128 262 C168 298 216 298 256 262 C296 226 344 226 384 262 C424 298 472 298 512 262 L512 0 L0 0 Z"/></clipPath>
     <clipPath id="below"><path d="M0 262 C40 226 88 226 128 262 C168 298 216 298 256 262 C296 226 344 226 384 262 C424 298 472 298 512 262 L512 512 L0 512 Z"/></clipPath>
     <linearGradient id="water" x1="0" y1="262" x2="0" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2f8fe6"/>
-      <stop offset="1" stop-color="#1257b8"/>
+      <stop offset="0" stop-color="#27b3a4"/>
+      <stop offset="1" stop-color="#0c6b70"/>
     </linearGradient>
+    <!-- Contornos de la fuente American Captain (cap 240, baseline 378),
+         extraídos a path con opentype.js — no depende de la fuente. -->
     <g id="letters">
-      <path d="M136 150 h116 v46 h-70 v44 h62 v44 h-62 v86 h-46 Z"/>
-      <path d="M282 150 h118 v46 h-72 v42 h64 v44 h-64 v42 h72 v46 h-118 Z"/>
+      <path d="M141.4 378L141.4 138L234.7 138L243 182.7L190.7 182.7L190.7 239.6L230.4 239.6L230.4 281L190.7 281L190.7 378Z"/>
+      <path d="M269 378L269 138L362.4 138L370.6 182.7L318.3 182.7L318.3 239.6L358 239.6L358 281L318.3 281L318.3 333.3L368.6 333.3L360.4 378Z"/>
     </g>
   </defs>
   <g clip-path="url(#box)">
-    <rect width="512" height="512" fill="#eaf5ff"/>
+    <rect width="512" height="512" fill="#dcf0ec"/>
     <path d="M0 262 C40 226 88 226 128 262 C168 298 216 298 256 262 C296 226 344 226 384 262 C424 298 472 298 512 262 L512 512 L0 512 Z" fill="url(#water)"/>
-    <g clip-path="url(#above)"><use href="#letters" fill="#1a67cc"/></g>
+    <g clip-path="url(#above)"><use href="#letters" fill="#0c6b70"/></g>
     <g clip-path="url(#below)"><use href="#letters" fill="#ffffff"/></g>
     <path d="M0 262 C40 226 88 226 128 262 C168 298 216 298 256 262 C296 226 344 226 384 262 C424 298 472 298 512 262" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
   </g>

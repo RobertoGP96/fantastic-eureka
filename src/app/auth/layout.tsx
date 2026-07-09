@@ -7,7 +7,7 @@ export default function AuthLayout({
     <div className="grad-confirm flex min-h-dvh items-center justify-center px-5 py-10">
       <div className="w-full max-w-[380px]">
         <div className="mb-5 flex justify-center">
-          <BrandMark className="size-14" />
+          <BrandMark className="size-14" idPrefix="fe-auth" />
         </div>
         {children}
       </div>

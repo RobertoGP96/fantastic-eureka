@@ -140,7 +140,7 @@ export function AppSidebar({
               <Link href="/">
                 {/* span: esquiva el [&>svg]:size-4 del SidebarMenuButton */}
                 <span className="flex size-8 shrink-0 items-center justify-center">
-                  <BrandMark className="size-8" />
+                  <BrandMark className="size-8" idPrefix="fe-sidebar" />
                 </span>
                 <span className="text-[15px] font-bold tracking-[-0.3px] text-white">
                   {APP_NAME}
