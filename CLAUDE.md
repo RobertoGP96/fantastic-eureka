@@ -33,7 +33,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   ("4 750 CUP") en `src/lib/format.ts`. PROHIBIDO usar floats para montos.
 - **Saldos derivados**: nunca se almacenan; ver `src/lib/balances.ts`
   (INCOME/ADJUSTMENT suman, EXPENSE/TRANSFER restan, transferencias entrantes
-  suman `counterAmountMinor`).
+  suman `counterAmountMinor`). La lógica pura de signos/agregación vive en
+  `src/lib/balances-core.ts` (con tests); `listAccountsWithBalances` hace 3
+  consultas fijas (groupBy por cuenta+kind y por counterAccountId), NUNCA
+  volver al patrón de 2 consultas por cuenta.
 - **Ingresos/gastos multi-moneda**: en /registrar se puede anotar el monto en
   otra divisa; se convierte a la moneda de la cuenta con la tasa indicada
   (prellenada desde los pares vía `rate-resolve`, editable, dirección
@@ -136,6 +139,12 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   pura testeable de `src/lib/metrics-core.ts` (agrupación mensual y conversión
   a base). Gráficos con barras CSS (`src/components/monthly-bars.tsx`), sin
   librería de charts.
+- **Rendimiento de navegación**: skeleton global en
+  `src/app/(app)/loading.tsx` (todas las páginas son force-dynamic: sin él no
+  hay feedback al navegar) y `experimental.staleTimes.dynamic = 30` en
+  `next.config.ts` (el router del cliente reusa la página 30 s). Ese cache
+  depende de que TODA server action que mute datos llame `revalidatePath` —
+  regla existente, ahora obligatoria.
 - **Tema**: identidad propia de Caja (ya NO es la paleta de la tienda):
   petróleo/esmeralda + acento dorado, fuente Outfit. Tokens Tailwind 4 en
   `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados

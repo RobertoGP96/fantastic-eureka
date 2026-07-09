@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { balancesFromGroups, signedKindMinor } from "@/lib/balances-core";
 import { sumMinor } from "@/lib/money";
 import { latestPairRates, resolvePairRate } from "@/lib/rates";
 
@@ -29,19 +30,7 @@ export async function accountBalanceMinor(
   ]);
 
   const ownTotal = sumMinor(
-    own.map((tx) => {
-      switch (tx.kind) {
-        case "INCOME":
-        case "ADJUSTMENT":
-          return tx.amountMinor;
-        case "EXPENSE":
-        case "TRANSFER":
-          return -tx.amountMinor;
-        default:
-          // Un kind desconocido corrompería el saldo en silencio: mejor fallar.
-          throw new Error(`Tipo de transacción desconocido: ${tx.kind}`);
-      }
-    })
+    own.map((tx) => signedKindMinor(tx.kind, tx.amountMinor))
   );
 
   return ownTotal + (incoming._sum.counterAmountMinor ?? 0);
@@ -69,32 +58,65 @@ export async function listAccountsWithBalances(
     includeArchived?: boolean;
   }
 ): Promise<AccountWithBalance[]> {
-  const accounts = await prisma.account.findMany({
-    where: { userId, ...(options?.includeArchived ? {} : { archived: false }) },
-    include: {
-      currency: true,
-      group: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  return Promise.all(
-    accounts.map(async (account) => ({
-      id: account.id,
-      name: account.name,
-      type: account.type,
-      icon: account.icon,
-      archived: account.archived,
-      currency: {
-        id: account.currency.id,
-        code: account.currency.code,
-        symbol: account.currency.symbol,
-        decimalPlaces: account.currency.decimalPlaces,
+  // 3 consultas fijas (antes 1 + 2 por cuenta): las sumas se agregan en la BD
+  // con groupBy y el saldo se compone con la lógica pura de balances-core.
+  const [accounts, ownGroups, incomingGroups] = await Promise.all([
+    prisma.account.findMany({
+      where: {
+        userId,
+        ...(options?.includeArchived ? {} : { archived: false }),
       },
-      group: account.group,
-      balanceMinor: await accountBalanceMinor(account.id),
-    }))
+      include: {
+        currency: true,
+        group: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.transaction.groupBy({
+      by: ["accountId", "kind"],
+      where: { userId },
+      _sum: { amountMinor: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ["counterAccountId"],
+      where: { userId, kind: "TRANSFER", counterAccountId: { not: null } },
+      _sum: { counterAmountMinor: true },
+    }),
+  ]);
+
+  const balances = balancesFromGroups(
+    ownGroups.map((group) => ({
+      accountId: group.accountId,
+      kind: group.kind,
+      sumMinor: group._sum.amountMinor ?? 0,
+    })),
+    incomingGroups.flatMap((group) =>
+      group.counterAccountId
+        ? [
+            {
+              accountId: group.counterAccountId,
+              sumMinor: group._sum.counterAmountMinor ?? 0,
+            },
+          ]
+        : []
+    )
   );
+
+  return accounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    icon: account.icon,
+    archived: account.archived,
+    currency: {
+      id: account.currency.id,
+      code: account.currency.code,
+      symbol: account.currency.symbol,
+      decimalPlaces: account.currency.decimalPlaces,
+    },
+    group: account.group,
+    balanceMinor: balances.get(account.id) ?? 0,
+  }));
 }
 
 /**

@@ -42,12 +42,16 @@ const QUICK_ACTIONS = [
 
 export default async function HomePage() {
   const user = await requireSessionUser();
-  const [accounts, base, rates] = await Promise.all([
+  // La base se resuelve primero (consulta mínima) para que las métricas entren
+  // en el mismo Promise.all y no sumen su latencia en serie.
+  const base = await prisma.currency.findFirst({
+    where: { isBase: true, userId: user.id },
+  });
+  const [accounts, rates, metrics] = await Promise.all([
     listAccountsWithBalances(user.id),
-    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
     latestRatesByCurrency(user.id),
+    base ? dashboardMetrics(user.id, base) : Promise.resolve(null),
   ]);
-  const metrics = base ? await dashboardMetrics(user.id, base) : null;
 
   let consolidatedMinor = 0;
   const missingRates = new Set<string>(metrics?.missingRates ?? []);
