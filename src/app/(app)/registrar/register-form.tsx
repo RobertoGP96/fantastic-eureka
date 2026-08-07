@@ -318,7 +318,9 @@ export function RegisterForm({
             ? "Ingreso registrado"
             : "Transferencia registrada"
       );
-      router.push("/");
+      // Tras guardar se vuelve al detalle de la cuenta afectada (en
+      // transferencias, la de origen), no al Inicio.
+      router.push(`/cuentas/${accountId}`);
       router.refresh();
     } else {
       setError(result.error);

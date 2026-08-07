@@ -32,6 +32,19 @@ export const accountIconSchema = z.object({
   icon: z.string().max(40).nullable(),
 });
 
+// La forma se valida aquí; las claves/duplicados los depura
+// normalizeDashboardPrefs en la action.
+export const dashboardPrefsSchema = z.object({
+  sections: z
+    .array(
+      z.object({
+        key: z.string().max(40),
+        visible: z.boolean(),
+      })
+    )
+    .max(20),
+});
+
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
   email: z.string().trim().toLowerCase().email("Correo inválido").max(120),

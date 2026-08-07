@@ -6,6 +6,7 @@ import {
   DenominationCounter,
   type CounterDenomination,
 } from "@/components/denomination-counter";
+import { CountShareButton } from "@/components/count-share";
 import { countedPieces, countedTotalMinor } from "@/lib/counting";
 import { fmtMinor } from "@/lib/format";
 
@@ -85,15 +86,22 @@ export function CashCalculator({
               {pieces === 1 ? "1 pieza" : `${pieces} piezas`}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={clear}
-            disabled={pieces === 0}
-            className="flex flex-none items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-2 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
-          >
-            <Eraser className="h-4 w-4" />
-            Limpiar
-          </button>
+          <div className="flex flex-none flex-col items-stretch gap-1.5 sm:flex-row">
+            <CountShareButton
+              denominations={currency.denominations}
+              quantities={quantities}
+              currency={currency}
+            />
+            <button
+              type="button"
+              onClick={clear}
+              disabled={pieces === 0}
+              className="flex flex-none items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-2 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+            >
+              <Eraser className="h-4 w-4" />
+              Limpiar
+            </button>
+          </div>
         </div>
       </div>
 
