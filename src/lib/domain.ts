@@ -19,6 +19,20 @@ export function isCashLikeType(type: string): boolean {
   return CASH_LIKE_TYPES.includes(type as AccountType);
 }
 
+// Clasificación de la moneda: las digitales (ej. MLC) no existen en
+// efectivo, así que no pueden tener denominaciones ni cuentas tipo caja.
+export const CURRENCY_KINDS = ["CASH", "DIGITAL"] as const;
+export type CurrencyKind = (typeof CURRENCY_KINDS)[number];
+
+export const CURRENCY_KIND_LABELS: Record<CurrencyKind, string> = {
+  CASH: "Efectivo",
+  DIGITAL: "Digital (sin efectivo)",
+};
+
+export function isDigitalCurrencyKind(kind: string): boolean {
+  return kind === "DIGITAL";
+}
+
 export const TRANSACTION_KINDS = [
   "INCOME",
   "EXPENSE",

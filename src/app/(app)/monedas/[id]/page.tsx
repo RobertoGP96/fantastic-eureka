@@ -6,6 +6,7 @@ import {
   DenominationManager,
   type DenominationItem,
 } from "./denomination-manager";
+import { CurrencyKindEditor } from "./currency-kind-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -45,20 +46,31 @@ export default async function MonedaDetallePage({
         <p className="mt-1 text-[12.5px] text-white/70">
           {currency.decimalPlaces} decimales
           {currency.isBase ? " · Moneda base" : ""}
-          {currency.denominations.length === 0
-            ? " · Sin denominaciones (solo saldo digital)"
-            : ""}
+          {currency.kind === "DIGITAL"
+            ? " · Digital (sin efectivo)"
+            : currency.denominations.length === 0
+              ? " · Sin denominaciones"
+              : ""}
         </p>
       </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
-        <DenominationManager
-          currency={{
-            id: currency.id,
-            code: currency.code,
-            decimalPlaces: currency.decimalPlaces,
-          }}
-          denominations={items}
-        />
+      <div className="anim-fade-up flex flex-col gap-4 px-5 pt-5 md:max-w-xl md:px-0">
+        <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
+        {currency.kind === "DIGITAL" ? (
+          <p className="rounded-[16px] border border-line bg-white px-4 py-5 text-center text-[12.5px] text-muted">
+            Esta moneda es digital: no existe en efectivo, así que no lleva
+            billetes ni monedas. Conviértela a efectivo si necesitas
+            denominaciones.
+          </p>
+        ) : (
+          <DenominationManager
+            currency={{
+              id: currency.id,
+              code: currency.code,
+              decimalPlaces: currency.decimalPlaces,
+            }}
+            denominations={items}
+          />
+        )}
       </div>
     </main>
   );

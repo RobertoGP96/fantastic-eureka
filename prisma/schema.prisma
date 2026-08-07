@@ -25,6 +25,7 @@ model Currency {
   decimalPlaces Int     @default(2)
   isBase        Boolean @default(false)
   active        Boolean @default(true)
+  kind          String  @default("CASH") // CASH (efectivo) | DIGITAL (sin efectivo)
 
   denominations       Denomination[]
   accounts            Account[]
@@ -307,6 +308,9 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  // Preferencias de la vista de Inicio (JSON serializado; ver
+  // src/lib/dashboard-prefs.ts). Null = valores por defecto.
+  dashboardPrefs String?
   createdAt    DateTime @default(now())
 
   sessions      Session[]

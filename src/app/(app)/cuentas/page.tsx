@@ -10,6 +10,7 @@ import {
   listAccountsWithBalances,
   type AccountWithBalance,
 } from "@/lib/balances";
+import { totalsByCurrency } from "@/lib/balances-core";
 import { fmtMinor } from "@/lib/format";
 import { convertMinor } from "@/lib/money";
 import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
@@ -145,17 +146,48 @@ export default async function CuentasPage() {
             ctaHref="/cuentas/nueva"
           />
         ) : (
-          visible.map((section) => (
+          visible.map((section) => {
+            // Totales por cada divisa usada en el grupo (sin conversión):
+            // visibles aunque falten tasas para el consolidado en base. Si el
+            // grupo entero está en la base, el consolidado ya es exacto y los
+            // chips serían redundantes.
+            const currencyTotals = totalsByCurrency(section.accounts);
+            const onlyBase =
+              currencyTotals.length === 1 &&
+              currencyTotals[0].currency.id === base?.id;
+            return (
             <section key={section.key}>
               {section.name && (
-                <div className="mb-2 flex items-baseline justify-between">
-                  <h2 className="text-[13.5px] font-bold text-navy">
-                    {section.name}
-                  </h2>
-                  {base && section.subtotalMinor !== null && (
-                    <span className="text-[12px] font-semibold text-muted">
-                      {fmtMinor(section.subtotalMinor, base)}
-                    </span>
+                <div className="mb-2 flex flex-col gap-1">
+                  <div className="flex items-baseline justify-between">
+                    <h2 className="text-[13.5px] font-bold text-navy">
+                      {section.name}
+                    </h2>
+                    {base && section.subtotalMinor !== null && (
+                      <span
+                        className="text-[12px] font-semibold text-muted"
+                        title={`Consolidado en ${base.code}`}
+                      >
+                        {onlyBase ? "" : "≈ "}
+                        {fmtMinor(section.subtotalMinor, base)}
+                      </span>
+                    )}
+                  </div>
+                  {!onlyBase && currencyTotals.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {currencyTotals.map((total) => (
+                        <span
+                          key={total.currency.id}
+                          className={`rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold ${
+                            total.totalMinor < 0
+                              ? "text-danger"
+                              : "text-brand"
+                          }`}
+                        >
+                          {fmtMinor(total.totalMinor, total.currency)}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
@@ -165,7 +197,8 @@ export default async function CuentasPage() {
                 ))}
               </div>
             </section>
-          ))
+            );
+          })
         )}
       </div>
     </main>

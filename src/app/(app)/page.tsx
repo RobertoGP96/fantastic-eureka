@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import {
   ArrowDownLeft,
@@ -25,14 +24,21 @@ import {
   listAccountsWithBalances,
 } from "@/lib/balances";
 import {
-  DASHBOARD_COOKIE,
-  parseDashboardCookie,
+  parseDashboardPrefs,
+  widgetIdFromKey,
   type DashboardSectionKey,
 } from "@/lib/dashboard-prefs";
+import {
+  AccountCardWidget,
+  CurrencyTotalsWidget,
+  RatePairWidget,
+} from "@/components/dashboard-widgets";
 import { dashboardMetrics } from "@/lib/metrics";
 import { deltaPct } from "@/lib/metrics-core";
 import { fmtMinor } from "@/lib/format";
-import { convertMinor } from "@/lib/money";
+import { convertMinor, invertRateScaled } from "@/lib/money";
+import { pairRateSeries } from "@/lib/rates";
+import { pairKey } from "@/lib/rate-resolve";
 
 export const dynamic = "force-dynamic";
 
@@ -57,22 +63,47 @@ const HALF_SECTIONS = new Set<DashboardSectionKey>([
 
 export default async function HomePage() {
   const user = await requireSessionUser();
-  const cookieStore = await cookies();
-  const prefs = parseDashboardCookie(
-    cookieStore.get(DASHBOARD_COOKIE)?.value,
-    user.id
-  );
 
   // La base se resuelve primero (consulta mínima) para que las métricas entren
   // en el mismo Promise.all y no sumen su latencia en serie.
   const base = await prisma.currency.findFirst({
     where: { isBase: true, userId: user.id },
   });
-  const [accounts, rates, metrics] = await Promise.all([
+  const [accounts, rates, metrics, userRow, currencies] = await Promise.all([
     listAccountsWithBalances(user.id),
     latestRatesByCurrency(user.id),
     base ? dashboardMetrics(user.id, base) : Promise.resolve(null),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { dashboardPrefs: true },
+    }),
+    prisma.currency.findMany({
+      where: { userId: user.id, active: true },
+      orderBy: [{ isBase: "desc" }, { code: "asc" }],
+      select: { id: true, code: true },
+    }),
   ]);
+  const prefs = parseDashboardPrefs(userRow?.dashboardPrefs);
+
+  // Serie de tasas solo si algún gadget la usa; si el par no tiene serie
+  // directa se muestra la inversa invirtiendo cada punto.
+  const rateSeries = prefs.widgets.some((w) => w.type === "ratePair")
+    ? await pairRateSeries(user.id)
+    : null;
+  const pairValues = (fromId: string, toId: string): number[] => {
+    if (!rateSeries) return [];
+    const direct = rateSeries.get(pairKey(fromId, toId));
+    if (direct) return direct.map((p) => p.rateScaled);
+    const inverse = rateSeries.get(pairKey(toId, fromId));
+    return inverse ? inverse.map((p) => invertRateScaled(p.rateScaled)) : [];
+  };
+
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const currencyById = new Map(currencies.map((c) => [c.id, c]));
+  // Cuentas que lista la sección Cuentas (los gadgets no se filtran).
+  const visibleAccounts = prefs.accountIds
+    ? accounts.filter((a) => prefs.accountIds!.includes(a.id))
+    : accounts;
 
   let consolidatedMinor = 0;
   const missingRates = new Set<string>(metrics?.missingRates ?? []);
@@ -286,9 +317,14 @@ export default async function HomePage() {
             ctaLabel="Crear cuenta"
             ctaHref="/cuentas/nueva"
           />
+        ) : visibleAccounts.length === 0 ? (
+          <p className="rounded-[16px] border border-line bg-white px-4 py-5 text-center text-[12.5px] text-muted">
+            Todas las cuentas están ocultas. Elige cuáles mostrar en
+            «Personalizar Inicio».
+          </p>
         ) : (
           <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((account) => {
+            {visibleAccounts.map((account) => {
               const Icon = getAccountIcon(account.icon, account.type);
               const negative = account.balanceMinor < 0;
               return (
@@ -324,6 +360,40 @@ export default async function HomePage() {
     ),
   };
 
+  // Gadgets instanciados desde las preferencias (por id).
+  const widgetNodes = new Map<string, ReactNode>();
+  for (const widget of prefs.widgets) {
+    if (widget.type === "accountCard") {
+      widgetNodes.set(
+        widget.id,
+        <AccountCardWidget
+          key={`widget-${widget.id}`}
+          userId={user.id}
+          widget={widget}
+          account={widget.accountId ? accountById.get(widget.accountId) : undefined}
+        />
+      );
+    } else if (widget.type === "currencyTotals") {
+      widgetNodes.set(
+        widget.id,
+        <CurrencyTotalsWidget key={`widget-${widget.id}`} accounts={accounts} />
+      );
+    } else if (widget.type === "ratePair") {
+      const from = currencyById.get(widget.fromCurrencyId ?? "");
+      const to = currencyById.get(widget.toCurrencyId ?? "");
+      if (!from || !to) continue;
+      widgetNodes.set(
+        widget.id,
+        <RatePairWidget
+          key={`widget-${widget.id}`}
+          fromCode={from.code}
+          toCode={to.code}
+          values={pairValues(from.id, to.id)}
+        />
+      );
+    }
+  }
+
   // Renderiza en el orden elegido; las secciones "media" consecutivas
   // (gráfico y top gastos) comparten fila en escritorio como antes.
   const blocks: ReactNode[] = [];
@@ -345,9 +415,12 @@ export default async function HomePage() {
   };
   for (const section of prefs.sections) {
     if (!section.visible) continue;
-    const node = sectionNodes[section.key];
+    const widgetId = widgetIdFromKey(section.key);
+    const node = widgetId
+      ? widgetNodes.get(widgetId)
+      : sectionNodes[section.key as DashboardSectionKey];
     if (!node) continue;
-    if (HALF_SECTIONS.has(section.key)) {
+    if (!widgetId && HALF_SECTIONS.has(section.key as DashboardSectionKey)) {
       halfRun.push(node);
       halfRunKey = halfRunKey ? halfRunKey : section.key;
     } else {
@@ -363,7 +436,16 @@ export default async function HomePage() {
         title={APP_NAME}
         actions={
           <div className="flex items-center gap-2.5">
-            <DashboardCustomizer sections={prefs.sections} />
+            <DashboardCustomizer
+              prefs={prefs}
+              accounts={accounts.map((account) => ({
+                id: account.id,
+                name: account.name,
+                type: account.type,
+                currencyCode: account.currency.code,
+              }))}
+              currencies={currencies}
+            />
             <InstallmentNotifications userId={user.id} />
             <div className="md:hidden">
               <UserMenu userName={user.name} userEmail={user.email} />

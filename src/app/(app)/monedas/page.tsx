@@ -23,6 +23,7 @@ export default async function MonedasPage() {
     decimalPlaces: currency.decimalPlaces,
     isBase: currency.isBase,
     active: currency.active,
+    kind: currency.kind,
     accountCount: currency._count.accounts,
     denominationCount: currency._count.denominations,
   }));

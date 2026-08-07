@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { parseAmountToMinor } from "@/lib/money";
 import { ACCOUNT_ICON_NAMES } from "@/lib/account-icons";
+import { isCashLikeType, isDigitalCurrencyKind } from "@/lib/domain";
 import { getSessionUser } from "@/lib/auth";
 import {
   accountIconSchema,
@@ -35,6 +36,13 @@ export async function createAccount(
     });
     if (!currency || !currency.active) {
       return { success: false, error: "Moneda no válida" };
+    }
+    // Una moneda digital no existe en efectivo: sin cuentas de caja/efectivo.
+    if (isCashLikeType(parsed.data.type) && isDigitalCurrencyKind(currency.kind)) {
+      return {
+        success: false,
+        error: `${currency.code} es digital: usa una cuenta de tipo Banco o Digital`,
+      };
     }
 
     if (parsed.data.groupId) {

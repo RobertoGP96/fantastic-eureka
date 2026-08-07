@@ -4,6 +4,7 @@
 import { z } from "zod";
 import {
   ACCOUNT_TYPES,
+  CURRENCY_KINDS,
   DEBT_DIRECTIONS,
   DENOMINATION_KINDS,
   FREQUENCIES,
@@ -32,17 +33,32 @@ export const accountIconSchema = z.object({
   icon: z.string().max(40).nullable(),
 });
 
-// La forma se valida aquí; las claves/duplicados los depura
-// normalizeDashboardPrefs en la action.
+// La forma se valida aquí; las claves/duplicados/configs los depura
+// normalizeDashboardPrefs y la propiedad de cuentas/monedas la action.
 export const dashboardPrefsSchema = z.object({
   sections: z
     .array(
       z.object({
-        key: z.string().max(40),
+        key: z.string().max(60),
         visible: z.boolean(),
       })
     )
-    .max(20),
+    .max(40),
+  widgets: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        type: z.string().max(30),
+        accountId: idSchema.max(40).optional(),
+        showMovements: z.boolean().optional(),
+        showDenominations: z.boolean().optional(),
+        fromCurrencyId: idSchema.max(40).optional(),
+        toCurrencyId: idSchema.max(40).optional(),
+      })
+    )
+    .max(12)
+    .default([]),
+  accountIds: z.array(idSchema.max(40)).max(100).nullable().default(null),
 });
 
 export const updateProfileSchema = z.object({
@@ -221,6 +237,12 @@ export const currencySchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
   symbol: z.string().trim().min(1, "El símbolo es obligatorio").max(4),
   decimalPlaces: z.number().int().min(0).max(4),
+  kind: z.enum(CURRENCY_KINDS).default("CASH"),
+});
+
+export const setCurrencyKindSchema = z.object({
+  id: idSchema,
+  kind: z.enum(CURRENCY_KINDS),
 });
 
 export const denominationSchema = z.object({

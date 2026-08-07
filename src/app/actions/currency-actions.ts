@@ -10,9 +10,11 @@ import {
   currencySchema,
   denominationSchema,
   idSchema,
+  setCurrencyKindSchema,
   updateDenominationSchema,
   type ActionResult,
 } from "@/lib/schemas";
+import { CASH_LIKE_TYPES } from "@/lib/domain";
 
 // Las monedas y denominaciones alimentan selects y arqueos en toda la app.
 function revalidateCurrencyPaths(currencyId?: string) {
@@ -42,8 +44,9 @@ export async function createCurrency(
   }
 
   try {
-    // La moneda nace con denominaciones básicas (serie 1-2-5) para que el
-    // arqueo funcione desde el primer momento; se ajustan en /monedas/[id].
+    // Las monedas de efectivo nacen con denominaciones básicas (serie 1-2-5)
+    // para que el arqueo funcione desde el primer momento; se ajustan en
+    // /monedas/[id]. Las digitales no llevan denominaciones.
     const currency = await prisma.$transaction(async (tx) => {
       const created = await tx.currency.create({
         data: {
@@ -51,14 +54,17 @@ export async function createCurrency(
           name: parsed.data.name,
           symbol: parsed.data.symbol,
           decimalPlaces: parsed.data.decimalPlaces,
+          kind: parsed.data.kind,
           userId: user.id,
         },
       });
-      await tx.denomination.createMany({
-        data: basicDenominations(created.decimalPlaces).map(
-          (denomination) => ({ ...denomination, currencyId: created.id })
-        ),
-      });
+      if (parsed.data.kind !== "DIGITAL") {
+        await tx.denomination.createMany({
+          data: basicDenominations(created.decimalPlaces).map(
+            (denomination) => ({ ...denomination, currencyId: created.id })
+          ),
+        });
+      }
       return created;
     });
     revalidateCurrencyPaths(currency.id);
@@ -107,6 +113,68 @@ export async function toggleCurrency(
   } catch (error) {
     console.error("toggleCurrency:", error);
     return { success: false, error: "No se pudo actualizar la moneda" };
+  }
+}
+
+/**
+ * Cambia la clasificación de la moneda. Pasar a DIGITAL exige que la moneda
+ * no tenga denominaciones (elimínalas u ocúltalas antes no basta: hay que
+ * borrarlas, y las usadas no se pueden borrar) ni cuentas de efectivo/caja.
+ */
+export async function setCurrencyKind(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = setCurrencyKindSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Datos inválidos" };
+
+  try {
+    const currency = await prisma.currency.findFirst({
+      where: { id: parsed.data.id, userId: user.id },
+      include: {
+        _count: {
+          select: {
+            denominations: true,
+            accounts: { where: { type: { in: [...CASH_LIKE_TYPES] } } },
+          },
+        },
+      },
+    });
+    if (!currency) return { success: false, error: "Moneda no encontrada" };
+    if (currency.kind === parsed.data.kind) {
+      return { success: true, data: { id: currency.id } };
+    }
+
+    if (parsed.data.kind === "DIGITAL") {
+      if (currency._count.denominations > 0) {
+        return {
+          success: false,
+          error:
+            "La moneda tiene denominaciones: elimínalas antes de marcarla como digital",
+        };
+      }
+      if (currency._count.accounts > 0) {
+        return {
+          success: false,
+          error:
+            "Hay cuentas de efectivo o caja en esta moneda: no puede ser digital",
+        };
+      }
+    }
+
+    const updated = await prisma.currency.update({
+      where: { id: currency.id, userId: user.id },
+      data: { kind: parsed.data.kind },
+    });
+    revalidateCurrencyPaths(updated.id);
+    return { success: true, data: { id: updated.id } };
+  } catch (error) {
+    console.error("setCurrencyKind:", error);
+    return { success: false, error: "No se pudo cambiar la clasificación" };
   }
 }
 

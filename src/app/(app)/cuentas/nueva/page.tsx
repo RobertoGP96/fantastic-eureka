@@ -11,7 +11,7 @@ export default async function NuevaCuentaPage() {
     prisma.currency.findMany({
       where: { active: true, userId: user.id },
       orderBy: [{ isBase: "desc" }, { code: "asc" }],
-      select: { id: true, code: true, name: true },
+      select: { id: true, code: true, name: true, kind: true },
     }),
     prisma.accountGroup.findMany({
       where: { userId: user.id },

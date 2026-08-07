@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { balancesFromGroups, signedKindMinor } from "./balances-core";
+import {
+  balancesFromGroups,
+  signedKindMinor,
+  totalsByCurrency,
+} from "./balances-core";
+
+describe("totalsByCurrency", () => {
+  const cup = { id: "cup" };
+  const usd = { id: "usd" };
+
+  it("agrupa saldos por moneda conservando el orden de aparición", () => {
+    const totals = totalsByCurrency([
+      { balanceMinor: 4000, currency: cup },
+      { balanceMinor: 250, currency: usd },
+      { balanceMinor: -1500, currency: cup },
+    ]);
+    expect(totals).toEqual([
+      { currency: cup, totalMinor: 2500 },
+      { currency: usd, totalMinor: 250 },
+    ]);
+  });
+
+  it("sin cuentas devuelve lista vacía", () => {
+    expect(totalsByCurrency([])).toEqual([]);
+  });
+});
 
 describe("signedKindMinor", () => {
   it("suma INCOME y resta EXPENSE/TRANSFER", () => {

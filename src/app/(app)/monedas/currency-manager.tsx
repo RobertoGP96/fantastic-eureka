@@ -20,6 +20,7 @@ import {
   toggleCurrency,
 } from "@/app/actions/currency-actions";
 import { useUI } from "@/lib/ui-store";
+import { type CurrencyKind } from "@/lib/domain";
 
 export interface CurrencyItem {
   id: string;
@@ -29,11 +30,17 @@ export interface CurrencyItem {
   decimalPlaces: number;
   isBase: boolean;
   active: boolean;
+  kind: string;
   accountCount: number;
   denominationCount: number;
 }
 
 const DECIMAL_OPTIONS = ["0", "2", "3", "4"];
+
+const KIND_OPTIONS: { key: CurrencyKind; label: string; hint: string }[] = [
+  { key: "CASH", label: "Efectivo", hint: "con billetes y monedas" },
+  { key: "DIGITAL", label: "Digital", hint: "solo saldo, sin denominaciones" },
+];
 
 export function CurrencyManager({
   currencies,
@@ -46,6 +53,7 @@ export function CurrencyManager({
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("$");
   const [decimals, setDecimals] = useState("2");
+  const [kind, setKind] = useState<CurrencyKind>("CASH");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmBaseId, setConfirmBaseId] = useState<string | null>(null);
@@ -58,6 +66,7 @@ export function CurrencyManager({
       name,
       symbol,
       decimalPlaces: Number(decimals),
+      kind,
     });
     setSaving(false);
     if (result.success) {
@@ -66,6 +75,7 @@ export function CurrencyManager({
       setName("");
       setSymbol("$");
       setDecimals("2");
+      setKind("CASH");
       router.refresh();
     } else {
       setError(result.error);
@@ -131,6 +141,31 @@ export function CurrencyManager({
             required
           />
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          {KIND_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setKind(option.key)}
+              className={`rounded-[13px] border px-3 py-2 text-left transition-colors ${
+                kind === option.key
+                  ? "border-brand bg-chip"
+                  : "border-line bg-white hover:border-brand-soft"
+              }`}
+            >
+              <span
+                className={`block text-[12.5px] font-semibold ${
+                  kind === option.key ? "text-brand" : "text-ink-soft"
+                }`}
+              >
+                {option.label}
+              </span>
+              <span className="block text-[10.5px] text-muted">
+                {option.hint}
+              </span>
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2.5">
           <Select value={decimals} onValueChange={setDecimals}>
             <SelectTrigger className="h-10 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
@@ -182,13 +217,18 @@ export function CurrencyManager({
                       {currency.code}
                     </span>
                     {currency.isBase && <Badge variant="featured">Base</Badge>}
+                    {currency.kind === "DIGITAL" && (
+                      <Badge variant="neutral">Digital</Badge>
+                    )}
                     {!currency.active && (
                       <Badge variant="neutral">Oculta</Badge>
                     )}
                   </span>
                   <span className="block truncate text-[11.5px] text-muted">
                     {currency.name} · {currency.decimalPlaces} dec ·{" "}
-                    {currency.denominationCount} denominaciones
+                    {currency.kind === "DIGITAL"
+                      ? "sin efectivo"
+                      : `${currency.denominationCount} denominaciones`}
                     {currency.accountCount > 0 &&
                       ` · ${currency.accountCount} cuentas`}
                   </span>

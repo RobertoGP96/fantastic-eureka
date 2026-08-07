@@ -14,12 +14,18 @@ import {
 import { createAccount } from "@/app/actions/account-actions";
 import { IconPicker } from "@/components/icon-picker";
 import { useUI } from "@/lib/ui-store";
-import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS } from "@/lib/domain";
+import {
+  ACCOUNT_TYPES,
+  ACCOUNT_TYPE_LABELS,
+  isCashLikeType,
+  isDigitalCurrencyKind,
+} from "@/lib/domain";
 
 interface CurrencyOption {
   id: string;
   code: string;
   name: string;
+  kind: string;
 }
 
 interface GroupOption {
@@ -41,6 +47,29 @@ export function AccountForm({
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("CASH");
   const [currencyId, setCurrencyId] = useState(currencies[0]?.id ?? "");
+
+  // Las monedas digitales no existen en efectivo: para tipos de caja se
+  // ocultan del selector (y la action lo re-valida en el servidor).
+  const cashLike = isCashLikeType(type);
+  const eligibleCurrencies = cashLike
+    ? currencies.filter((c) => !isDigitalCurrencyKind(c.kind))
+    : currencies;
+  const hiddenDigitalCount = currencies.length - eligibleCurrencies.length;
+
+  const pickType = (nextType: string) => {
+    setType(nextType);
+    if (
+      isCashLikeType(nextType) &&
+      isDigitalCurrencyKind(
+        currencies.find((c) => c.id === currencyId)?.kind ?? "CASH"
+      )
+    ) {
+      const firstEligible = currencies.find(
+        (c) => !isDigitalCurrencyKind(c.kind)
+      );
+      setCurrencyId(firstEligible?.id ?? "");
+    }
+  };
   const [groupId, setGroupId] = useState(NO_GROUP);
   const [icon, setIcon] = useState<string | null>(null);
   const [initialAmount, setInitialAmount] = useState("");
@@ -95,7 +124,7 @@ export function AccountForm({
             <button
               key={accountType}
               type="button"
-              onClick={() => setType(accountType)}
+              onClick={() => pickType(accountType)}
               className={`rounded-[13px] border px-3 py-2.5 text-[12.5px] font-semibold transition-colors ${
                 type === accountType
                   ? "border-brand bg-chip text-brand"
@@ -124,13 +153,18 @@ export function AccountForm({
             <SelectValue placeholder="Elige moneda" />
           </SelectTrigger>
           <SelectContent>
-            {currencies.map((currency) => (
+            {eligibleCurrencies.map((currency) => (
               <SelectItem key={currency.id} value={currency.id}>
                 {currency.code} · {currency.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {cashLike && hiddenDigitalCount > 0 && (
+          <span className="text-[11.5px] text-muted">
+            Las monedas digitales no aparecen: no existen en efectivo.
+          </span>
+        )}
       </label>
 
       {groups.length > 0 && (

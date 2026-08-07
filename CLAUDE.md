@@ -26,7 +26,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   campos kind/status/direction son strings validados con las constantes de
   `src/lib/domain.ts` (única fuente de verdad + labels ES); herencia de
   SQLite que se mantiene. `prisma/dev.db` es el viejo SQLite (legado).
-  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON.
+  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. La BD tiene aplicada
+  una migración `20260715233430_mobile_sync_foundation` (añade `updatedAt` a
+  varias tablas) que NO existe en este repo — vino de otra rama/máquina; las
+  migraciones nuevas deben fechar después y ser aditivas.
 - **Dinero**: SIEMPRE enteros en unidades menores (`amountMinor`); tasas
   escaladas ×10 000 (`rateScaled`, `RATE_SCALE`). Aritmética en
   `src/lib/money.ts` (BigInt para conversiones). Formateo estilo tienda
@@ -94,7 +97,11 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   cambiarla.
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
   onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
-  de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal en base.
+  de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal
+  consolidado en base (prefijo «≈») MÁS chips con el total por cada divisa
+  usada en el grupo (`totalsByCurrency` en `balances-core.ts`, con tests) —
+  los chips se omiten solo si el grupo entero está en la base, y se muestran
+  aunque falte alguna tasa (el consolidado sí desaparece sin tasa).
 - **Tipos de cuenta**: CASH | CASH_BOX | BANK | DIGITAL (`domain.ts`).
   CASH_BOX («Caja (denominaciones)») es como CASH pero su detalle muestra
   «Denominaciones en caja» (`src/components/denomination-availability.tsx`).
@@ -144,8 +151,16 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   multi-moneda, tasa (`fmtRate`, counterCurrency por 1 de la moneda del
   movimiento), categoría, nota, fechas y el vínculo a deuda/plan si el
   movimiento nació de un abono o cuota.
-- **Monedas**: gestionables en `/monedas` (crear, ocultar, cambiar base,
-  denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
+- **Clasificación de monedas**: `Currency.kind` = CASH (efectivo) | DIGITAL
+  (sin efectivo, ej. MLC; constantes en `domain.ts`). Las digitales no
+  llevan denominaciones (al crearlas no se siembra la serie 1-2-5, y su
+  detalle oculta la gestión) ni admiten cuentas CASH/CASH_BOX
+  (`createAccount` lo valida y el form filtra el selector). Cambiar de
+  clasificación: `setCurrencyKind` +
+  `src/app/(app)/monedas/[id]/currency-kind-editor.tsx`; pasar a DIGITAL
+  exige moneda sin denominaciones y sin cuentas de efectivo/caja.
+- **Monedas**: gestionables en `/monedas` (crear con clasificación, ocultar,
+  cambiar base, denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
   (`/categorias`) se editan/renombran y eliminan desde un menú ⋮ por ítem;
   eliminar (y editar denominaciones) solo si no tienen uso (arqueos/
   movimientos) — con uso, ocultar (validado en la action y avisado en el UI).
@@ -166,6 +181,23 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   pura testeable de `src/lib/metrics-core.ts` (agrupación mensual y conversión
   a base). Gráficos con barras CSS (`src/components/monthly-bars.tsx`), sin
   librería de charts.
+- **Dashboard personalizable**: preferencias por usuario en
+  `User.dashboardPrefs` (JSON serializado; null = defaults). Lógica pura en
+  `src/lib/dashboard-prefs.ts` (con tests): secciones fijas + gadgets
+  (`widget:<id>` en el orden), normalize tolerante (claves/gadgets inválidos
+  fuera, secciones nuevas se añaden al final) — SIEMPRE pasar por
+  `normalizeDashboardPrefs` antes de guardar/renderizar. Gadgets:
+  `accountCard` (una cuenta, con últimos movimientos y denominaciones de
+  caja opcionales), `currencyTotals` (reusa `totalsByCurrency`) y `ratePair`
+  (sparkline del par; si no hay serie directa se invierte la inversa).
+  Render en `src/components/dashboard-widgets.tsx` (server), edición en
+  `src/components/dashboard-customizer.tsx` (sheet «Personalizar Inicio»:
+  orden/visibilidad, alta/baja de gadgets y qué cuentas lista la sección
+  Cuentas — `accountIds` null = todas; los gadgets NO se filtran por eso).
+  `saveDashboardPrefs` valida propiedad de cuentas/monedas referenciadas y
+  descarta en silencio las ajenas. El gráfico y el top de gastos comparten
+  fila en escritorio solo si quedan consecutivos (HALF_SECTIONS en
+  `page.tsx`).
 - **Rendimiento de navegación**: skeleton global en
   `src/app/(app)/loading.tsx` (todas las páginas son force-dynamic: sin él no
   hay feedback al navegar) y `experimental.staleTimes.dynamic = 30` en

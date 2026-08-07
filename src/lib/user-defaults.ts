@@ -17,6 +17,7 @@ interface DefaultCurrency {
   symbol: string;
   decimalPlaces: number;
   isBase: boolean;
+  kind: "CASH" | "DIGITAL";
   denominations: DefaultDenomination[];
 }
 
@@ -36,6 +37,7 @@ export const DEFAULT_CURRENCIES: DefaultCurrency[] = [
     symbol: "$",
     decimalPlaces: 0,
     isBase: true,
+    kind: "CASH",
     denominations: [
       bill(1000), bill(500), bill(200), bill(100), bill(50),
       bill(20), bill(10), bill(5), bill(3), bill(1),
@@ -48,6 +50,7 @@ export const DEFAULT_CURRENCIES: DefaultCurrency[] = [
     symbol: "$",
     decimalPlaces: 2,
     isBase: false,
+    kind: "CASH",
     denominations: [
       bill(10000), bill(5000), bill(2000), bill(1000),
       bill(500), bill(200), bill(100),
@@ -60,6 +63,7 @@ export const DEFAULT_CURRENCIES: DefaultCurrency[] = [
     symbol: "€",
     decimalPlaces: 2,
     isBase: false,
+    kind: "CASH",
     denominations: [
       bill(50000), bill(20000), bill(10000), bill(5000),
       bill(2000), bill(1000), bill(500),
@@ -67,12 +71,13 @@ export const DEFAULT_CURRENCIES: DefaultCurrency[] = [
     ],
   },
   {
-    // MLC es saldo de tarjeta: sin denominaciones físicas.
+    // MLC es saldo de tarjeta: digital, sin denominaciones físicas.
     code: "MLC",
     name: "Moneda libremente convertible",
     symbol: "$",
     decimalPlaces: 2,
     isBase: false,
+    kind: "DIGITAL",
     denominations: [],
   },
 ];
