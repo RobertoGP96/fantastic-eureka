@@ -66,9 +66,10 @@ export default async function CuentaDetallePage({
       prisma.cashCount.count({ where: { accountId: account.id } }),
     ]);
 
-  const rows = transactions.map((tx) =>
-    toTxRow(tx, account.id, account.currency)
-  );
+  // Últimos movimientos en orden cronológico (el más reciente al final).
+  const rows = transactions
+    .map((tx) => toTxRow(tx, account.id, account.currency))
+    .reverse();
 
   return (
     <main className="flex flex-1 flex-col pb-8">

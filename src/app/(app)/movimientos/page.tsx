@@ -97,7 +97,8 @@ export default async function MovimientosPage({
     .slice(0, 8);
   const maxCategory = topCategories[0]?.[1] ?? 0;
 
-  const rows = transactions.map((tx) => toTxRow(tx));
+  // Orden cronológico ascendente (el más reciente al final).
+  const rows = transactions.map((tx) => toTxRow(tx)).reverse();
 
   return (
     <main className="flex flex-1 flex-col pb-8">

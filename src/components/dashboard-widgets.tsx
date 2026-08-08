@@ -60,9 +60,10 @@ export async function AccountCardWidget({
         },
       })
     : [];
-  const rows = transactions.map((tx) =>
-    toTxRow(tx, account.id, account.currency)
-  );
+  // Últimos movimientos en orden cronológico (el más reciente al final).
+  const rows = transactions
+    .map((tx) => toTxRow(tx, account.id, account.currency))
+    .reverse();
 
   return (
     <div className="flex flex-col gap-2.5">
