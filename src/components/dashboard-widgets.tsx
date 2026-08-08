@@ -49,7 +49,7 @@ export async function AccountCardWidget({
           userId,
           OR: [{ accountId: account.id }, { counterAccountId: account.id }],
         },
-        orderBy: { occurredAt: "desc" },
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 3,
         include: {
           account: { select: { name: true } },

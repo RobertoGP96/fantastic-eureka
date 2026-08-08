@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       currency: { select: { code: true, decimalPlaces: true } },
       category: { select: { name: true } },
     },
-    orderBy: { occurredAt: "asc" },
+    orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
   });
 
   const header = [

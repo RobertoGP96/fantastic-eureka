@@ -42,7 +42,7 @@ export default async function MovimientosPage({
         counterCurrency: { select: { code: true, decimalPlaces: true } },
         category: { select: { name: true } },
       },
-      orderBy: { occurredAt: "desc" },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
       take: 200,
     }),
     prisma.account.findMany({

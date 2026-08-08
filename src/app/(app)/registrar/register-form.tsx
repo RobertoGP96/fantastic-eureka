@@ -275,7 +275,19 @@ export function RegisterForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const occurredAt = new Date(`${date}T12:00:00`);
+    // Fecha elegida + hora actual: así los movimientos del mismo día
+    // conservan el orden en que se registraron.
+    const now = new Date();
+    const [y, m, d] = date.split("-").map(Number);
+    const occurredAt = new Date(
+      y,
+      m - 1,
+      d,
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds(),
+      now.getMilliseconds()
+    );
 
     const result =
       mode === "transferencia"

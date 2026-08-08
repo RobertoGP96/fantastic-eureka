@@ -50,7 +50,7 @@ export default async function CuentaDetallePage({
           counterCurrency: { select: { code: true, decimalPlaces: true } },
           category: { select: { name: true } },
         },
-        orderBy: { occurredAt: "desc" },
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 30,
       }),
       prisma.accountGroup.findMany({
