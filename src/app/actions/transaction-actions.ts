@@ -11,9 +11,13 @@ import {
 } from "@/lib/money";
 import { getSessionUser } from "@/lib/auth";
 import { fmtMinor } from "@/lib/format";
+import { debtRemainingMinor } from "@/lib/debts";
 import {
+  ActionError,
+  idSchema,
   incomeExpenseSchema,
   transferSchema,
+  updateTransactionSchema,
   type ActionResult,
 } from "@/lib/schemas";
 
@@ -370,5 +374,308 @@ export async function registerTransfer(
   } catch (error) {
     console.error("registerTransfer:", error);
     return { success: false, error: "No se pudo registrar la transferencia" };
+  }
+}
+
+/**
+ * Edita un movimiento ya registrado (equivocaciones): monto, monto del otro
+ * lado (transferencias entre monedas / operaciones multi-moneda), categoría,
+ * fecha, nota y desglose de denominaciones (que REEMPLAZA al anterior). No
+ * se puede cambiar el tipo ni las cuentas (para eso, eliminar y volver a
+ * registrar). Los ADJUSTMENT (saldo inicial/arqueos) no se editan. Si el
+ * movimiento nació de un abono o cuota, el abono (DebtPayment) se mantiene
+ * en sincronía y se revalida el pendiente de la deuda.
+ */
+export async function updateTransaction(
+  input: unknown
+): Promise<ActionResult<{ id: string }>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = updateTransactionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
+    };
+  }
+
+  try {
+    const existing = await prisma.transaction.findFirst({
+      where: { id: parsed.data.id, userId: user.id },
+      include: {
+        account: { include: { currency: true } },
+        counterAccount: { include: { currency: true } },
+        currency: true,
+        counterCurrency: true,
+        debtPayment: true,
+        installment: { include: { plan: true } },
+      },
+    });
+    if (!existing) {
+      return { success: false, error: "Movimiento no encontrado" };
+    }
+    if (existing.kind === "ADJUSTMENT") {
+      return {
+        success: false,
+        error:
+          "Los ajustes (saldo inicial o arqueos) no se pueden editar",
+      };
+    }
+
+    const amountMinor = parseAmountToMinor(parsed.data.amount, existing.currency);
+    if (amountMinor <= 0) {
+      return { success: false, error: "El monto debe ser mayor que cero" };
+    }
+    if (amountMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Monto demasiado grande" };
+    }
+
+    const isTransfer = existing.kind === "TRANSFER";
+    // Lado contrario: en TRANSFER siempre hay (igual al monto si comparten
+    // moneda); en INCOME/EXPENSE solo si la operación fue multi-moneda. En
+    // transferencias la moneda contraria se deriva de la cuenta destino
+    // (transferencias viejas pueden tener counterCurrencyId null).
+    let counterAmountMinor: number | null = null;
+    let rateScaled: number | null = null;
+    const counterCurrency = isTransfer
+      ? existing.counterAccount &&
+        existing.counterAccount.currencyId !== existing.currencyId
+        ? existing.counterAccount.currency
+        : null
+      : existing.counterCurrencyId &&
+          existing.counterCurrencyId !== existing.currencyId
+        ? existing.counterCurrency
+        : null;
+    const crossCurrency = !!counterCurrency;
+
+    if (isTransfer && !crossCurrency) {
+      counterAmountMinor = amountMinor;
+    } else if (counterCurrency) {
+      if (!parsed.data.counterAmount) {
+        return {
+          success: false,
+          error: `Indica el monto en ${counterCurrency.code}`,
+        };
+      }
+      counterAmountMinor = parseAmountToMinor(
+        parsed.data.counterAmount,
+        counterCurrency
+      );
+      if (counterAmountMinor <= 0) {
+        return { success: false, error: "El monto debe ser mayor que cero" };
+      }
+      if (counterAmountMinor > PRISMA_INT_MAX) {
+        return { success: false, error: "Monto demasiado grande" };
+      }
+      // Tasa implícita informativa, igual que al registrar.
+      rateScaled = impliedRateScaled(
+        amountMinor,
+        existing.currency,
+        counterAmountMinor,
+        counterCurrency
+      );
+    }
+
+    let categoryId = existing.categoryId;
+    if (!isTransfer && parsed.data.categoryId !== undefined) {
+      if (parsed.data.categoryId === null) {
+        categoryId = null;
+      } else {
+        const category = await prisma.category.findFirst({
+          where: { id: parsed.data.categoryId, userId: user.id },
+        });
+        if (!category || category.kind !== existing.kind) {
+          return { success: false, error: "Categoría no válida" };
+        }
+        categoryId = category.id;
+      }
+    }
+
+    // Desglose por lado sobre los montos NUEVOS; reemplaza al existente.
+    const originCheck = await checkDenominationLines(
+      user.id,
+      existing.account,
+      parsed.data.denominationLines,
+      amountMinor
+    );
+    if (!originCheck.ok) return { success: false, error: originCheck.error };
+
+    let destLines: DenominationLineInput[] = [];
+    if (isTransfer && existing.counterAccount) {
+      const destCheck = await checkDenominationLines(
+        user.id,
+        existing.counterAccount,
+        parsed.data.counterDenominationLines,
+        counterAmountMinor ?? amountMinor
+      );
+      if (!destCheck.ok) return { success: false, error: destCheck.error };
+      destLines = destCheck.lines;
+    }
+
+    await prisma.$transaction(async (db) => {
+      // Movimiento nacido de un abono/cuota: el DebtPayment acompaña al
+      // monto y el pendiente se relee AQUÍ dentro (patrón anti doble-envío).
+      const payment = existing.debtPayment;
+      if (payment && amountMinor !== payment.amountMinor) {
+        const remaining = await debtRemainingMinor(payment.debtId, db);
+        const available = remaining + payment.amountMinor;
+        if (amountMinor > available) {
+          throw new ActionError(
+            `El monto supera el pendiente de la deuda (${fmtMinor(available, existing.currency)})`
+          );
+        }
+        await db.debtPayment.update({
+          where: { id: payment.id },
+          data: { amountMinor },
+        });
+        const debt = await db.debt.findUnique({
+          where: { id: payment.debtId },
+          select: { status: true },
+        });
+        if (debt && debt.status !== "CANCELLED") {
+          await db.debt.update({
+            where: { id: payment.debtId },
+            data: { status: amountMinor === available ? "PAID" : "OPEN" },
+          });
+        }
+      }
+      if (payment) {
+        await db.debtPayment.update({
+          where: { id: payment.id },
+          data: { paidAt: parsed.data.occurredAt },
+        });
+      }
+
+      await db.transactionDenomination.deleteMany({
+        where: { transactionId: existing.id },
+      });
+      await db.transaction.update({
+        where: { id: existing.id },
+        data: {
+          amountMinor,
+          counterAmountMinor,
+          rateScaled,
+          categoryId,
+          note: parsed.data.note || null,
+          occurredAt: parsed.data.occurredAt,
+          denominationLines: {
+            create: [
+              ...originCheck.lines.map((line) => ({
+                accountId: existing.accountId,
+                denominationId: line.denominationId,
+                quantity: line.quantity,
+              })),
+              ...destLines.map((line) => ({
+                accountId: existing.counterAccountId!,
+                denominationId: line.denominationId,
+                quantity: line.quantity,
+              })),
+            ],
+          },
+        },
+      });
+    });
+
+    revalidateMovementPaths(
+      [existing.accountId, existing.counterAccountId].filter(
+        (id): id is string => !!id
+      )
+    );
+    revalidatePath(`/movimientos/${existing.id}`);
+    if (existing.debtPayment || existing.installment) {
+      revalidatePath("/deudas");
+      if (existing.debtPayment) {
+        revalidatePath(`/deudas/${existing.debtPayment.debtId}`);
+      }
+      if (existing.installment) {
+        revalidatePath(`/deudas/plan/${existing.installment.planId}`);
+        if (existing.installment.plan.debtId) {
+          revalidatePath(`/deudas/${existing.installment.plan.debtId}`);
+        }
+      }
+    }
+    return { success: true, data: { id: existing.id } };
+  } catch (error) {
+    if (error instanceof ActionError) {
+      return { success: false, error: error.message };
+    }
+    console.error("updateTransaction:", error);
+    return { success: false, error: "No se pudo actualizar el movimiento" };
+  }
+}
+
+/**
+ * Elimina un movimiento (los saldos se recalculan solos al ser derivados).
+ * El ajuste de un arqueo no se elimina por separado (romperia el arqueo).
+ * Si el movimiento era un abono, el DebtPayment se borra antes (FK Restrict)
+ * y el pendiente de la deuda reaparece; una cuota vinculada conserva su
+ * estado y solo pierde el vínculo (SetNull), igual que al eliminar cuentas.
+ */
+export async function deleteTransaction(
+  input: unknown
+): Promise<ActionResult<undefined>> {
+  const user = await getSessionUser();
+  if (!user) {
+    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
+  }
+
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
+
+  try {
+    const existing = await prisma.transaction.findFirst({
+      where: { id: parsed.data, userId: user.id },
+      include: {
+        cashCount: { select: { id: true } },
+        debtPayment: true,
+        installment: { select: { id: true, planId: true } },
+      },
+    });
+    if (!existing) {
+      return { success: false, error: "Movimiento no encontrado" };
+    }
+    if (existing.cashCount) {
+      return {
+        success: false,
+        error: "Este ajuste proviene de un arqueo y no se puede eliminar",
+      };
+    }
+
+    await prisma.$transaction(async (db) => {
+      if (existing.debtPayment) {
+        await db.debtPayment.delete({ where: { id: existing.debtPayment.id } });
+        // El pendiente reaparece: una deuda saldada vuelve a estar abierta.
+        await db.debt.updateMany({
+          where: { id: existing.debtPayment.debtId, status: "PAID" },
+          data: { status: "OPEN" },
+        });
+      }
+      // Desgloses por Cascade; Installment.transactionId queda en null.
+      await db.transaction.delete({ where: { id: existing.id } });
+    });
+
+    revalidateMovementPaths(
+      [existing.accountId, existing.counterAccountId].filter(
+        (id): id is string => !!id
+      )
+    );
+    if (existing.debtPayment || existing.installment) {
+      revalidatePath("/deudas");
+      if (existing.debtPayment) {
+        revalidatePath(`/deudas/${existing.debtPayment.debtId}`);
+      }
+      if (existing.installment) {
+        revalidatePath(`/deudas/plan/${existing.installment.planId}`);
+      }
+    }
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("deleteTransaction:", error);
+    return { success: false, error: "No se pudo eliminar el movimiento" };
   }
 }

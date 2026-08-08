@@ -125,6 +125,22 @@ export const incomeExpenseSchema = z.object({
   denominationLines: txDenominationLines.optional(),
 });
 
+// Editar un movimiento ya registrado (INCOME/EXPENSE/TRANSFER; los
+// ADJUSTMENT quedan fuera). Los montos van en la moneda de cada lado y el
+// desglose de denominaciones REEMPLAZA al anterior (validado en la action).
+export const updateTransactionSchema = z.object({
+  id: idSchema,
+  amount: amountText,
+  // TRANSFER entre monedas: monto recibido. INCOME/EXPENSE multi-moneda:
+  // monto original en la divisa de la operación.
+  counterAmount: amountText.optional(),
+  categoryId: idSchema.nullable().optional(),
+  note: z.string().trim().max(200).optional(),
+  occurredAt: z.coerce.date(),
+  denominationLines: txDenominationLines.optional(),
+  counterDenominationLines: txDenominationLines.optional(),
+});
+
 export const transferSchema = z.object({
   accountId: idSchema,
   counterAccountId: idSchema,

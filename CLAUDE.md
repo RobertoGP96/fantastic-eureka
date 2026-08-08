@@ -151,6 +151,19 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   multi-moneda, tasa (`fmtRate`, counterCurrency por 1 de la moneda del
   movimiento), categoría, nota, fechas y el vínculo a deuda/plan si el
   movimiento nació de un abono o cuota.
+- **Editar/eliminar movimientos**: desde el detalle. Editar
+  (`/movimientos/[id]/editar` + `updateTransaction`): monto, monto del otro
+  lado (transferencias entre monedas y multi-moneda; la tasa implícita se
+  recalcula), categoría, fecha (conserva la hora original) y nota; el
+  desglose de denominaciones REEMPLAZA al anterior (en salidas el stock
+  «devuelve» lo que el movimiento ya sacaba). NO se cambian tipo ni cuentas
+  (eliminar y re-registrar). Los ADJUSTMENT no se editan. Si el movimiento
+  nació de un abono/cuota, el DebtPayment acompaña al monto (pendiente
+  releído dentro del `$transaction`; deuda PAID⇄OPEN, nunca toca CANCELLED).
+  Eliminar (`deleteTransaction` vía `delete-entity-button`): bloqueado si el
+  ajuste pertenece a un arqueo; borra el DebtPayment antes (Restrict, el
+  pendiente reaparece y la deuda PAID vuelve a OPEN); la cuota queda PAID
+  sin vínculo (SetNull), igual que en `deleteAccount`.
 - **Clasificación de monedas**: `Currency.kind` = CASH (efectivo) | DIGITAL
   (sin efectivo, ej. MLC; constantes en `domain.ts`). Las digitales no
   llevan denominaciones (al crearlas no se siembra la serie 1-2-5, y su

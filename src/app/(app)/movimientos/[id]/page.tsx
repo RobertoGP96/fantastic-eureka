@@ -5,11 +5,13 @@ import {
   ArrowRightLeft,
   ArrowUpRight,
   HandCoins,
+  Pencil,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, fmtRate, fmtSignedMinor } from "@/lib/format";
@@ -70,6 +72,7 @@ export default async function MovimientoDetallePage({
       currency: { select: { code: true, decimalPlaces: true } },
       counterCurrency: { select: { code: true, decimalPlaces: true } },
       category: { select: { name: true } },
+      cashCount: { select: { id: true } },
       debtPayment: {
         include: {
           debt: { include: { contact: { select: { name: true } } } },
@@ -277,6 +280,25 @@ export default async function MovimientoDetallePage({
                 </div>
               </div>
             </Link>
+          </section>
+        )}
+
+        {/* Corrección de equivocaciones: editar (salvo ajustes) y eliminar
+            (salvo el ajuste de un arqueo, que vive ligado a su conteo). */}
+        {(tx.kind !== "ADJUSTMENT" || !tx.cashCount) && (
+          <section className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
+            {tx.kind !== "ADJUSTMENT" ? (
+              <Link
+                href={`/movimientos/${tx.id}/editar`}
+                className="flex items-center gap-1.5 rounded-[12px] border border-line bg-white px-3.5 py-2 text-[12.5px] font-semibold text-brand transition-colors hover:border-brand-soft"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar movimiento
+              </Link>
+            ) : (
+              <span />
+            )}
+            <DeleteEntityButton kind="transaction" targetId={tx.id} />
           </section>
         )}
       </div>

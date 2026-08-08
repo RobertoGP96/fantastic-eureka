@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteDebt } from "@/app/actions/debt-actions";
 import { deletePlan } from "@/app/actions/plan-actions";
+import { deleteTransaction } from "@/app/actions/transaction-actions";
 import { useUI } from "@/lib/ui-store";
 
 const LABELS = {
@@ -14,25 +15,34 @@ const LABELS = {
     warning:
       "¿Eliminar la deuda? Se borran sus abonos y planes de cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
     done: "Deuda eliminada",
+    redirect: "/deudas",
   },
   plan: {
     button: "Eliminar plan",
     warning:
       "¿Eliminar el plan? Se borran todas sus cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
     done: "Plan eliminado",
+    redirect: "/deudas",
+  },
+  transaction: {
+    button: "Eliminar movimiento",
+    warning:
+      "¿Eliminar el movimiento? El saldo de la cuenta se recalcula sin él; si era un abono, la deuda vuelve a mostrar ese pendiente. No se puede deshacer.",
+    done: "Movimiento eliminado",
+    redirect: "/movimientos",
   },
 } as const;
 
 /**
- * Eliminación con confirmación inline para deudas y planes (mismo patrón
- * que AccountEditor). Borra el seguimiento pero conserva los movimientos de
- * las cuentas — la advertencia lo deja claro antes de confirmar.
+ * Eliminación con confirmación inline para deudas, planes y movimientos
+ * (mismo patrón que AccountEditor). La advertencia deja claro el alcance
+ * antes de confirmar.
  */
 export function DeleteEntityButton({
   kind,
   targetId,
 }: {
-  kind: "debt" | "plan";
+  kind: "debt" | "plan" | "transaction";
   targetId: string;
 }) {
   const router = useRouter();
@@ -44,12 +54,16 @@ export function DeleteEntityButton({
   const remove = async () => {
     setSaving(true);
     const result =
-      kind === "debt" ? await deleteDebt(targetId) : await deletePlan(targetId);
+      kind === "debt"
+        ? await deleteDebt(targetId)
+        : kind === "plan"
+          ? await deletePlan(targetId)
+          : await deleteTransaction(targetId);
     setSaving(false);
     setConfirming(false);
     if (result.success) {
       showToast(labels.done);
-      router.push("/deudas");
+      router.push(labels.redirect);
       router.refresh();
     } else {
       showToast(result.error);
