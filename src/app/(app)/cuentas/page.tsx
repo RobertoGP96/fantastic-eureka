@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { FolderOpen, Plus, Wallet } from "lucide-react";
-import { getAccountIcon } from "@/lib/account-icons";
+import { Archive, FolderOpen, Plus, Wallet } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { requireSessionUser } from "@/lib/auth";
@@ -13,40 +12,9 @@ import {
 import { totalsByCurrency } from "@/lib/balances-core";
 import { fmtMinor } from "@/lib/format";
 import { convertMinor } from "@/lib/money";
-import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
+import { AccountCard } from "./account-card";
 
 export const dynamic = "force-dynamic";
-
-function AccountCard({ account }: { account: AccountWithBalance }) {
-  const Icon = getAccountIcon(account.icon, account.type);
-  const negative = account.balanceMinor < 0;
-  return (
-    <Link
-      href={`/cuentas/${account.id}`}
-      className="flex items-center gap-3.5 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-    >
-      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-brand">
-        <Icon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-semibold text-navy">
-          {account.name}
-        </div>
-        <div className="text-[11.5px] text-muted">
-          {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type} ·{" "}
-          {account.currency.code}
-        </div>
-      </div>
-      <div
-        className={`text-[15px] font-bold whitespace-nowrap ${
-          negative ? "text-danger" : "text-navy"
-        }`}
-      >
-        {fmtMinor(account.balanceMinor, account.currency)}
-      </div>
-    </Link>
-  );
-}
 
 interface Section {
   key: string;
@@ -57,7 +25,7 @@ interface Section {
 
 export default async function CuentasPage() {
   const user = await requireSessionUser();
-  const [accounts, groups, base, rates] = await Promise.all([
+  const [accounts, groups, base, rates, archivedCount] = await Promise.all([
     listAccountsWithBalances(user.id),
     prisma.accountGroup.findMany({
       where: { userId: user.id },
@@ -66,6 +34,7 @@ export default async function CuentasPage() {
     }),
     prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
     latestRatesByCurrency(user.id),
+    prisma.account.count({ where: { userId: user.id, archived: true } }),
   ]);
 
   const sections: Section[] =
@@ -121,6 +90,15 @@ export default async function CuentasPage() {
 
       <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:px-0">
         <div className="flex justify-end gap-2">
+          {archivedCount > 0 && (
+            <Link
+              href="/cuentas/archivadas"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archivadas ({archivedCount})
+            </Link>
+          )}
           <Link
             href="/cuentas/grupos"
             className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
