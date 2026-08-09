@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { BrandMark } from "@/components/brand-mark";
@@ -36,6 +37,8 @@ export default async function AppLayout({
           <span className="text-[13px] font-semibold text-ink-soft">
             {APP_NAME}
           </span>
+          <Separator orientation="vertical" className="h-5" />
+          <AppBreadcrumb />
           <span className="ml-auto hidden items-center gap-1 text-[11px] text-muted-2 lg:flex">
             <kbd className="rounded-md border border-line bg-white px-1.5 py-0.5 font-sans">
               Ctrl
