@@ -49,11 +49,21 @@ export const dashboardPrefsSchema = z.object({
       z.object({
         id: z.string().min(1).max(40),
         type: z.string().max(30),
+        size: z.string().max(10).optional(),
         accountId: idSchema.max(40).optional(),
         showMovements: z.boolean().optional(),
         showDenominations: z.boolean().optional(),
         fromCurrencyId: idSchema.max(40).optional(),
         toCurrencyId: idSchema.max(40).optional(),
+        variant: z.string().max(20).optional(),
+        metric: z.string().max(20).optional(),
+        defaultPeriod: z.string().max(20).optional(),
+        title: z.string().trim().max(40).optional(),
+        showTabs: z.boolean().optional(),
+        showDelta: z.boolean().optional(),
+        showIncome: z.boolean().optional(),
+        showExpense: z.boolean().optional(),
+        showNet: z.boolean().optional(),
       })
     )
     .max(12)

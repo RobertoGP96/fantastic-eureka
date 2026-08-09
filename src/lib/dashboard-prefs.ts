@@ -6,7 +6,7 @@
 /** Secciones fijas del dashboard en su orden por defecto. */
 export const DASHBOARD_SECTIONS = [
   { key: "quickActions", label: "Accesos rápidos" },
-  { key: "monthMetrics", label: "Métricas del mes" },
+  { key: "widgetPanel", label: "Panel de gadgets" },
   { key: "monthlyChart", label: "Ingresos vs gastos" },
   { key: "topCategories", label: "Top gastos del mes" },
   { key: "upcomingInstallments", label: "Próximas cuotas" },
@@ -20,6 +20,7 @@ export const WIDGET_TYPES = [
   "accountCard",
   "currencyTotals",
   "ratePair",
+  "incomeCard",
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -27,12 +28,42 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   accountCard: "Tarjeta de cuenta",
   currencyTotals: "Totales por moneda",
   ratePair: "Tasa de cambio",
+  incomeCard: "Resumen de ingresos",
 };
+
+/** Tamaño del gadget dentro del panel bento (columnas que ocupa). */
+export const WIDGET_SIZES = ["sm", "md", "lg"] as const;
+export type WidgetSize = (typeof WIDGET_SIZES)[number];
+
+export const WIDGET_SIZE_LABELS: Record<WidgetSize, string> = {
+  sm: "Pequeño",
+  md: "Mediano",
+  lg: "Grande",
+};
+
+export const DEFAULT_WIDGET_SIZE: Record<WidgetType, WidgetSize> = {
+  accountCard: "sm",
+  currencyTotals: "md",
+  ratePair: "sm",
+  incomeCard: "md",
+};
+
+// Configuración del gadget «Resumen de ingresos» (tarjeta con gráfico).
+export const INCOME_CARD_VARIANTS = ["soft", "dark"] as const;
+export type IncomeCardVariant = (typeof INCOME_CARD_VARIANTS)[number];
+
+export const INCOME_CARD_METRICS = ["income", "expense", "net"] as const;
+export type IncomeCardMetric = (typeof INCOME_CARD_METRICS)[number];
+
+export const INCOME_CARD_PERIODS = ["day", "week", "month"] as const;
+export type IncomeCardPeriod = (typeof INCOME_CARD_PERIODS)[number];
 
 export interface DashboardWidget {
   id: string;
   type: WidgetType;
-  /** accountCard: cuenta que muestra la tarjeta. */
+  /** Columnas que ocupa en el panel bento. */
+  size?: WidgetSize;
+  /** accountCard: cuenta de la tarjeta. incomeCard: filtro (sin valor = todas). */
   accountId?: string;
   /** accountCard: incluir los últimos movimientos. */
   showMovements?: boolean;
@@ -41,6 +72,22 @@ export interface DashboardWidget {
   /** ratePair: par origen→destino. */
   fromCurrencyId?: string;
   toCurrencyId?: string;
+  /** incomeCard: variante visual. */
+  variant?: IncomeCardVariant;
+  /** incomeCard: serie que dibuja el gráfico. */
+  metric?: IncomeCardMetric;
+  /** incomeCard: periodo inicial de los tabs. */
+  defaultPeriod?: IncomeCardPeriod;
+  /** incomeCard: título propio (sin valor = automático). */
+  title?: string;
+  /** incomeCard: mostrar los tabs Día/Semana/Mes. */
+  showTabs?: boolean;
+  /** incomeCard: variación vs el periodo anterior. */
+  showDelta?: boolean;
+  /** incomeCard: métricas del pie de la tarjeta. */
+  showIncome?: boolean;
+  showExpense?: boolean;
+  showNet?: boolean;
 }
 
 export interface DashboardSectionPref {
@@ -61,13 +108,6 @@ export const MAX_WIDGETS = 12;
 const FIXED_KEYS = new Set<string>(DASHBOARD_SECTIONS.map((s) => s.key));
 const WIDGET_TYPE_SET = new Set<string>(WIDGET_TYPES);
 
-export const widgetSectionKey = (id: string) => `widget:${id}`;
-
-/** Id del gadget si la clave es "widget:<id>"; null para secciones fijas. */
-export function widgetIdFromKey(key: string): string | null {
-  return key.startsWith("widget:") ? key.slice("widget:".length) : null;
-}
-
 /** Todas las secciones visibles, sin gadgets, en el orden canónico. */
 export function defaultDashboardPrefs(): DashboardPrefs {
   return {
@@ -75,6 +115,13 @@ export function defaultDashboardPrefs(): DashboardPrefs {
     widgets: [],
     accountIds: null,
   };
+}
+
+/** Valor si pertenece a la lista de opciones; undefined si no. */
+function pick<T extends string>(list: readonly T[], v: unknown): T | undefined {
+  return typeof v === "string" && (list as readonly string[]).includes(v)
+    ? (v as T)
+    : undefined;
 }
 
 function normalizeWidget(item: unknown): DashboardWidget | null {
@@ -89,6 +136,7 @@ function normalizeWidget(item: unknown): DashboardWidget | null {
   const type = raw.type as WidgetType;
   const str = (v: unknown) =>
     typeof v === "string" && v.length > 0 && v.length <= 40 ? v : undefined;
+  const size = pick(WIDGET_SIZES, raw.size) ?? DEFAULT_WIDGET_SIZE[type];
 
   if (type === "accountCard") {
     const accountId = str(raw.accountId);
@@ -96,6 +144,7 @@ function normalizeWidget(item: unknown): DashboardWidget | null {
     return {
       id: raw.id,
       type,
+      size,
       accountId,
       showMovements: raw.showMovements === true,
       showDenominations: raw.showDenominations === true,
@@ -107,16 +156,35 @@ function normalizeWidget(item: unknown): DashboardWidget | null {
     if (!fromCurrencyId || !toCurrencyId || fromCurrencyId === toCurrencyId) {
       return null;
     }
-    return { id: raw.id, type, fromCurrencyId, toCurrencyId };
+    return { id: raw.id, type, size, fromCurrencyId, toCurrencyId };
   }
-  return { id: raw.id, type };
+  if (type === "incomeCard") {
+    return {
+      id: raw.id,
+      type,
+      size,
+      accountId: str(raw.accountId),
+      variant: pick(INCOME_CARD_VARIANTS, raw.variant) ?? "soft",
+      metric: pick(INCOME_CARD_METRICS, raw.metric) ?? "income",
+      defaultPeriod: pick(INCOME_CARD_PERIODS, raw.defaultPeriod) ?? "month",
+      title: str(raw.title),
+      showTabs: raw.showTabs !== false,
+      showDelta: raw.showDelta !== false,
+      showIncome: raw.showIncome !== false,
+      showExpense: raw.showExpense !== false,
+      showNet: raw.showNet !== false,
+    };
+  }
+  return { id: raw.id, type, size };
 }
 
 /**
  * Normaliza preferencias de origen no confiable: descarta claves y gadgets
  * inválidos o duplicados, y añade al final (visibles) las secciones fijas
  * que falten — así unas preferencias de una versión vieja no ocultan
- * secciones nuevas. Acepta el formato v1 (solo sections) sin perder nada.
+ * secciones nuevas. Los gadgets viven en el panel bento y su orden es el
+ * del array `widgets`; las claves "widget:<id>" de versiones anteriores
+ * (gadgets como secciones sueltas) se descartan sin perder los gadgets.
  */
 export function normalizeDashboardPrefs(raw: unknown): DashboardPrefs {
   const source = (raw ?? {}) as {
@@ -144,10 +212,7 @@ export function normalizeDashboardPrefs(raw: unknown): DashboardPrefs {
       if (!item || typeof item !== "object") continue;
       const { key, visible } = item as { key?: unknown; visible?: unknown };
       if (typeof key !== "string" || seen.has(key)) continue;
-      const widgetId = widgetIdFromKey(key);
-      if (widgetId ? !widgetIds.has(widgetId) : !FIXED_KEYS.has(key)) {
-        continue;
-      }
+      if (!FIXED_KEYS.has(key)) continue;
       seen.add(key);
       sections.push({ key, visible: visible !== false });
     }
@@ -155,12 +220,6 @@ export function normalizeDashboardPrefs(raw: unknown): DashboardPrefs {
   for (const section of DASHBOARD_SECTIONS) {
     if (!seen.has(section.key)) {
       sections.push({ key: section.key, visible: true });
-    }
-  }
-  for (const widget of widgets) {
-    const key = widgetSectionKey(widget.id);
-    if (!seen.has(key)) {
-      sections.push({ key, visible: true });
     }
   }
 

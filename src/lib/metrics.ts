@@ -8,7 +8,13 @@ import {
   lastMonths,
   type BaseCurrencyInfo,
   type MonthBucket,
+  type RatesMap,
 } from "@/lib/metrics-core";
+import {
+  buildIncomeCardSeries,
+  incomeCardRangeStart,
+  type IncomeCardSeries,
+} from "@/lib/income-series";
 
 export interface DashboardMetrics {
   series: MonthBucket[];
@@ -99,4 +105,86 @@ export async function dashboardMetrics(
   }
 
   return { series, topCategories, receivableMinor, payableMinor, missingRates };
+}
+
+export interface IncomeCardData {
+  currency: { code: string; decimalPlaces: number };
+  series: IncomeCardSeries;
+  missingRates: string[];
+  /** Nombre de la cuenta cuando el gadget filtra por una. */
+  accountName?: string;
+}
+
+/**
+ * Datos del gadget «Resumen de ingresos»: series día/semana/mes de ingresos
+ * y gastos. Con `accountId` se limita a esa cuenta y los montos van en su
+ * moneda (sin conversión); sin cuenta se agregan todas convertidas a base.
+ * Devuelve null si la cuenta no existe (o es ajena) o si falta la base.
+ */
+export async function incomeCardData(
+  userId: string,
+  base: (BaseCurrencyInfo & { code: string }) | null,
+  accountId?: string
+): Promise<IncomeCardData | null> {
+  const rangeStart = incomeCardRangeStart();
+
+  if (accountId) {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId },
+      include: {
+        currency: { select: { id: true, code: true, decimalPlaces: true } },
+      },
+    });
+    if (!account) return null;
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        accountId: account.id,
+        kind: { in: ["INCOME", "EXPENSE"] },
+        occurredAt: { gte: rangeStart },
+      },
+      select: {
+        kind: true,
+        amountMinor: true,
+        occurredAt: true,
+        currency: { select: { id: true, code: true, decimalPlaces: true } },
+      },
+    });
+    // Los movimientos se guardan en la moneda de la cuenta: no hay conversión.
+    const { series, missingRates } = buildIncomeCardSeries(
+      transactions,
+      account.currency,
+      new Map() as RatesMap
+    );
+    return {
+      currency: account.currency,
+      series,
+      missingRates: [...missingRates],
+      accountName: account.name,
+    };
+  }
+
+  if (!base) return null;
+  const [rates, transactions] = await Promise.all([
+    latestRatesByCurrency(userId),
+    prisma.transaction.findMany({
+      where: {
+        userId,
+        kind: { in: ["INCOME", "EXPENSE"] },
+        occurredAt: { gte: rangeStart },
+      },
+      select: {
+        kind: true,
+        amountMinor: true,
+        occurredAt: true,
+        currency: { select: { id: true, code: true, decimalPlaces: true } },
+      },
+    }),
+  ]);
+  const { series, missingRates } = buildIncomeCardSeries(
+    transactions,
+    base,
+    rates
+  );
+  return { currency: base, series, missingRates: [...missingRates] };
 }

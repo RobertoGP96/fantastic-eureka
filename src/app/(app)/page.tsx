@@ -19,24 +19,22 @@ import { DashboardCustomizer } from "@/components/dashboard-customizer";
 import { requireSessionUser } from "@/lib/auth";
 import { APP_NAME } from "@/lib/config";
 import { prisma } from "@/lib/db";
-import {
-  latestRatesByCurrency,
-  listAccountsWithBalances,
-} from "@/lib/balances";
+import { listAccountsWithBalances } from "@/lib/balances";
 import {
   parseDashboardPrefs,
-  widgetIdFromKey,
   type DashboardSectionKey,
 } from "@/lib/dashboard-prefs";
 import {
   AccountCardWidget,
   CurrencyTotalsWidget,
+  IncomeCardWidget,
   RatePairWidget,
 } from "@/components/dashboard-widgets";
+import { BentoPanel } from "@/components/bento-panel";
 import { dashboardMetrics } from "@/lib/metrics";
 import { deltaPct } from "@/lib/metrics-core";
 import { fmtMinor } from "@/lib/format";
-import { convertMinor, invertRateScaled } from "@/lib/money";
+import { invertRateScaled } from "@/lib/money";
 import { pairRateSeries } from "@/lib/rates";
 import { pairKey } from "@/lib/rate-resolve";
 
@@ -69,9 +67,8 @@ export default async function HomePage() {
   const base = await prisma.currency.findFirst({
     where: { isBase: true, userId: user.id },
   });
-  const [accounts, rates, metrics, userRow, currencies] = await Promise.all([
+  const [accounts, metrics, userRow, currencies] = await Promise.all([
     listAccountsWithBalances(user.id),
-    latestRatesByCurrency(user.id),
     base ? dashboardMetrics(user.id, base) : Promise.resolve(null),
     prisma.user.findUnique({
       where: { id: user.id },
@@ -105,27 +102,8 @@ export default async function HomePage() {
     ? accounts.filter((a) => prefs.accountIds!.includes(a.id))
     : accounts;
 
-  let consolidatedMinor = 0;
+  // Monedas sin tasa: avisa si sus movimientos quedan fuera de las métricas.
   const missingRates = new Set<string>(metrics?.missingRates ?? []);
-  if (base) {
-    for (const account of accounts) {
-      if (account.currency.id === base.id) {
-        consolidatedMinor += account.balanceMinor;
-      } else {
-        const rate = rates.get(account.currency.id);
-        if (rate) {
-          consolidatedMinor += convertMinor(
-            account.balanceMinor,
-            account.currency,
-            base,
-            rate.rateScaled
-          );
-        } else if (account.balanceMinor !== 0) {
-          missingRates.add(account.currency.code);
-        }
-      }
-    }
-  }
 
   const current = metrics?.series.at(-1);
   const previous = metrics?.series.at(-2);
@@ -142,9 +120,57 @@ export default async function HomePage() {
     false;
   const maxCategory = metrics?.topCategories[0]?.totalMinor ?? 0;
 
+  // Gadgets del panel bento, en el orden del array de preferencias.
+  const widgetNodes = prefs.widgets.map((widget) => {
+    if (widget.type === "accountCard") {
+      return (
+        <AccountCardWidget
+          key={`widget-${widget.id}`}
+          userId={user.id}
+          widget={widget}
+          account={
+            widget.accountId ? accountById.get(widget.accountId) : undefined
+          }
+        />
+      );
+    }
+    if (widget.type === "currencyTotals") {
+      return (
+        <CurrencyTotalsWidget key={`widget-${widget.id}`} accounts={accounts} />
+      );
+    }
+    if (widget.type === "incomeCard") {
+      return (
+        <IncomeCardWidget
+          key={`widget-${widget.id}`}
+          userId={user.id}
+          widget={widget}
+          base={base}
+        />
+      );
+    }
+    const from = currencyById.get(widget.fromCurrencyId ?? "");
+    const to = currencyById.get(widget.toCurrencyId ?? "");
+    if (!from || !to) return <span key={`widget-${widget.id}`} />;
+    return (
+      <RatePairWidget
+        key={`widget-${widget.id}`}
+        fromCode={from.code}
+        toCode={to.code}
+        values={pairValues(from.id, to.id)}
+      />
+    );
+  });
+
   // Cada sección personalizable como nodo independiente; null = no aplica
   // (sin datos) y se omite sin dejar hueco.
   const sectionNodes: Record<DashboardSectionKey, ReactNode | null> = {
+    widgetPanel:
+      prefs.widgets.length > 0 ? (
+        <BentoPanel key="widgetPanel" prefs={prefs}>
+          {widgetNodes}
+        </BentoPanel>
+      ) : null,
     quickActions: (
       <div key="quickActions" className="grid grid-cols-5 gap-2 md:max-w-lg">
         {QUICK_ACTIONS.map((action) => {
@@ -164,72 +190,6 @@ export default async function HomePage() {
         })}
       </div>
     ),
-    monthMetrics:
-      base && current && metrics ? (
-        <section
-          key="monthMetrics"
-          className="grid grid-cols-2 gap-2.5 lg:grid-cols-4"
-        >
-          <div className="rounded-[16px] border border-line bg-white p-3.5">
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              Ingresos del mes
-            </div>
-            <div className="mt-0.5 text-[17px] font-bold text-ok">
-              {fmtMinor(current.incomeMinor, base)}
-            </div>
-            {incomeDelta !== null && previous && (
-              <div
-                className={`mt-0.5 text-[11px] font-semibold ${
-                  incomeDelta >= 0 ? "text-ok" : "text-danger"
-                }`}
-              >
-                {incomeDelta >= 0 ? "+" : ""}
-                {incomeDelta}% vs {previous.label}
-              </div>
-            )}
-          </div>
-          <div className="rounded-[16px] border border-line bg-white p-3.5">
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              Gastos del mes
-            </div>
-            <div className="mt-0.5 text-[17px] font-bold text-danger">
-              {fmtMinor(current.expenseMinor, base)}
-            </div>
-            {expenseDelta !== null && previous && (
-              <div
-                className={`mt-0.5 text-[11px] font-semibold ${
-                  expenseDelta > 0 ? "text-danger" : "text-ok"
-                }`}
-              >
-                {expenseDelta >= 0 ? "+" : ""}
-                {expenseDelta}% vs {previous.label}
-              </div>
-            )}
-          </div>
-          <Link
-            href="/deudas"
-            className="rounded-[16px] border border-line bg-white p-3.5 transition-colors hover:border-brand-soft"
-          >
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              Por cobrar
-            </div>
-            <div className="mt-0.5 text-[17px] font-bold text-brand">
-              {fmtMinor(metrics.receivableMinor, base)}
-            </div>
-          </Link>
-          <Link
-            href="/deudas?dir=pagar"
-            className="rounded-[16px] border border-line bg-white p-3.5 transition-colors hover:border-brand-soft"
-          >
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              Por pagar
-            </div>
-            <div className="mt-0.5 text-[17px] font-bold text-warn">
-              {fmtMinor(metrics.payableMinor, base)}
-            </div>
-          </Link>
-        </section>
-      ) : null,
     monthlyChart:
       base && metrics ? (
         <section
@@ -360,40 +320,6 @@ export default async function HomePage() {
     ),
   };
 
-  // Gadgets instanciados desde las preferencias (por id).
-  const widgetNodes = new Map<string, ReactNode>();
-  for (const widget of prefs.widgets) {
-    if (widget.type === "accountCard") {
-      widgetNodes.set(
-        widget.id,
-        <AccountCardWidget
-          key={`widget-${widget.id}`}
-          userId={user.id}
-          widget={widget}
-          account={widget.accountId ? accountById.get(widget.accountId) : undefined}
-        />
-      );
-    } else if (widget.type === "currencyTotals") {
-      widgetNodes.set(
-        widget.id,
-        <CurrencyTotalsWidget key={`widget-${widget.id}`} accounts={accounts} />
-      );
-    } else if (widget.type === "ratePair") {
-      const from = currencyById.get(widget.fromCurrencyId ?? "");
-      const to = currencyById.get(widget.toCurrencyId ?? "");
-      if (!from || !to) continue;
-      widgetNodes.set(
-        widget.id,
-        <RatePairWidget
-          key={`widget-${widget.id}`}
-          fromCode={from.code}
-          toCode={to.code}
-          values={pairValues(from.id, to.id)}
-        />
-      );
-    }
-  }
-
   // Renderiza en el orden elegido; las secciones "media" consecutivas
   // (gráfico y top gastos) comparten fila en escritorio como antes.
   const blocks: ReactNode[] = [];
@@ -415,12 +341,9 @@ export default async function HomePage() {
   };
   for (const section of prefs.sections) {
     if (!section.visible) continue;
-    const widgetId = widgetIdFromKey(section.key);
-    const node = widgetId
-      ? widgetNodes.get(widgetId)
-      : sectionNodes[section.key as DashboardSectionKey];
+    const node = sectionNodes[section.key as DashboardSectionKey];
     if (!node) continue;
-    if (!widgetId && HALF_SECTIONS.has(section.key as DashboardSectionKey)) {
+    if (HALF_SECTIONS.has(section.key as DashboardSectionKey)) {
       halfRun.push(node);
       halfRunKey = halfRunKey ? halfRunKey : section.key;
     } else {
@@ -454,18 +377,81 @@ export default async function HomePage() {
         }
       >
         <div className="mt-3">
-          <div className="text-[11.5px] font-medium tracking-wide text-white/60 uppercase">
-            Total consolidado
-          </div>
-          <div className="mt-0.5 text-[28px] font-bold tracking-[-0.5px]">
-            {base ? fmtMinor(consolidatedMinor, base) : "—"}
-          </div>
           {missingRates.size > 0 && (
             <div className="mt-1 text-[11.5px] text-white/60">
               Sin tasa para {[...missingRates].join(", ")} ·{" "}
               <Link href="/tasas" className="underline">
                 registrar tasa
               </Link>
+            </div>
+          )}
+          {base && current && metrics && (
+            <div className="mt-3.5 flex flex-wrap gap-2">
+              {[
+                {
+                  label: "Ingresos mes",
+                  value: fmtMinor(current.incomeMinor, base),
+                  delta: incomeDelta,
+                  deltaGood: incomeDelta !== null && incomeDelta >= 0,
+                },
+                {
+                  label: "Gastos mes",
+                  value: fmtMinor(current.expenseMinor, base),
+                  delta: expenseDelta,
+                  deltaGood: expenseDelta !== null && expenseDelta <= 0,
+                },
+                {
+                  label: "Neto mes",
+                  value: fmtMinor(
+                    current.incomeMinor - current.expenseMinor,
+                    base
+                  ),
+                  delta: null,
+                  deltaGood: true,
+                },
+                ...(metrics.receivableMinor > 0
+                  ? [
+                      {
+                        label: "Por cobrar",
+                        value: fmtMinor(metrics.receivableMinor, base),
+                        delta: null,
+                        deltaGood: true,
+                      },
+                    ]
+                  : []),
+                ...(metrics.payableMinor > 0
+                  ? [
+                      {
+                        label: "Por pagar",
+                        value: fmtMinor(metrics.payableMinor, base),
+                        delta: null,
+                        deltaGood: true,
+                      },
+                    ]
+                  : []),
+              ].map((chip) => (
+                <div
+                  key={chip.label}
+                  className="rounded-[12px] bg-white/10 px-3 py-1.5 backdrop-blur-sm"
+                >
+                  <div className="text-[10px] font-medium tracking-wide text-white/60 uppercase">
+                    {chip.label}
+                  </div>
+                  <div className="text-[13px] font-bold whitespace-nowrap">
+                    {chip.value}
+                    {chip.delta !== null && (
+                      <span
+                        className={`ml-1.5 text-[10.5px] font-semibold ${
+                          chip.deltaGood ? "text-brand-soft" : "text-[#f2a9b4]"
+                        }`}
+                      >
+                        {chip.delta >= 0 ? "+" : ""}
+                        {chip.delta}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

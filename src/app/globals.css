@@ -140,6 +140,40 @@ input {
   outline: none;
 }
 
+/* Scrollbars finas con la paleta. `scrollbar-gutter: stable` reserva el
+   hueco de la barra vertical del documento aunque no haga falta, así su
+   aparición no re-acomoda el layout; en los contenedores internos la barra
+   fina con pista transparente no altera la estructura visible. */
+html {
+  scrollbar-gutter: stable;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-brand) 40%, transparent)
+    transparent;
+}
+
+/* WebKit/Blink viejos (sin soporte de scrollbar-color) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-brand) 40%, transparent);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-brand) 60%, transparent);
+}
+
 .no-scrollbar {
   scrollbar-width: none;
 }

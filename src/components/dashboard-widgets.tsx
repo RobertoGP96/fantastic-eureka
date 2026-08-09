@@ -7,9 +7,12 @@ import { totalsByCurrency } from "@/lib/balances-core";
 import type { DashboardWidget } from "@/lib/dashboard-prefs";
 import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
 import { fmtMinor, fmtRate } from "@/lib/format";
+import { incomeCardData } from "@/lib/metrics";
+import type { BaseCurrencyInfo } from "@/lib/metrics-core";
 import { toTxRow } from "@/lib/tx-rows";
 import { TxList } from "@/components/tx-list";
 import { DenominationAvailability } from "@/components/denomination-availability";
+import { IncomeCard } from "@/components/income-card";
 import { RateSparkline } from "@/components/rate-sparkline";
 
 // Gadgets del dashboard (server components): tarjeta de una cuenta,
@@ -144,7 +147,7 @@ export function CurrencyTotalsWidget({
     );
   }
   return (
-    <section className="rounded-[18px] border border-line bg-white p-4">
+    <section className="h-full rounded-[18px] border border-line bg-white p-4">
       <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-navy">
         <Coins className="h-4 w-4 text-brand" />
         Totales por moneda
@@ -172,6 +175,48 @@ export function CurrencyTotalsWidget({
   );
 }
 
+/** «Resumen de ingresos»: consulta las series y renderiza la tarjeta cliente. */
+export async function IncomeCardWidget({
+  userId,
+  widget,
+  base,
+}: {
+  userId: string;
+  widget: DashboardWidget;
+  base: (BaseCurrencyInfo & { code: string }) | null;
+}) {
+  const data = await incomeCardData(userId, base, widget.accountId);
+  if (!data) {
+    return (
+      <WidgetPlaceholder
+        message={
+          widget.accountId
+            ? "La cuenta de este gadget ya no existe. Edítalo desde «Personalizar Inicio»."
+            : "Define una moneda base en /monedas para ver este gadget."
+        }
+      />
+    );
+  }
+  return (
+    <IncomeCard
+      heading={widget.title || data.accountName || "Resumen de ingresos"}
+      config={{
+        variant: widget.variant ?? "soft",
+        metric: widget.metric ?? "income",
+        defaultPeriod: widget.defaultPeriod ?? "month",
+        showTabs: widget.showTabs !== false,
+        showDelta: widget.showDelta !== false,
+        showIncome: widget.showIncome !== false,
+        showExpense: widget.showExpense !== false,
+        showNet: widget.showNet !== false,
+      }}
+      currency={data.currency}
+      series={data.series}
+      missingRates={data.missingRates}
+    />
+  );
+}
+
 /** Última tasa de un par con su tendencia (misma fuente que /tasas). */
 export function RatePairWidget({
   fromCode,
@@ -184,7 +229,7 @@ export function RatePairWidget({
 }) {
   const latest = values.at(-1);
   return (
-    <section className="rounded-[18px] border border-line bg-white p-4">
+    <section className="flex h-full flex-col justify-center rounded-[18px] border border-line bg-white p-4">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[12px] bg-chip text-brand">
           <LineChart className="h-[18px] w-[18px]" />

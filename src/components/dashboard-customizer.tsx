@@ -8,6 +8,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  PencilLine,
   Plus,
   RotateCcw,
   SlidersHorizontal,
@@ -33,14 +34,19 @@ import { Button } from "@/components/ui/button";
 import { saveDashboardPrefs } from "@/app/actions/dashboard-actions";
 import {
   DASHBOARD_SECTIONS,
+  DEFAULT_WIDGET_SIZE,
   MAX_WIDGETS,
+  WIDGET_SIZES,
+  WIDGET_SIZE_LABELS,
   WIDGET_TYPE_LABELS,
   defaultDashboardPrefs,
-  widgetIdFromKey,
-  widgetSectionKey,
   type DashboardPrefs,
   type DashboardSectionPref,
   type DashboardWidget,
+  type IncomeCardMetric,
+  type IncomeCardPeriod,
+  type IncomeCardVariant,
+  type WidgetSize,
   type WidgetType,
 } from "@/lib/dashboard-prefs";
 import { useUI } from "@/lib/ui-store";
@@ -63,6 +69,9 @@ const FIXED_LABELS = new Map<string, string>(
 
 const newWidgetId = () =>
   `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+const selectTriggerCls =
+  "h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink";
 
 function CheckRow({
   checked,
@@ -95,9 +104,9 @@ function CheckRow({
   );
 }
 
-// Personalización de Inicio: secciones y gadgets (orden/visibilidad),
-// gadgets nuevos con su configuración y qué cuentas lista la sección
-// Cuentas. Se guarda en User.dashboardPrefs vía saveDashboardPrefs.
+// Personalización de Inicio: orden/visibilidad de secciones, gadgets del
+// panel bento (alta con configuración, tamaño y orden) y qué cuentas lista
+// la sección Cuentas. Se guarda en User.dashboardPrefs vía saveDashboardPrefs.
 export function DashboardCustomizer({
   prefs,
   accounts,
@@ -120,18 +129,26 @@ export function DashboardCustomizer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Alta de gadget en curso
+  // Alta o edición de gadget en curso (editingId = null → alta)
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [addType, setAddType] = useState<WidgetType | null>(null);
+  const [addSize, setAddSize] = useState<WidgetSize>("md");
   const [addAccountId, setAddAccountId] = useState("");
   const [addShowMovements, setAddShowMovements] = useState(false);
   const [addShowDenominations, setAddShowDenominations] = useState(false);
   const [addFromId, setAddFromId] = useState("");
   const [addToId, setAddToId] = useState("");
+  // Configuración del «Resumen de ingresos»
+  const [addVariant, setAddVariant] = useState<IncomeCardVariant>("soft");
+  const [addMetric, setAddMetric] = useState<IncomeCardMetric>("income");
+  const [addPeriod, setAddPeriod] = useState<IncomeCardPeriod>("month");
+  const [addTitle, setAddTitle] = useState("");
+  const [addShowTabs, setAddShowTabs] = useState(true);
+  const [addShowDelta, setAddShowDelta] = useState(true);
+  const [addShowIncome, setAddShowIncome] = useState(true);
+  const [addShowExpense, setAddShowExpense] = useState(true);
+  const [addShowNet, setAddShowNet] = useState(true);
 
-  const widgetById = useMemo(
-    () => new Map(widgets.map((w) => [w.id, w])),
-    [widgets]
-  );
   const accountById = useMemo(
     () => new Map(accounts.map((a) => [a.id, a])),
     [accounts]
@@ -148,16 +165,13 @@ export function DashboardCustomizer({
       setWidgets(prefs.widgets);
       setAccountIds(prefs.accountIds);
       setAddType(null);
+      setEditingId(null);
       setError(null);
     }
     setOpen(next);
   };
 
-  const labelFor = (key: string): string => {
-    const widgetId = widgetIdFromKey(key);
-    if (!widgetId) return FIXED_LABELS.get(key) ?? key;
-    const widget = widgetById.get(widgetId);
-    if (!widget) return key;
+  const widgetLabel = (widget: DashboardWidget): string => {
     if (widget.type === "accountCard") {
       const account = widget.accountId
         ? accountById.get(widget.accountId)
@@ -168,6 +182,13 @@ export function DashboardCustomizer({
       const from = currencyById.get(widget.fromCurrencyId ?? "")?.code ?? "?";
       const to = currencyById.get(widget.toCurrencyId ?? "")?.code ?? "?";
       return `Tasa ${from} → ${to}`;
+    }
+    if (widget.type === "incomeCard") {
+      if (widget.title) return widget.title;
+      const account = widget.accountId
+        ? accountById.get(widget.accountId)
+        : undefined;
+      return account ? `Resumen · ${account.name}` : "Resumen de ingresos";
     }
     return WIDGET_TYPE_LABELS[widget.type];
   };
@@ -190,30 +211,81 @@ export function DashboardCustomizer({
     });
   };
 
-  const removeWidget = (key: string) => {
-    const widgetId = widgetIdFromKey(key);
-    if (!widgetId) return;
-    setWidgets((prev) => prev.filter((w) => w.id !== widgetId));
-    setSections((prev) => prev.filter((s) => s.key !== key));
+  const moveWidget = (index: number, delta: -1 | 1) => {
+    setWidgets((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = prev.slice();
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const removeWidget = (id: string) => {
+    setWidgets((prev) => prev.filter((w) => w.id !== id));
+    // Si se borra el gadget en edición, la edición se cancela.
+    if (id === editingId) {
+      setEditingId(null);
+      setAddType(null);
+    }
   };
 
   const startAdd = (type: WidgetType) => {
+    setEditingId(null);
     setAddType(type);
-    setAddAccountId(accounts[0]?.id ?? "");
+    setAddSize(DEFAULT_WIDGET_SIZE[type]);
+    setAddAccountId(type === "incomeCard" ? "all" : (accounts[0]?.id ?? ""));
     setAddShowMovements(false);
     setAddShowDenominations(false);
     setAddFromId(currencies[0]?.id ?? "");
     setAddToId(currencies[1]?.id ?? "");
+    setAddVariant("soft");
+    setAddMetric("income");
+    setAddPeriod("month");
+    setAddTitle("");
+    setAddShowTabs(true);
+    setAddShowDelta(true);
+    setAddShowIncome(true);
+    setAddShowExpense(true);
+    setAddShowNet(true);
+  };
+
+  /** Prellena el formulario con la configuración del gadget. */
+  const startEdit = (widget: DashboardWidget) => {
+    setEditingId(widget.id);
+    setAddType(widget.type);
+    setAddSize(widget.size ?? DEFAULT_WIDGET_SIZE[widget.type]);
+    setAddAccountId(
+      widget.type === "incomeCard"
+        ? (widget.accountId ?? "all")
+        : (widget.accountId ?? accounts[0]?.id ?? "")
+    );
+    setAddShowMovements(widget.showMovements === true);
+    setAddShowDenominations(widget.showDenominations === true);
+    setAddFromId(widget.fromCurrencyId ?? currencies[0]?.id ?? "");
+    setAddToId(widget.toCurrencyId ?? currencies[1]?.id ?? "");
+    setAddVariant(widget.variant ?? "soft");
+    setAddMetric(widget.metric ?? "income");
+    setAddPeriod(widget.defaultPeriod ?? "month");
+    setAddTitle(widget.title ?? "");
+    setAddShowTabs(widget.showTabs !== false);
+    setAddShowDelta(widget.showDelta !== false);
+    setAddShowIncome(widget.showIncome !== false);
+    setAddShowExpense(widget.showExpense !== false);
+    setAddShowNet(widget.showNet !== false);
   };
 
   const confirmAdd = () => {
-    if (!addType || widgets.length >= MAX_WIDGETS) return;
+    if (!addType) return;
+    if (!editingId && widgets.length >= MAX_WIDGETS) return;
+    const id = editingId ?? newWidgetId();
     let widget: DashboardWidget | null = null;
     if (addType === "accountCard") {
-      if (!addAccountId) return;
+      if (!addAccountId || addAccountId === "all") return;
       widget = {
-        id: newWidgetId(),
+        id,
         type: addType,
+        size: addSize,
         accountId: addAccountId,
         showMovements: addShowMovements,
         showDenominations: addShowDenominations,
@@ -221,20 +293,40 @@ export function DashboardCustomizer({
     } else if (addType === "ratePair") {
       if (!addFromId || !addToId || addFromId === addToId) return;
       widget = {
-        id: newWidgetId(),
+        id,
         type: addType,
+        size: addSize,
         fromCurrencyId: addFromId,
         toCurrencyId: addToId,
       };
+    } else if (addType === "incomeCard") {
+      const title = addTitle.trim();
+      widget = {
+        id,
+        type: addType,
+        size: addSize,
+        accountId: addAccountId === "all" ? undefined : addAccountId,
+        variant: addVariant,
+        metric: addMetric,
+        defaultPeriod: addPeriod,
+        title: title.length > 0 ? title.slice(0, 40) : undefined,
+        showTabs: addShowTabs,
+        showDelta: addShowDelta,
+        showIncome: addShowIncome,
+        showExpense: addShowExpense,
+        showNet: addShowNet,
+      };
     } else {
-      widget = { id: newWidgetId(), type: addType };
+      widget = { id, type: addType, size: addSize };
     }
-    setWidgets((prev) => [...prev, widget]);
-    setSections((prev) => [
-      ...prev,
-      { key: widgetSectionKey(widget.id), visible: true },
-    ]);
+    const next = widget;
+    if (editingId) {
+      setWidgets((prev) => prev.map((w) => (w.id === editingId ? next : w)));
+    } else {
+      setWidgets((prev) => [...prev, next]);
+    }
     setAddType(null);
+    setEditingId(null);
   };
 
   const toggleAccount = (id: string) => {
@@ -252,6 +344,7 @@ export function DashboardCustomizer({
     setWidgets(defaults.widgets);
     setAccountIds(defaults.accountIds);
     setAddType(null);
+    setEditingId(null);
   };
 
   const save = async () => {
@@ -268,7 +361,31 @@ export function DashboardCustomizer({
     }
   };
 
-  const addAccount = addAccountId ? accountById.get(addAccountId) : undefined;
+  const addAccount =
+    addAccountId && addAccountId !== "all"
+      ? accountById.get(addAccountId)
+      : undefined;
+
+  const sizeSelect = (
+    <div className="flex items-center gap-2">
+      <span className="text-[12px] text-muted">Tamaño</span>
+      <Select
+        value={addSize}
+        onValueChange={(v) => setAddSize(v as WidgetSize)}
+      >
+        <SelectTrigger className="h-10 flex-1 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {WIDGET_SIZES.map((size) => (
+            <SelectItem key={size} value={size}>
+              {WIDGET_SIZE_LABELS[size]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
     <Sheet open={open} onOpenChange={openSheet}>
@@ -290,88 +407,144 @@ export function DashboardCustomizer({
             Personalizar Inicio
           </SheetTitle>
           <SheetDescription className="text-[12.5px] text-muted">
-            Ordena, oculta y añade gadgets a tu vista de Inicio.
+            Ordena y oculta secciones, y arma tu panel de gadgets.
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-2 px-4">
-          {sections.map((item, index) => {
-            const isWidget = widgetIdFromKey(item.key) !== null;
-            return (
-              <div
-                key={item.key}
-                className={`flex items-center gap-2 rounded-[14px] border px-3 py-2.5 transition-colors ${
+          {sections.map((item, index) => (
+            <div
+              key={item.key}
+              className={`flex items-center gap-2 rounded-[14px] border px-3 py-2.5 transition-colors ${
+                item.visible
+                  ? "border-line bg-white"
+                  : "border-line-2 bg-app opacity-70"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => toggle(item.key)}
+                aria-label={
                   item.visible
-                    ? "border-line bg-white"
-                    : "border-line-2 bg-app opacity-70"
+                    ? `Ocultar ${FIXED_LABELS.get(item.key) ?? item.key}`
+                    : `Mostrar ${FIXED_LABELS.get(item.key) ?? item.key}`
+                }
+                className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] transition-colors ${
+                  item.visible ? "bg-chip text-brand" : "bg-white text-muted"
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={() => toggle(item.key)}
-                  aria-label={
-                    item.visible
-                      ? `Ocultar ${labelFor(item.key)}`
-                      : `Mostrar ${labelFor(item.key)}`
-                  }
-                  className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] transition-colors ${
-                    item.visible ? "bg-chip text-brand" : "bg-white text-muted"
-                  }`}
+                {item.visible ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </button>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
+                {FIXED_LABELS.get(item.key) ?? item.key}
+              </span>
+              <button
+                type="button"
+                onClick={() => move(index, -1)}
+                disabled={index === 0}
+                aria-label={`Subir ${FIXED_LABELS.get(item.key) ?? item.key}`}
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(index, 1)}
+                disabled={index === sections.length - 1}
+                aria-label={`Bajar ${FIXED_LABELS.get(item.key) ?? item.key}`}
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Gadgets del panel bento: tamaño, orden y baja */}
+        {widgets.length > 0 && (
+          <div className="mx-4 rounded-[16px] border border-line bg-white p-3.5">
+            <div className="mb-1 text-[12.5px] font-bold text-navy">
+              Gadgets del panel
+            </div>
+            <p className="mb-2 text-[11px] text-muted">
+              En escritorio también puedes reordenarlos arrastrándolos.
+            </p>
+            <div className="flex flex-col gap-2">
+              {widgets.map((widget, index) => (
+                <div
+                  key={widget.id}
+                  className="flex items-center gap-2 rounded-[14px] border border-line bg-white px-3 py-2"
                 >
-                  {item.visible ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                </button>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
-                  {labelFor(item.key)}
-                </span>
-                {isWidget && (
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink-soft">
+                    {widgetLabel(widget)}
+                    <span className="ml-1.5 text-[11px] font-medium text-muted">
+                      {
+                        WIDGET_SIZE_LABELS[
+                          widget.size ?? DEFAULT_WIDGET_SIZE[widget.type]
+                        ]
+                      }
+                    </span>
+                  </span>
                   <button
                     type="button"
-                    onClick={() => removeWidget(item.key)}
-                    aria-label={`Eliminar ${labelFor(item.key)}`}
+                    onClick={() => startEdit(widget)}
+                    aria-label={`Editar ${widgetLabel(widget)}`}
+                    className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] transition-colors ${
+                      editingId === widget.id
+                        ? "bg-chip text-brand"
+                        : "bg-app text-brand-mid hover:text-brand"
+                    }`}
+                  >
+                    <PencilLine className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveWidget(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`Subir ${widgetLabel(widget)}`}
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveWidget(index, 1)}
+                    disabled={index === widgets.length - 1}
+                    aria-label={`Bajar ${widgetLabel(widget)}`}
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeWidget(widget.id)}
+                    aria-label={`Eliminar ${widgetLabel(widget)}`}
                     className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-muted transition-colors hover:text-danger"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => move(index, -1)}
-                  disabled={index === 0}
-                  aria-label={`Subir ${labelFor(item.key)}`}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(index, 1)}
-                  disabled={index === sections.length - 1}
-                  aria-label={`Bajar ${labelFor(item.key)}`}
-                  className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Alta de gadgets */}
+        {/* Alta y edición de gadgets */}
         <div className="mx-4 rounded-[16px] border border-line bg-white p-3.5">
           <div className="mb-2 text-[12.5px] font-bold text-navy">
-            Añadir gadget
+            {editingId ? "Editar gadget" : "Añadir gadget"}
           </div>
-          {widgets.length >= MAX_WIDGETS ? (
+          {widgets.length >= MAX_WIDGETS && !editingId ? (
             <p className="text-[12px] text-muted">
               Límite de {MAX_WIDGETS} gadgets alcanzado: elimina alguno para
               añadir otro.
             </p>
           ) : addType === null ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(Object.keys(WIDGET_TYPE_LABELS) as WidgetType[]).map((type) => {
                 const disabled =
                   (type === "accountCard" && accounts.length === 0) ||
@@ -398,7 +571,7 @@ export function DashboardCustomizer({
               {addType === "accountCard" && (
                 <>
                   <Select value={addAccountId} onValueChange={setAddAccountId}>
-                    <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+                    <SelectTrigger className={selectTriggerCls}>
                       <SelectValue placeholder="Elige cuenta" />
                     </SelectTrigger>
                     <SelectContent>
@@ -459,11 +632,109 @@ export function DashboardCustomizer({
                   Muestra la suma de saldos por cada divisa, sin conversión.
                 </p>
               )}
+              {addType === "incomeCard" && (
+                <>
+                  <Select value={addAccountId} onValueChange={setAddAccountId}>
+                    <SelectTrigger className={selectTriggerCls}>
+                      <SelectValue placeholder="Cuentas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Todas las cuentas (moneda base)
+                      </SelectItem>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name} · {account.currencyCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={addVariant}
+                      onValueChange={(v) =>
+                        setAddVariant(v as IncomeCardVariant)
+                      }
+                    >
+                      <SelectTrigger className={selectTriggerCls}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="soft">Estilo claro</SelectItem>
+                        <SelectItem value="dark">Estilo oscuro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={addMetric}
+                      onValueChange={(v) => setAddMetric(v as IncomeCardMetric)}
+                    >
+                      <SelectTrigger className={selectTriggerCls}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">Gráfico: ingresos</SelectItem>
+                        <SelectItem value="expense">Gráfico: gastos</SelectItem>
+                        <SelectItem value="net">Gráfico: neto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Select
+                    value={addPeriod}
+                    onValueChange={(v) => setAddPeriod(v as IncomeCardPeriod)}
+                  >
+                    <SelectTrigger className={selectTriggerCls}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Empieza en: Día</SelectItem>
+                      <SelectItem value="week">Empieza en: Semana</SelectItem>
+                      <SelectItem value="month">Empieza en: Mes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <input
+                    type="text"
+                    value={addTitle}
+                    onChange={(e) => setAddTitle(e.target.value)}
+                    maxLength={40}
+                    placeholder="Título propio (opcional)"
+                    className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink outline-none placeholder:text-muted-2 focus:border-brand-soft"
+                  />
+                  <CheckRow
+                    checked={addShowTabs}
+                    label="Tabs de periodo (Día / Semana / Mes)"
+                    onToggle={() => setAddShowTabs((v) => !v)}
+                  />
+                  <CheckRow
+                    checked={addShowDelta}
+                    label="Variación vs el periodo anterior"
+                    onToggle={() => setAddShowDelta((v) => !v)}
+                  />
+                  <CheckRow
+                    checked={addShowIncome}
+                    label="Pie: total de ingresos"
+                    onToggle={() => setAddShowIncome((v) => !v)}
+                  />
+                  <CheckRow
+                    checked={addShowExpense}
+                    label="Pie: total de gastos"
+                    onToggle={() => setAddShowExpense((v) => !v)}
+                  />
+                  <CheckRow
+                    checked={addShowNet}
+                    label="Pie: neto"
+                    onToggle={() => setAddShowNet((v) => !v)}
+                  />
+                </>
+              )}
+              {sizeSelect}
               <div className="flex items-center justify-end gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setAddType(null)}
+                  onClick={() => {
+                    setAddType(null);
+                    setEditingId(null);
+                  }}
                 >
                   Cancelar
                 </Button>
@@ -471,12 +742,13 @@ export function DashboardCustomizer({
                   size="sm"
                   onClick={confirmAdd}
                   disabled={
-                    (addType === "accountCard" && !addAccountId) ||
+                    (addType === "accountCard" &&
+                      (!addAccountId || addAccountId === "all")) ||
                     (addType === "ratePair" &&
                       (!addFromId || !addToId || addFromId === addToId))
                   }
                 >
-                  Añadir
+                  {editingId ? "Guardar cambios" : "Añadir"}
                 </Button>
               </div>
             </div>

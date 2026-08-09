@@ -6,7 +6,6 @@ import { getSessionUser } from "@/lib/auth";
 import {
   normalizeDashboardPrefs,
   serializeDashboardPrefs,
-  widgetSectionKey,
 } from "@/lib/dashboard-prefs";
 import { dashboardPrefsSchema, type ActionResult } from "@/lib/schemas";
 
@@ -68,11 +67,8 @@ export async function saveDashboardPrefs(
       }
       return true;
     });
-    const keptWidgetKeys = new Set(widgets.map((w) => widgetSectionKey(w.id)));
     const cleaned = normalizeDashboardPrefs({
-      sections: prefs.sections.filter(
-        (s) => !s.key.startsWith("widget:") || keptWidgetKeys.has(s.key)
-      ),
+      sections: prefs.sections,
       widgets,
       accountIds:
         prefs.accountIds === null
