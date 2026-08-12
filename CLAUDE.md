@@ -217,6 +217,15 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `next.config.ts` (el router del cliente reusa la página 30 s). Ese cache
   depende de que TODA server action que mute datos llame `revalidatePath` —
   regla existente, ahora obligatoria.
+- **PWA/iOS (añadir a inicio)**: `src/app/manifest.ts` genera
+  `/manifest.webmanifest` (standalone, theme/background `#c3d6d3`);
+  `appleWebApp` + `viewport.themeColor` en `src/app/layout.tsx`. Iconos PNG:
+  `src/app/apple-icon.png` (180, Next lo enlaza como apple-touch-icon) y
+  `public/icons/icon-{192,512}.png` (manifest, 512 también maskable) — son
+  `icon.svg` SIN la esquina redondeada (iOS redondea él mismo y pinta NEGRA
+  la transparencia), rasterizados con sharp. El matcher de
+  `src/middleware.ts` EXCLUYE manifest.webmanifest, apple-icon.png e
+  `/icons/` — Safari los pide sin cookie al añadir a inicio.
 - **Tema**: identidad propia de Caja (ya NO es la paleta de la tienda):
   petróleo/esmeralda + acento dorado, fuente Outfit. Tokens Tailwind 4 en
   `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados

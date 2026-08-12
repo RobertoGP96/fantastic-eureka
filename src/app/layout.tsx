@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { UIProvider } from "@/lib/ui-store";
@@ -13,6 +13,17 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: "Cuentas, efectivo, tasas y deudas en un solo lugar.",
+  applicationName: APP_NAME,
+  // Safari iOS: nombre bajo el icono y modo standalone al añadir a inicio.
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c3d6d3",
 };
 
 export default function RootLayout({

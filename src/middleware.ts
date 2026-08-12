@@ -21,5 +21,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|icon.svg|favicon.ico).*)"],
+  // manifest, apple-icon e /icons quedan fuera: Safari/iOS los pide al
+  // añadir a inicio y deben servirse aunque no haya sesión.
+  matcher: [
+    "/((?!_next/static|_next/image|icon.svg|favicon.ico|apple-icon.png|manifest.webmanifest|icons/).*)",
+  ],
 };
