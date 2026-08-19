@@ -139,7 +139,9 @@ export function AppSidebar({
     });
 
   return (
-    <Sidebar collapsible="icon">
+    // border-r-0: el panel derecho ya separa con su esquina redondeada;
+    // el borde por defecto (color-border claro) dejaba una raya blanca.
+    <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
