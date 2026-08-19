@@ -12,7 +12,6 @@ import {
   History,
   House,
   LogOut,
-  Plus,
   Tags,
   UserRound,
   Wallet,
@@ -154,18 +153,6 @@ export function AppSidebar({
                 <span className="text-[15px] font-bold tracking-[-0.3px] text-white">
                   {APP_NAME}
                 </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Registrar movimiento"
-              className="bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-brand-light hover:text-white"
-            >
-              <Link href="/registrar">
-                <Plus />
-                <span>Registrar</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
