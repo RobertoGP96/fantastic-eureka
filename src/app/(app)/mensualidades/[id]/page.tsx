@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronRight, UserRound } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
+import { dueTone, nextPending } from "@/lib/plans-core";
 import {
   FREQUENCY_LABELS,
   PLAN_KIND_LABELS,
@@ -26,7 +27,7 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
-export default async function PlanDetallePage({
+export default async function MensualidadDetallePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -45,9 +46,11 @@ export default async function PlanDetallePage({
   });
   if (!plan) notFound();
 
-  const pending = [...plan.installments]
-    .filter((inst) => inst.status === "PENDING")
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())[0];
+  const pending = nextPending(plan.installments);
+  const paidCount = plan.installments.filter(
+    (inst) => inst.status === "PAID"
+  ).length;
+  const contactName = plan.contact?.name ?? plan.debt?.contact.name ?? null;
 
   const accounts = await prisma.account.findMany({
     where: { userId: user.id, archived: false, currencyId: plan.currencyId },
@@ -57,59 +60,58 @@ export default async function PlanDetallePage({
 
   return (
     <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={plan.description} backHref="/deudas">
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-[12.5px] text-white/70">
-            {PLAN_KIND_LABELS[plan.kind as PlanKind]} ·{" "}
-            {FREQUENCY_LABELS[plan.frequency as Frequency]} ·{" "}
-            {fmtMinor(plan.amountMinor, plan.currency)}
-            {plan.contact ? ` · ${plan.contact.name}` : ""}
-          </span>
-          <Badge variant="neutral" className="bg-white/15 text-white">
-            {plan.active ? "Activo" : "Inactivo"}
-          </Badge>
+      <ScreenHeader title={plan.description} backHref="/mensualidades">
+        <div className="mt-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[26px] font-bold tracking-[-0.5px]">
+                {fmtMinor(plan.amountMinor, plan.currency)}
+              </div>
+              <div className="mt-1 text-[12.5px] text-white/70">
+                {PLAN_KIND_LABELS[plan.kind as PlanKind]} ·{" "}
+                {FREQUENCY_LABELS[plan.frequency as Frequency]}
+              </div>
+            </div>
+            <Badge variant="neutral" className="bg-white/15 text-white">
+              {plan.active ? "Activa" : "Finalizada"}
+            </Badge>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/60">
+            <span className="flex items-center gap-1">
+              <UserRound className="h-3 w-3" />
+              {contactName ?? "Sin contacto"}
+            </span>
+            <span>
+              {paidCount} cuota{paidCount === 1 ? "" : "s"} saldada
+              {paidCount === 1 ? "" : "s"}
+            </span>
+            {plan.endAt && <span>Termina {DATE_FMT.format(plan.endAt)}</span>}
+          </div>
         </div>
       </ScreenHeader>
 
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-xl md:px-0">
-        {plan.debt && (
-          <Link
-            href={`/deudas/${plan.debt.id}`}
-            className="flex items-center justify-between rounded-[16px] border border-line bg-white px-4 py-3 text-[12.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            Ver deuda de {plan.debt.contact.name}
-            <ChevronRight className="h-4 w-4 text-muted-2" />
-          </Link>
-        )}
-
         {plan.active && pending && (
           <section>
             <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
               Próxima cuota
             </h2>
-            <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4">
+            <div className="flex flex-col gap-3 rounded-[18px] border border-line bg-white p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[13.5px] font-bold text-navy">
+                  <div className="text-[15px] font-bold text-navy">
                     {fmtMinor(pending.amountMinor, plan.currency)}
                   </div>
                   <div className="text-[11.5px] text-muted">
                     {DATE_FMT.format(pending.dueAt)}
                   </div>
                 </div>
-                <Badge
-                  variant={
-                    daysUntil(pending.dueAt) < 0
-                      ? "danger"
-                      : daysUntil(pending.dueAt) <= 1
-                        ? "warn"
-                        : "neutral"
-                  }
-                >
+                <Badge variant={dueTone(daysUntil(pending.dueAt))}>
+                  <CalendarClock className="h-3 w-3" />
                   {dueLabel(pending.dueAt)}
                 </Badge>
               </div>
-              {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
+              {/* key: re-inicializa la preselección si cambia la cuenta */}
               <SettleInstallment
                 key={plan.accountId ?? "none"}
                 installmentId={pending.id}
@@ -127,24 +129,24 @@ export default async function PlanDetallePage({
         )}
 
         {plan.active && (
-          <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
-              Cuenta vinculada
-            </h2>
-            <LinkedAccountEditor
-              kind="plan"
-              targetId={plan.id}
-              accounts={accounts}
-              currentAccountId={plan.accountId}
-              currencyCode={plan.currency.code}
-            />
-          </section>
+          <LinkedAccountEditor
+            kind="plan"
+            targetId={plan.id}
+            accounts={accounts}
+            currentAccountId={plan.accountId}
+            currencyCode={plan.currency.code}
+          />
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {plan.active && <PlanButtons planId={plan.id} />}
-          <DeleteEntityButton kind="plan" targetId={plan.id} />
-        </div>
+        {plan.debt && (
+          <Link
+            href={`/deudas/${plan.debt.id}`}
+            className="flex items-center justify-between rounded-[16px] border border-line bg-white px-4 py-3 text-[12.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+          >
+            Ver deuda de {plan.debt.contact.name}
+            <ChevronRight className="h-4 w-4 text-muted-2" />
+          </Link>
+        )}
 
         {plan.installments.length > 0 && (
           <section>
@@ -165,13 +167,11 @@ export default async function PlanDetallePage({
                       {fmtMinor(inst.amountMinor, plan.currency)}
                     </span>
                     {inst.status === "PAID" ? (
-                      <Badge variant="ok">Pagada</Badge>
+                      <Badge variant="ok">Saldada</Badge>
                     ) : inst.status === "SKIPPED" ? (
                       <Badge variant="neutral">Omitida</Badge>
                     ) : (
-                      <Badge
-                        variant={daysUntil(inst.dueAt) < 0 ? "danger" : "warn"}
-                      >
+                      <Badge variant={dueTone(daysUntil(inst.dueAt))}>
                         {dueLabel(inst.dueAt)}
                       </Badge>
                     )}
@@ -181,6 +181,11 @@ export default async function PlanDetallePage({
             </div>
           </section>
         )}
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {plan.active && <PlanButtons planId={plan.id} />}
+          <DeleteEntityButton kind="plan" targetId={plan.id} />
+        </div>
       </div>
     </main>
   );

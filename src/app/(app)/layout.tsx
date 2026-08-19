@@ -4,14 +4,12 @@ import { getSessionUser } from "@/lib/auth";
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
-import { BrandMark } from "@/components/brand-mark";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { APP_NAME } from "@/lib/config";
 
 // Todo lo que cuelga de (app) exige sesión válida. El middleware ya filtra
 // por presencia de cookie; aquí se valida contra la BD.
@@ -27,16 +25,11 @@ export default async function AppLayout({
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
+    <SidebarProvider defaultOpen={defaultOpen} className="md:bg-sidebar">
       <AppSidebar userName={user.name} userEmail={user.email} />
-      <SidebarInset className="bg-page md:bg-app">
-        <header className="sticky top-0 z-30 hidden h-12 shrink-0 items-center gap-3 border-b border-line-2 bg-app/85 px-4 backdrop-blur md:flex">
+      <SidebarInset className="bg-page md:rounded-l-2xl md:bg-app">
+        <header className="sticky top-0 z-30 hidden h-12 shrink-0 items-center gap-3 rounded-tl-2xl border-b border-line-2 bg-app/85 px-4 backdrop-blur md:flex">
           <SidebarTrigger className="text-ink-soft hover:bg-chip hover:text-brand" />
-          <Separator orientation="vertical" className="h-5" />
-          <BrandMark className="size-5 shrink-0" idPrefix="fe-header" />
-          <span className="text-[13px] font-semibold text-ink-soft">
-            {APP_NAME}
-          </span>
           <Separator orientation="vertical" className="h-5" />
           <AppBreadcrumb />
           <span className="ml-auto hidden items-center gap-1 text-[11px] text-muted-2 lg:flex">

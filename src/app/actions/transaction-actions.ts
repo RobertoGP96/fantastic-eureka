@@ -591,7 +591,8 @@ export async function updateTransaction(
         revalidatePath(`/deudas/${existing.debtPayment.debtId}`);
       }
       if (existing.installment) {
-        revalidatePath(`/deudas/plan/${existing.installment.planId}`);
+        revalidatePath("/mensualidades");
+        revalidatePath(`/mensualidades/${existing.installment.planId}`);
         if (existing.installment.plan.debtId) {
           revalidatePath(`/deudas/${existing.installment.plan.debtId}`);
         }
@@ -670,7 +671,8 @@ export async function deleteTransaction(
         revalidatePath(`/deudas/${existing.debtPayment.debtId}`);
       }
       if (existing.installment) {
-        revalidatePath(`/deudas/plan/${existing.installment.planId}`);
+        revalidatePath("/mensualidades");
+        revalidatePath(`/mensualidades/${existing.installment.planId}`);
       }
     }
     return { success: true, data: undefined };

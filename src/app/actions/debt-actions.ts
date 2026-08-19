@@ -19,6 +19,8 @@ function revalidateDebtPaths(debtId: string, accountId?: string) {
   revalidatePath("/");
   revalidatePath("/deudas");
   revalidatePath(`/deudas/${debtId}`);
+  // La lista de mensualidades incluye los planes ligados a deudas.
+  revalidatePath("/mensualidades");
   if (accountId) {
     revalidatePath("/cuentas");
     revalidatePath(`/cuentas/${accountId}`);

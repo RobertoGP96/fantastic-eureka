@@ -5,7 +5,7 @@ import { PlanForm } from "./plan-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NuevoPlanPage() {
+export default async function NuevaMensualidadPage() {
   const user = await requireSessionUser();
   const [contacts, currencies, accounts] = await Promise.all([
     prisma.contact.findMany({
@@ -27,7 +27,7 @@ export default async function NuevoPlanPage() {
 
   return (
     <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Nueva mensualidad" backHref="/deudas" />
+      <ScreenHeader title="Nueva mensualidad" backHref="/mensualidades" />
       <div className="anim-fade-up px-5 pt-5 md:max-w-md md:px-0">
         <PlanForm
           contacts={contacts}
