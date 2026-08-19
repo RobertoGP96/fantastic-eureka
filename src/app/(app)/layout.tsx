@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { ScrollReset } from "@/components/scroll-reset";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -27,8 +28,8 @@ export default async function AppLayout({
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="md:bg-sidebar">
       <AppSidebar userName={user.name} userEmail={user.email} />
-      <SidebarInset className="bg-page md:rounded-l-2xl md:bg-app">
-        <header className="sticky top-0 z-30 hidden h-12 shrink-0 items-center gap-3 rounded-tl-2xl border-b border-line-2 bg-app/85 px-4 backdrop-blur md:flex">
+      <SidebarInset className="bg-page md:h-svh md:overflow-hidden md:rounded-l-2xl md:bg-app">
+        <header className="hidden h-12 shrink-0 items-center gap-3 border-b border-line-2 bg-app px-4 md:flex">
           <SidebarTrigger className="text-ink-soft hover:bg-chip hover:text-brand" />
           <Separator orientation="vertical" className="h-5" />
           <AppBreadcrumb />
@@ -42,7 +43,14 @@ export default async function AppLayout({
             para plegar el menú
           </span>
         </header>
-        <div className="flex flex-1 justify-center">
+        {/* En md+ el scroll vive aquí (el body no scrollea): así las esquinas
+            redondeadas del panel quedan fijas al viewport. En móvil no hay
+            overflow propio y sigue scrolleando el body (bottom nav sticky). */}
+        <div
+          id="app-scroll"
+          className="flex flex-1 justify-center md:min-h-0 md:overflow-y-auto"
+        >
+          <ScrollReset targetId="app-scroll" />
           <div className="relative flex min-h-full w-full max-w-[430px] flex-col bg-app shadow-[0_0_40px_rgba(7,39,46,.16)] md:max-w-5xl md:bg-transparent md:px-6 md:pb-12 md:shadow-none">
             {children}
             <BottomNav />
