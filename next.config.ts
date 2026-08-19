@@ -8,6 +8,22 @@ const nextConfig: NextConfig = {
     // cualquier mutación invalida este cache al instante.
     staleTimes: { dynamic: 30 },
   },
+  // Los planes de cuotas dejaron de colgar de /deudas y viven en
+  // /mensualidades; los enlaces viejos (marcadores, PWA) siguen funcionando.
+  async redirects() {
+    return [
+      {
+        source: "/deudas/plan/nuevo",
+        destination: "/mensualidades/nueva",
+        permanent: false,
+      },
+      {
+        source: "/deudas/plan/:id",
+        destination: "/mensualidades/:id",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

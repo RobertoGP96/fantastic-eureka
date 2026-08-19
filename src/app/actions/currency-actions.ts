@@ -24,7 +24,7 @@ function revalidateCurrencyPaths(currencyId?: string) {
   revalidatePath("/tasas");
   revalidatePath("/cuentas/nueva");
   revalidatePath("/deudas/nueva");
-  revalidatePath("/deudas/plan/nuevo");
+  revalidatePath("/mensualidades/nueva");
 }
 
 export async function createCurrency(

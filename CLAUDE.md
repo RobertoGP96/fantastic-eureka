@@ -79,20 +79,41 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Deudas**: saldo pendiente = totalMinor − Σ DebtPayment. Saldar/omitir una
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
-  derivado (PENDING + dueAt pasado), no hay cron. Las saldadas/canceladas NO
-  desaparecen: `/deudas` lista sin filtro de estado y las muestra en la
-  sección «Historial» (badge Saldada/Cancelada) por dirección. Deudas y
+  derivado (PENDING + dueAt pasado), no hay cron. `/deudas` lista TODAS las
+  deudas sin filtro por defecto (chips Todas/Por cobrar/Por pagar vía
+  `?dir=cobrar|pagar`; antes el default RECEIVABLE escondía las por pagar) y
+  las saldadas/canceladas NO desaparecen: van a la sección «Historial»
+  (badge Saldada/Cancelada). Cabecera con el pendiente por moneda separado
+  en «Me deben» / «Debo»; cada tarjeta lleva avatar de iniciales, barra de
+  progreso del abonado y badge de la próxima cuota. Deudas y
   planes se pueden ELIMINAR desde su detalle
   (`src/components/delete-entity-button.tsx`, confirmación inline →
   `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
   vinculados y cuotas — DebtPayment es Restrict y se borra antes; las
   cuotas caen por Cascade) pero los movimientos de las cuentas se
   CONSERVAN (los saldos no cambian; el movimiento solo pierde el vínculo).
+- **Mensualidades** (`/mensualidades`): los planes de cuotas tienen vista
+  propia, separada de `/deudas` (antes vivían en `/deudas/plan/*`; los
+  enlaces viejos siguen vivos por `redirects()` en `next.config.ts`). La
+  lista muestra TODOS los planes (standalone y ligados a deuda) con el
+  NOMBRE DEL CONTACTO (`contact` propio o el de la deuda), frecuencia,
+  cuotas saldadas y badge de vencimiento; filtros Todas/Que pago/Que cobro
+  (`?tipo=pagar|cobrar`) y sección «Finalizadas» para los inactivos. Si la
+  próxima cuota vence en ≤7 días (o ya venció) la tarjeta trae el
+  `SettleInstallment` embebido: se despachan varias mensualidades sin entrar
+  al detalle. La cabecera suma el compromiso mensual por moneda separando
+  pago/cobro — lógica pura en `src/lib/plans-core.ts` (con tests):
+  `monthlyEquivalentMinor` (semanal ×52/12, quincenal ×26/12, ONCE = 0),
+  `monthlyCommitmentByCurrency`, `nextPending`, `comparePlansByUrgency` y
+  `dueTone` (el ternario de color del badge, antes repetido en cada vista).
 - **Cuenta vinculada**: `Debt.accountId` y `PaymentPlan.accountId` (opcionales,
   onDelete: SetNull, misma moneda validada en la action) guardan la cuenta
   preferida; se elige al crear y se edita en el detalle
   (`src/components/linked-account-editor.tsx` + actions `setDebtAccount` /
-  `setPlanAccount`). Los forms de abono/cuota la preseleccionan
+  `setPlanAccount`). Se muestra lo MÍNIMO: el editor es una fila compacta
+  («Cuenta habitual» + select) pegada al form que la usa, sin sección ni
+  título propios, y `SettleInstallment` esconde su selector tras «Cambiar»
+  cuando ya hay cuenta vinculada. Los forms de abono/cuota la preseleccionan
   (`defaultAccountId`) y llevan `key` por cuenta para re-inicializarse al
   cambiarla.
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
@@ -262,7 +283,9 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Navegación**: escritorio = `src/components/app-sidebar.tsx` (Sidebar
   shadcn colapsable a iconos, estado en cookie `sidebar_state`, atajo
   Ctrl/Cmd+B); móvil = `bottom-nav.tsx` (sin cambios). El layout de `(app)`
-  monta SidebarProvider + SidebarInset.
+  monta SidebarProvider + SidebarInset. `/mensualidades` tiene entrada propia
+  en el sidebar y en `/mas`; en la barra inferior cuelga de la pestaña
+  Deudas (las dos vistas se enlazan mutuamente).
 
 ## Gotchas
 

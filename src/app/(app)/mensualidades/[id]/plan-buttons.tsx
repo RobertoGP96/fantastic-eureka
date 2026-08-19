@@ -18,7 +18,7 @@ export function PlanButtons({ planId }: { planId: string }) {
     setSaving(false);
     setConfirming(false);
     if (result.success) {
-      showToast("Plan desactivado");
+      showToast("Mensualidad finalizada");
       router.refresh();
     } else {
       showToast(result.error);
@@ -28,21 +28,21 @@ export function PlanButtons({ planId }: { planId: string }) {
   if (!confirming) {
     return (
       <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
-        Desactivar plan
+        Finalizar mensualidad
       </Button>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11.5px] text-muted">¿Desactivar?</span>
+      <span className="text-[11.5px] text-muted">¿Finalizar? Las cuotas pendientes se omiten.</span>
       <Button
         variant="danger"
         size="sm"
         disabled={saving}
         onClick={() => void deactivate()}
       >
-        Sí, desactivar
+        Sí, finalizar
       </Button>
       <Button
         variant="ghost"

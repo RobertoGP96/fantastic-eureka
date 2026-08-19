@@ -21,7 +21,8 @@ import {
 function revalidatePlanPaths(planId: string, debtId?: string | null) {
   revalidatePath("/");
   revalidatePath("/deudas");
-  revalidatePath(`/deudas/plan/${planId}`);
+  revalidatePath("/mensualidades");
+  revalidatePath(`/mensualidades/${planId}`);
   if (debtId) revalidatePath(`/deudas/${debtId}`);
 }
 

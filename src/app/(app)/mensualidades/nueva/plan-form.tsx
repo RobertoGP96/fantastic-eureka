@@ -91,8 +91,8 @@ export function PlanForm({
     });
     setSaving(false);
     if (result.success) {
-      showToast("Plan creado");
-      router.push(`/deudas/plan/${result.data.id}`);
+      showToast("Mensualidad creada");
+      router.push(`/mensualidades/${result.data.id}`);
     } else {
       setError(result.error);
     }
@@ -191,7 +191,7 @@ export function PlanForm({
       {currencyAccounts.length > 0 && (
         <label className="flex flex-col gap-1.5">
           <span className="text-[12.5px] font-semibold text-ink-soft">
-            Cuenta para las cuotas (opcional)
+            Cuenta habitual (opcional)
           </span>
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
@@ -207,7 +207,7 @@ export function PlanForm({
             </SelectContent>
           </Select>
           <span className="text-[11.5px] text-muted">
-            Se preseleccionará al pagar o cobrar cada cuota.
+            Se usará por defecto al pagar o cobrar cada cuota.
           </span>
         </label>
       )}
@@ -266,7 +266,7 @@ export function PlanForm({
         size="lg"
         disabled={saving || !description.trim() || !amount.trim() || !currencyId}
       >
-        {saving ? "Creando…" : "Crear plan"}
+        {saving ? "Creando…" : "Crear mensualidad"}
       </Button>
     </form>
   );

@@ -33,7 +33,8 @@ const RIGHT: NavItem[] = [
     href: "/deudas",
     icon: HandCoins,
     label: "Deudas",
-    isActive: (p) => p.startsWith("/deudas"),
+    // Mensualidades cuelga de esta pestaña: ambas vistas se enlazan entre sí.
+    isActive: (p) => p.startsWith("/deudas") || p.startsWith("/mensualidades"),
   },
   {
     href: "/mas",

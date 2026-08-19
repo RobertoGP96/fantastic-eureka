@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Banknote,
   Calculator,
+  CalendarClock,
   Coins,
   HandCoins,
   History,
@@ -60,6 +61,12 @@ const MAIN: NavItem[] = [
     icon: HandCoins,
     label: "Deudas",
     isActive: (p) => p.startsWith("/deudas"),
+  },
+  {
+    href: "/mensualidades",
+    icon: CalendarClock,
+    label: "Mensualidades",
+    isActive: (p) => p.startsWith("/mensualidades"),
   },
 ];
 

@@ -25,7 +25,7 @@ export async function InstallmentNotifications({
       id: row.id,
       href: row.plan.debtId
         ? `/deudas/${row.plan.debtId}`
-        : `/deudas/plan/${row.plan.id}`,
+        : `/mensualidades/${row.plan.id}`,
       title: row.plan.description,
       subtitle: contactName ? `${kindLabel} · ${contactName}` : kindLabel,
       amountText: fmtMinor(row.amountMinor, row.plan.currency),

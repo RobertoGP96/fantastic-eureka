@@ -17,10 +17,10 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
           Próximos vencimientos
         </h2>
         <Link
-          href="/deudas"
+          href="/mensualidades"
           className="text-[12px] font-semibold text-brand-mid hover:text-brand"
         >
-          Ver deudas
+          Ver mensualidades
         </Link>
       </div>
       <div className="flex flex-col gap-2">
@@ -35,7 +35,7 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
               href={
                 row.plan.debtId
                   ? `/deudas/${row.plan.debtId}`
-                  : `/deudas/plan/${row.plan.id}`
+                  : `/mensualidades/${row.plan.id}`
               }
               className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
             >

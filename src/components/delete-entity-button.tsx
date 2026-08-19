@@ -18,11 +18,11 @@ const LABELS = {
     redirect: "/deudas",
   },
   plan: {
-    button: "Eliminar plan",
+    button: "Eliminar mensualidad",
     warning:
-      "¿Eliminar el plan? Se borran todas sus cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
-    done: "Plan eliminado",
-    redirect: "/deudas",
+      "¿Eliminar la mensualidad? Se borran todas sus cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
+    done: "Mensualidad eliminada",
+    redirect: "/mensualidades",
   },
   transaction: {
     button: "Eliminar movimiento",

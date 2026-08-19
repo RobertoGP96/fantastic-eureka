@@ -20,8 +20,8 @@ const STATIC_LABELS: Record<string, string> = {
   "/movimientos": "Movimientos",
   "/deudas": "Deudas",
   "/deudas/nueva": "Nueva deuda",
-  "/deudas/plan": "Planes",
-  "/deudas/plan/nuevo": "Nuevo plan",
+  "/mensualidades": "Mensualidades",
+  "/mensualidades/nueva": "Nueva mensualidad",
   "/conteo": "Conteo de efectivo",
   "/calculadora": "Calculadora de efectivo",
   "/tasas": "Tasas de cambio",
@@ -36,12 +36,12 @@ const STATIC_LABELS: Record<string, string> = {
 interface Crumb {
   href: string;
   label: string;
-  // Sin página propia (ej. /deudas/plan): se muestra pero no enlaza.
+  // Sin página propia: se muestra pero no enlaza.
   linkable: boolean;
 }
 
 // Rutas intermedias que no tienen página propia.
-const NON_LINKABLE = new Set(["/deudas/plan"]);
+const NON_LINKABLE = new Set<string>();
 
 function buildCrumbs(pathname: string): Crumb[] {
   const crumbs: Crumb[] = [{ href: "/", label: "Inicio", linkable: true }];
@@ -63,8 +63,8 @@ function buildCrumbs(pathname: string): Crumb[] {
         label = decodeURIComponent(segment).toUpperCase();
       } else if (segments[0] === "conteo" && i === 1) {
         label = "Arqueo";
-      } else if (segments[0] === "deudas" && segments[1] === "plan" && i === 2) {
-        label = "Plan";
+      } else if (segments[0] === "mensualidades" && i === 1) {
+        label = "Mensualidad";
       } else {
         label = "Detalle";
       }

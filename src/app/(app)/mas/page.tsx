@@ -3,6 +3,7 @@ import {
   Banknote,
   ArrowRightLeft,
   Calculator,
+  CalendarClock,
   Coins,
   History,
   Tags,
@@ -24,6 +25,12 @@ interface MenuItem {
 }
 
 const ITEMS: MenuItem[] = [
+  {
+    href: "/mensualidades",
+    icon: CalendarClock,
+    title: "Mensualidades",
+    description: "Renta, suscripciones y cuotas fijas",
+  },
   {
     href: "/conteo",
     icon: Banknote,

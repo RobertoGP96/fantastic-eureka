@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarClock, ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { Badge } from "@/components/ui/badge";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
@@ -8,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
+import { dueTone } from "@/lib/plans-core";
 import {
   DEBT_DIRECTION_LABELS,
   type DebtDirection,
@@ -54,8 +57,8 @@ export default async function DeudaDetallePage({
     100,
     Math.round((paid / Math.max(1, debt.totalMinor)) * 100)
   );
-  const pendingInstallments = debt.plans
-    .filter((plan) => plan.active)
+  const activePlans = debt.plans.filter((plan) => plan.active);
+  const pendingInstallments = activePlans
     .flatMap((plan) =>
       plan.installments.map((inst) => ({
         ...inst,
@@ -64,6 +67,8 @@ export default async function DeudaDetallePage({
       }))
     )
     .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  // Enlace a la mensualidad cuando la deuda se cobra/paga por cuotas.
+  const planId = activePlans[0]?.id ?? null;
 
   const accounts = await prisma.account.findMany({
     where: { userId: user.id, archived: false, currencyId: debt.currencyId },
@@ -104,9 +109,20 @@ export default async function DeudaDetallePage({
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
         {isOpen && pendingInstallments.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
-              Cuotas pendientes
-            </h2>
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <h2 className="text-[14.5px] font-bold text-navy">
+                Cuotas pendientes
+              </h2>
+              {planId && (
+                <Link
+                  href={`/mensualidades/${planId}`}
+                  className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-mid hover:text-brand"
+                >
+                  Ver mensualidad
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+            </div>
             <div className="flex flex-col gap-2.5">
               {pendingInstallments.map((inst) => {
                 const days = daysUntil(inst.dueAt);
@@ -124,11 +140,8 @@ export default async function DeudaDetallePage({
                           {DATE_FMT.format(inst.dueAt)}
                         </div>
                       </div>
-                      <Badge
-                        variant={
-                          days < 0 ? "danger" : days <= 1 ? "warn" : "neutral"
-                        }
-                      >
+                      <Badge variant={dueTone(days)}>
+                        <CalendarClock className="h-3 w-3" />
                         {dueLabel(inst.dueAt)}
                       </Badge>
                     </div>
@@ -153,8 +166,8 @@ export default async function DeudaDetallePage({
         )}
 
         {isOpen && (
-          <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+          <section className="flex flex-col gap-2">
+            <h2 className="mb-0.5 text-[14.5px] font-bold text-navy">
               Registrar abono
             </h2>
             {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
@@ -165,14 +178,8 @@ export default async function DeudaDetallePage({
               currencyCode={debt.currency.code}
               defaultAccountId={debt.accountId}
             />
-          </section>
-        )}
-
-        {isOpen && (
-          <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
-              Cuenta vinculada
-            </h2>
+            {/* La cuenta habitual va aquí, junto al form que la usa, en vez
+                de en una sección propia. */}
             <LinkedAccountEditor
               kind="debt"
               targetId={debt.id}

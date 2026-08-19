@@ -261,7 +261,7 @@ export default async function MovimientoDetallePage({
               href={
                 linkedDebt
                   ? `/deudas/${linkedDebt.id}`
-                  : `/deudas/plan/${linkedPlan!.id}`
+                  : `/mensualidades/${linkedPlan!.id}`
               }
               className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
             >
