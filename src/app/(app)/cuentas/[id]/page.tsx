@@ -10,8 +10,10 @@ import { AccountEditor } from "@/components/account-editor";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
+import { activityDeltas } from "@/lib/account-activity";
 import { fmtMinor } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
+import { AccountActivityChart } from "@/components/account-activity-chart";
 import {
   ACCOUNT_TYPE_LABELS,
   isCashLikeType,
@@ -35,7 +37,7 @@ export default async function CuentaDetallePage({
   });
   if (!account) notFound();
 
-  const [balanceMinor, transactions, groups, txCount, countCount] =
+  const [balanceMinor, transactions, groups, ledger, countCount] =
     await Promise.all([
       accountBalanceMinor(account.id),
       prisma.transaction.findMany({
@@ -58,13 +60,29 @@ export default async function CuentaDetallePage({
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      prisma.transaction.count({
+      // Libro mayor completo de la cuenta (campos mínimos) para el gráfico de
+      // actividad; su longitud reemplaza al viejo count de movimientos.
+      prisma.transaction.findMany({
         where: {
+          userId: user.id,
           OR: [{ accountId: account.id }, { counterAccountId: account.id }],
         },
+        select: {
+          accountId: true,
+          counterAccountId: true,
+          kind: true,
+          amountMinor: true,
+          counterAmountMinor: true,
+          occurredAt: true,
+        },
+        orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
       }),
       prisma.cashCount.count({ where: { accountId: account.id } }),
     ]);
+
+  // Deltas {t, deltaMinor} livianos para el gráfico (el período se elige en
+  // el cliente sin volver al servidor).
+  const activity = activityDeltas(account.id, ledger);
 
   // Últimos movimientos en orden cronológico (el más reciente al final).
   const rows = transactions
@@ -114,6 +132,16 @@ export default async function CuentaDetallePage({
           )}
         </div>
 
+        {activity.length > 0 && (
+          <AccountActivityChart
+            deltas={activity}
+            currency={{
+              code: account.currency.code,
+              decimalPlaces: account.currency.decimalPlaces,
+            }}
+          />
+        )}
+
         <div className="rounded-[16px] border border-line bg-white px-4 py-3">
           <AccountIconEditor
             accountId={account.id}
@@ -139,7 +167,7 @@ export default async function CuentaDetallePage({
           accountId={account.id}
           name={account.name}
           archived={account.archived}
-          hasUsage={txCount + countCount > 0}
+          hasUsage={ledger.length + countCount > 0}
         />
 
         {account.type === "CASH_BOX" && (

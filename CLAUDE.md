@@ -167,6 +167,21 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   Installment.transactionId queda en null (SetNull; la cuota sigue PAID) y
   Debt/PaymentPlan vinculados en null (SetNull). Archivar sigue siendo la
   opción que conserva el historial.
+- **Actividad de la cuenta**: gráfico de barras a todo el ancho en el detalle
+  (`src/components/account-activity-chart.tsx`, SVG puro sin librería):
+  entradas hacia arriba (ok) y salidas hacia abajo (danger) sobre la línea
+  cero, extremos redondeados, rejilla simétrica recesiva, tooltip por columna
+  y chips de período (7 días/1 mes → buckets diarios, 3 meses → semanales,
+  1 año/Todo → mensuales) resueltos EN EL CLIENTE: la página pasa el libro
+  mayor completo como deltas `{t, deltaMinor}` livianos (esa consulta
+  sustituye al viejo count de movimientos) y cambiar de período no toca el
+  servidor. Lógica pura en `src/lib/account-activity.ts` (con tests): delta
+  con signo por movimiento desde la perspectiva de la cuenta (transferencia
+  entrante = `counterAmountMinor`), aritmética de calendario local
+  (`startOfDay/Week/Month`, `bucketRange`) y `aggregateActivity`. Los buckets
+  se calculan tras montar (`now` vive en estado) porque la zona horaria del
+  servidor rompería la hidratación; los totales del período
+  (entradas/salidas/neto) hacen también de leyenda.
 - **Detalle de movimiento**: `/movimientos/[id]` (todas las filas de
   `tx-list.tsx` enlazan ahí). Muestra cuentas origen/destino, monto original
   multi-moneda, tasa (`fmtRate`, counterCurrency por 1 de la moneda del
