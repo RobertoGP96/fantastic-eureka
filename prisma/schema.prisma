@@ -87,6 +87,7 @@ model Account {
   debts               Debt[]
   paymentPlans        PaymentPlan[]
   txDenominations     TransactionDenomination[]
+  shares              AccountShare[]
 
   @@index([userId])
 }
@@ -324,6 +325,7 @@ model User {
   contacts      Contact[]
   debts         Debt[]
   paymentPlans  PaymentPlan[]
+  accountShares AccountShare[]
 }
 
 // Sesión con token opaco: la cookie lleva el token en claro y en BD se
@@ -335,4 +337,24 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Código de seguimiento de una cuenta: enlace de SOLO LECTURA (saldo y
+// movimientos) para alguien sin usuario en la app. Caduca a las 24 h de
+// crearse y el propietario puede revocarlo antes. El token se guarda en
+// claro (a diferencia de Session) para que el propietario pueda volver a
+// copiar el enlace mientras esté vigente: no da acceso a nada más que a
+// esta vista y muere solo.
+model AccountShare {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId])
 }

@@ -167,6 +167,27 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   Installment.transactionId queda en null (SetNull; la cuota sigue PAID) y
   Debt/PaymentPlan vinculados en null (SetNull). Archivar sigue siendo la
   opción que conserva el historial.
+- **Compartir cuenta (código de seguimiento 24 h)**: modelo `AccountShare`
+  (userId + accountId + `token` ÚNICO EN CLARO — a diferencia de Session,
+  para que el propietario pueda volver a copiar el enlace — + expiresAt +
+  revokedAt; Cascade desde User/Account). Lógica pura en
+  `src/lib/account-share.ts` (con tests: `SHARE_TTL_MS` = 24 h,
+  `isShareActive`, `shareRemainingLabel`, `isWellFormedShareToken`,
+  `sharePath`) y capa servidor en `src/lib/shares.ts` (`issueShare` revoca
+  el vigente y borra los caducados de la cuenta: como mucho UN código
+  vigente por cuenta; `resolveShareToken` valida forma + existencia +
+  vigencia). Actions `createAccountShare`/`revokeAccountShare` en
+  `src/app/actions/share-actions.ts`. Panel del propietario en el detalle de
+  cuenta (`src/components/account-share-panel.tsx`: enlace, «Vence en»,
+  copiar/compartir nativo/nuevo código/revocar; origin y reloj se fijan
+  tras montar). Vista pública en `src/app/compartir/` FUERA del grupo
+  `(app)` (sin sesión, sidebar ni bottom nav; `robots: noindex`):
+  `/compartir` = portada para pegar el código (acepta también la URL
+  entera) y `/compartir/[token]` = saldo actual + gráfico de actividad +
+  últimos 100 movimientos con `TxList readOnly` (las filas no enlazan al
+  detalle privado). Código inválido/caducado/revocado → redirect a
+  `/compartir?invalido=1`. El middleware deja pasar `/compartir*` sin
+  cookie. Es SOLO LECTURA: nada de esa vista escribe en BD.
 - **Actividad de la cuenta**: gráfico de barras a todo el ancho en el detalle
   (`src/components/account-activity-chart.tsx`, SVG puro sin librería):
   entradas hacia arriba (ok) y salidas hacia abajo (danger) sobre la línea

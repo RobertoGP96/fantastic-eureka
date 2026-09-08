@@ -32,19 +32,27 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
-export function TxList({ rows }: { rows: TxRow[] }) {
+/**
+ * Historial de movimientos. Cada fila enlaza a su detalle salvo en modo
+ * `readOnly` (vista pública compartida: no hay sesión ni detalle que abrir).
+ */
+export function TxList({
+  rows,
+  readOnly = false,
+}: {
+  rows: TxRow[];
+  readOnly?: boolean;
+}) {
   if (rows.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
       {rows.map((row) => {
         const Icon = KIND_ICONS[row.kind] ?? ArrowRightLeft;
         const positive = row.amountMinor > 0;
-        return (
-          <Link
-            key={row.id}
-            href={`/movimientos/${row.id}`}
-            className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
-          >
+        const className =
+          "flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft";
+        const content = (
+          <>
             <span
               className={`flex h-9 w-9 flex-none items-center justify-center rounded-[12px] ${
                 positive ? "bg-ok-bg text-ok" : "bg-danger-bg text-danger"
@@ -68,6 +76,19 @@ export function TxList({ rows }: { rows: TxRow[] }) {
             >
               {fmtSignedMinor(row.amountMinor, row.currency)}
             </div>
+          </>
+        );
+        return readOnly ? (
+          <div key={row.id} className={className}>
+            {content}
+          </div>
+        ) : (
+          <Link
+            key={row.id}
+            href={`/movimientos/${row.id}`}
+            className={className}
+          >
+            {content}
           </Link>
         );
       })}

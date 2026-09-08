@@ -7,7 +7,9 @@ import { TxList } from "@/components/tx-list";
 import { GroupSelect } from "@/components/group-select";
 import { AccountIconEditor } from "@/components/account-icon-editor";
 import { AccountEditor } from "@/components/account-editor";
+import { AccountSharePanel } from "@/components/account-share-panel";
 import { requireSessionUser } from "@/lib/auth";
+import { activeShareForAccount } from "@/lib/shares";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
@@ -37,7 +39,7 @@ export default async function CuentaDetallePage({
   });
   if (!account) notFound();
 
-  const [balanceMinor, transactions, groups, ledger, countCount] =
+  const [balanceMinor, transactions, groups, ledger, countCount, share] =
     await Promise.all([
       accountBalanceMinor(account.id),
       prisma.transaction.findMany({
@@ -78,6 +80,7 @@ export default async function CuentaDetallePage({
         orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
       }),
       prisma.cashCount.count({ where: { accountId: account.id } }),
+      activeShareForAccount(user.id, account.id),
     ]);
 
   // Deltas {t, deltaMinor} livianos para el gráfico (el período se elige en
@@ -168,6 +171,16 @@ export default async function CuentaDetallePage({
           name={account.name}
           archived={account.archived}
           hasUsage={ledger.length + countCount > 0}
+        />
+
+        <AccountSharePanel
+          accountId={account.id}
+          accountName={account.name}
+          share={
+            share
+              ? { token: share.token, expiresAt: share.expiresAt.toISOString() }
+              : null
+          }
         />
 
         {account.type === "CASH_BOX" && (

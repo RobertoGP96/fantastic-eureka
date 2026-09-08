@@ -8,8 +8,11 @@ export function middleware(request: NextRequest) {
   const hasSession = request.cookies.has(SESSION_COOKIE);
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/auth");
+  // /compartir[/<código>] es la vista pública de solo lectura de una cuenta:
+  // se abre sin sesión (y también con ella, sin redirigir a Inicio).
+  const isPublicShare = pathname.startsWith("/compartir");
 
-  if (!hasSession && !isAuthPage) {
+  if (!hasSession && !isAuthPage && !isPublicShare) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
   // /auth/salir debe poder ejecutarse CON cookie (la limpia y evita bucles
