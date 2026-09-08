@@ -20,8 +20,11 @@ export interface BreakdownDenomination extends CounterDenomination {
 }
 
 // Desglose de denominaciones de un movimiento sobre una caja CASH_BOX.
-// Con el monto ya escrito, «Sugerir» rellena una distribución exacta
-// (mayor-primero con backtracking); en salidas respeta el stock derivado.
+// El flujo normal es contar primero: el total del desglose se muestra en
+// grande y, con `drivesAmount`, el formulario dueño rellena el monto con él.
+// El camino inverso sigue vivo: con el monto ya escrito, «Sugerir» rellena
+// una distribución exacta (mayor-primero con backtracking); en salidas
+// respeta el stock derivado.
 export function DenominationBreakdownField({
   title,
   denominations,
@@ -30,6 +33,7 @@ export function DenominationBreakdownField({
   quantities,
   onQtyChange,
   outflow,
+  drivesAmount = false,
 }: {
   title: string;
   denominations: BreakdownDenomination[];
@@ -40,6 +44,8 @@ export function DenominationBreakdownField({
   onQtyChange: (next: Record<string, number>) => void;
   /** true = el dinero SALE de la caja (limita sugerencias al stock). */
   outflow: boolean;
+  /** true = el formulario copia el total del desglose al campo de monto. */
+  drivesAmount?: boolean;
 }) {
   const [suggestError, setSuggestError] = useState<string | null>(null);
 
@@ -104,15 +110,22 @@ export function DenominationBreakdownField({
         currency={currency}
       />
 
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11.5px] text-muted">
-          Desglose: {fmtMinor(totalMinor, currency)}
-          {targetMinor !== null && !matches
-            ? ` · monto: ${fmtMinor(targetMinor, currency)}`
-            : ""}
-        </span>
+      <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
+        <div className="flex flex-col">
+          <span className="text-[11px] text-muted">Total del desglose</span>
+          <span className="text-[17px] font-bold tabular-nums text-navy">
+            {fmtMinor(totalMinor, currency)}
+          </span>
+          {targetMinor !== null && !matches && (
+            <span className="text-[11px] text-muted">
+              Monto: {fmtMinor(targetMinor, currency)}
+            </span>
+          )}
+        </div>
         {targetMinor === null ? (
-          <Badge variant="neutral">Escribe el monto</Badge>
+          <Badge variant="neutral">
+            {drivesAmount ? "Cuenta las piezas" : "Escribe el monto"}
+          </Badge>
         ) : matches ? (
           <Badge variant="ok">Cuadra</Badge>
         ) : (
@@ -123,6 +136,13 @@ export function DenominationBreakdownField({
           </Badge>
         )}
       </div>
+
+      {drivesAmount && (
+        <span className="text-[11.5px] text-muted">
+          El monto se rellena solo con lo que cuentes aquí. También puedes
+          escribir el monto y usar «Sugerir distribución».
+        </span>
+      )}
 
       {suggestError && (
         <div className="rounded-[10px] bg-danger-bg px-3 py-2 text-[11.5px] font-medium text-danger">

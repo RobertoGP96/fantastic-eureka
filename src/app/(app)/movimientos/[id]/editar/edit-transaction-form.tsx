@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateTransaction } from "@/app/actions/transaction-actions";
-import { parseAmountToMinor } from "@/lib/money";
+import { minorToAmountInput, parseAmountToMinor } from "@/lib/money";
 import { countedTotalMinor } from "@/lib/counting";
 import {
   DenominationBreakdownField,
@@ -110,6 +110,31 @@ export function EditTransactionForm({
     (destTarget !== null &&
       countedTotalMinor(destDenoms, destLines) === destTarget);
 
+  // Contar primero: el total del desglose se copia al monto de su lado (el
+  // de origen siempre va en la moneda de la cuenta; el de destino, en la de
+  // destino si cruza monedas). «Sugerir distribución» sigue haciendo el
+  // camino inverso.
+  const totalInput = (
+    denoms: BreakdownDenomination[],
+    lines: Record<string, number>,
+    cur: { decimalPlaces: number }
+  ) => {
+    const total = countedTotalMinor(denoms, lines);
+    return total > 0 ? minorToAmountInput(total, cur) : "";
+  };
+  const changeOriginLines = (next: Record<string, number>) => {
+    setOriginLines(next);
+    setAmount(totalInput(originDenoms, next, tx.currency));
+  };
+  const changeDestLines = (next: Record<string, number>) => {
+    setDestLines(next);
+    if (cross && tx.counterCurrency) {
+      setCounterAmount(totalInput(destDenoms, next, tx.counterCurrency));
+    } else {
+      setAmount(totalInput(destDenoms, next, tx.currency));
+    }
+  };
+
   const linesPayload = (
     lines: Record<string, number>
   ): { denominationId: string; quantity: number }[] | undefined => {
@@ -193,6 +218,37 @@ export function EditTransactionForm({
         )}
       </div>
 
+      {/* Los desgloses van ANTES del monto que rellenan */}
+      {originDenoms.length > 0 && (
+        <DenominationBreakdownField
+          title={
+            tx.kind === "INCOME"
+              ? `Entra en «${tx.accountName}» (denominaciones)`
+              : `Sale de «${tx.accountName}» (denominaciones)`
+          }
+          denominations={originDenoms}
+          currency={tx.currency}
+          targetMinor={originTarget}
+          quantities={originLines}
+          onQtyChange={changeOriginLines}
+          outflow={tx.kind !== "INCOME"}
+          drivesAmount
+        />
+      )}
+
+      {!cross && destDenoms.length > 0 && tx.counterAccountName && (
+        <DenominationBreakdownField
+          title={`Entra en «${tx.counterAccountName}» (denominaciones)`}
+          denominations={destDenoms}
+          currency={tx.currency}
+          targetMinor={destTarget}
+          quantities={destLines}
+          onQtyChange={changeDestLines}
+          outflow={false}
+          drivesAmount
+        />
+      )}
+
       <label className="flex flex-col gap-1.5">
         <span className="text-[12.5px] font-semibold text-ink-soft">
           {isTransfer ? `Monto enviado (${tx.currency.code})` : `Monto (${tx.currency.code})`}
@@ -205,6 +261,19 @@ export function EditTransactionForm({
           required
         />
       </label>
+
+      {cross && destDenoms.length > 0 && tx.counterAccountName && (
+        <DenominationBreakdownField
+          title={`Entra en «${tx.counterAccountName}» (denominaciones)`}
+          denominations={destDenoms}
+          currency={tx.counterCurrency ?? tx.currency}
+          targetMinor={destTarget}
+          quantities={destLines}
+          onQtyChange={changeDestLines}
+          outflow={false}
+          drivesAmount
+        />
+      )}
 
       {cross && tx.counterCurrency && (
         <label className="flex flex-col gap-1.5">
@@ -226,34 +295,6 @@ export function EditTransactionForm({
               : `La operación se anotó en ${tx.counterCurrency.code}; la tasa implícita se recalcula.`}
           </span>
         </label>
-      )}
-
-      {originDenoms.length > 0 && (
-        <DenominationBreakdownField
-          title={
-            tx.kind === "INCOME"
-              ? `Entra en «${tx.accountName}» (denominaciones)`
-              : `Sale de «${tx.accountName}» (denominaciones)`
-          }
-          denominations={originDenoms}
-          currency={tx.currency}
-          targetMinor={originTarget}
-          quantities={originLines}
-          onQtyChange={setOriginLines}
-          outflow={tx.kind !== "INCOME"}
-        />
-      )}
-
-      {destDenoms.length > 0 && tx.counterAccountName && (
-        <DenominationBreakdownField
-          title={`Entra en «${tx.counterAccountName}» (denominaciones)`}
-          denominations={destDenoms}
-          currency={tx.counterCurrency ?? tx.currency}
-          targetMinor={destTarget}
-          quantities={destLines}
-          onQtyChange={setDestLines}
-          outflow={false}
-        />
       )}
 
       {!isTransfer && (

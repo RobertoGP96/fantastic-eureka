@@ -238,6 +238,34 @@ export function RegisterForm({
     (destTarget !== null &&
       countedTotalMinor(destBoxDenoms, destLines) === destTarget);
 
+  // Contar primero: el total del desglose se copia al campo de monto del
+  // lado correspondiente, así se ve el saldo que se va formando. El camino
+  // inverso (escribir el monto y «Sugerir distribución») sigue disponible.
+  // En operaciones multi-moneda el monto se escribe en OTRA divisa, por lo
+  // que el desglose de origen no lo rellena (debe cuadrar con el convertido).
+  const originDrivesAmount = mode === "transferencia" || !crossCurrencyOp;
+  const totalInput = (
+    denoms: BreakdownDenomination[],
+    lines: Record<string, number>,
+    cur: { decimalPlaces: number }
+  ) => {
+    const total = countedTotalMinor(denoms, lines);
+    return total > 0 ? minorToAmountInput(total, cur) : "";
+  };
+  const changeOriginLines = (next: Record<string, number>) => {
+    setOriginLines(next);
+    if (originDrivesAmount && originBoxDenoms?.length && from) {
+      setAmount(totalInput(originBoxDenoms, next, from.currency));
+    }
+  };
+  const changeDestLines = (next: Record<string, number>) => {
+    setDestLines(next);
+    if (!destBoxDenoms?.length || !to) return;
+    const text = totalInput(destBoxDenoms, next, to.currency);
+    if (crossCurrency) setCounterAmount(text);
+    else setAmount(text);
+  };
+
   const linesPayload = (
     lines: Record<string, number>
   ): { denominationId: string; quantity: number }[] | undefined => {
@@ -347,6 +375,37 @@ export function RegisterForm({
     );
   }
 
+  // Los desgloses van ANTES del monto que rellenan; en multi-moneda el de
+  // origen baja tras la tasa porque cuadra con el monto ya convertido.
+  const originBreakdown = !!originBoxDenoms?.length && from && (
+    <DenominationBreakdownField
+      title={
+        originOutflow
+          ? `Sale de «${from.name}» (denominaciones)`
+          : `Entra en «${from.name}» (denominaciones)`
+      }
+      denominations={originBoxDenoms}
+      currency={from.currency}
+      targetMinor={originTarget}
+      quantities={originLines}
+      onQtyChange={changeOriginLines}
+      outflow={originOutflow}
+      drivesAmount={originDrivesAmount}
+    />
+  );
+  const destBreakdown = !!destBoxDenoms?.length && to && (
+    <DenominationBreakdownField
+      title={`Entra en «${to.name}» (denominaciones)`}
+      denominations={destBoxDenoms}
+      currency={to.currency}
+      targetMinor={destTarget}
+      quantities={destLines}
+      onQtyChange={changeDestLines}
+      outflow={false}
+      drivesAmount
+    />
+  );
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -423,6 +482,9 @@ export function RegisterForm({
           </Select>
         </label>
       )}
+
+      {originDrivesAmount && originBreakdown}
+      {!crossCurrency && destBreakdown}
 
       <label className="flex flex-col gap-1.5">
         <span className="text-[12.5px] font-semibold text-ink-soft">
@@ -506,50 +568,28 @@ export function RegisterForm({
         </div>
       )}
 
-      {!!originBoxDenoms?.length && from && (
-        <DenominationBreakdownField
-          title={
-            originOutflow
-              ? `Sale de «${from.name}» (denominaciones)`
-              : `Entra en «${from.name}» (denominaciones)`
-          }
-          denominations={originBoxDenoms}
-          currency={from.currency}
-          targetMinor={originTarget}
-          quantities={originLines}
-          onQtyChange={setOriginLines}
-          outflow={originOutflow}
-        />
-      )}
+      {!originDrivesAmount && originBreakdown}
 
       {crossCurrency && (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
-            Monto recibido ({to?.currency.code})
-          </span>
-          <Input
-            value={counterAmount}
-            onChange={(e) => setCounterAmount(e.target.value)}
-            inputMode="decimal"
-            placeholder="0"
-            required
-          />
-          <span className="text-[11.5px] text-muted">
-            Las cuentas usan monedas distintas: indica cuánto entra en destino.
-          </span>
-        </label>
-      )}
-
-      {!!destBoxDenoms?.length && to && (
-        <DenominationBreakdownField
-          title={`Entra en «${to.name}» (denominaciones)`}
-          denominations={destBoxDenoms}
-          currency={to.currency}
-          targetMinor={destTarget}
-          quantities={destLines}
-          onQtyChange={setDestLines}
-          outflow={false}
-        />
+        <>
+          {destBreakdown}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12.5px] font-semibold text-ink-soft">
+              Monto recibido ({to?.currency.code})
+            </span>
+            <Input
+              value={counterAmount}
+              onChange={(e) => setCounterAmount(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+              required
+            />
+            <span className="text-[11.5px] text-muted">
+              Las cuentas usan monedas distintas: indica cuánto entra en
+              destino.
+            </span>
+          </label>
+        </>
       )}
 
       {mode !== "transferencia" && (
