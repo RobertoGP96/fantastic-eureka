@@ -292,11 +292,12 @@ export function RegisterForm({
     }
   };
 
+  // Cambiar de tipo conserva el desglose ya contado (y el monto): la cuenta
+  // de origen no cambia, así que lo contado sigue valiendo. La categoría sí
+  // se limpia porque depende del tipo.
   const switchMode = (next: Mode) => {
     setMode(next);
     setCategoryId("");
-    setOriginLines({});
-    setDestLines({});
     setError(null);
   };
 
