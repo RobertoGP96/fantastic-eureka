@@ -16,16 +16,17 @@ datasource db {
 }
 
 model Currency {
-  id            String  @id @default(cuid())
+  id            String   @id @default(cuid())
+  updatedAt     DateTime @default(now()) @updatedAt // sync móvil: pull incremental
   userId        String
-  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   code          String
   name          String
   symbol        String
-  decimalPlaces Int     @default(2)
-  isBase        Boolean @default(false)
-  active        Boolean @default(true)
-  kind          String  @default("CASH") // CASH (efectivo) | DIGITAL (sin efectivo)
+  decimalPlaces Int      @default(2)
+  isBase        Boolean  @default(false)
+  active        Boolean  @default(true)
+  kind          String   @default("CASH") // CASH (efectivo) | DIGITAL (sin efectivo)
 
   denominations       Denomination[]
   accounts            Account[]
@@ -37,10 +38,12 @@ model Currency {
   paymentPlans        PaymentPlan[]
 
   @@unique([userId, code])
+  @@index([userId, updatedAt])
 }
 
 model Denomination {
   id         String   @id @default(cuid())
+  updatedAt  DateTime @default(now()) @updatedAt // sync móvil: pull incremental
   currencyId String
   currency   Currency @relation(fields: [currencyId], references: [id])
   valueMinor Int
@@ -57,6 +60,7 @@ model Denomination {
 // deja sus cuentas "Sin grupo" (onDelete: SetNull).
 model AccountGroup {
   id        String   @id @default(cuid())
+  updatedAt DateTime @default(now()) @updatedAt // sync móvil: pull incremental
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
@@ -65,10 +69,12 @@ model AccountGroup {
   accounts Account[]
 
   @@unique([userId, name])
+  @@index([userId, updatedAt])
 }
 
 model Account {
   id         String        @id @default(cuid())
+  updatedAt  DateTime      @default(now()) @updatedAt // sync móvil: pull incremental
   userId     String
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
@@ -90,20 +96,23 @@ model Account {
   shares              AccountShare[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 model Category {
-  id     String  @id @default(cuid())
-  userId String
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
-  kind   String // EXPENSE | INCOME
-  icon   String?
-  active Boolean @default(true)
+  id        String   @id @default(cuid())
+  updatedAt DateTime @default(now()) @updatedAt // sync móvil: pull incremental
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      String // EXPENSE | INCOME
+  icon      String?
+  active    Boolean  @default(true)
 
   transactions Transaction[]
 
   @@unique([userId, name, kind])
+  @@index([userId, updatedAt])
 }
 
 // Libro mayor. amountMinor es positivo salvo en ADJUSTMENT (con signo).
@@ -111,6 +120,7 @@ model Category {
 // counterAmountMinor va en la moneda del destino (rateScaled si cruza monedas).
 model Transaction {
   id                 String    @id @default(cuid())
+  updatedAt          DateTime  @default(now()) @updatedAt // sync móvil: pull incremental
   userId             String
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind               String // INCOME | EXPENSE | TRANSFER | ADJUSTMENT
@@ -141,6 +151,7 @@ model Transaction {
   @@index([accountId, occurredAt])
   @@index([occurredAt])
   @@index([userId, occurredAt])
+  @@index([userId, updatedAt])
 }
 
 // Desglose de denominaciones de un movimiento en una caja CASH_BOX.
@@ -150,6 +161,7 @@ model Transaction {
 // La disponibilidad de la caja = último arqueo ± estos desgloses.
 model TransactionDenomination {
   id             String       @id @default(cuid())
+  updatedAt      DateTime     @default(now()) @updatedAt // sync móvil: pull incremental
   transactionId  String
   transaction    Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   accountId      String
@@ -168,6 +180,7 @@ model TransactionDenomination {
 // app usa el inverso (o compone vía la moneda base).
 model ExchangeRate {
   id             String   @id @default(cuid())
+  updatedAt      DateTime @default(now()) @updatedAt // sync móvil: pull incremental
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fromCurrencyId String
@@ -181,10 +194,12 @@ model ExchangeRate {
 
   @@index([fromCurrencyId, toCurrencyId, effectiveAt])
   @@index([userId, effectiveAt])
+  @@index([userId, updatedAt])
 }
 
 model CashCount {
   id              String       @id @default(cuid())
+  updatedAt       DateTime     @default(now()) @updatedAt // sync móvil: pull incremental
   userId          String
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId       String
@@ -200,10 +215,12 @@ model CashCount {
   lines CashCountLine[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 model CashCountLine {
   id             String       @id @default(cuid())
+  updatedAt      DateTime     @default(now()) @updatedAt // sync móvil: pull incremental
   cashCountId    String
   cashCount      CashCount    @relation(fields: [cashCountId], references: [id], onDelete: Cascade)
   denominationId String
@@ -214,21 +231,24 @@ model CashCountLine {
 }
 
 model Contact {
-  id     String  @id @default(cuid())
-  userId String
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
-  phone  String?
-  note   String?
+  id        String   @id @default(cuid())
+  updatedAt DateTime @default(now()) @updatedAt // sync móvil: pull incremental
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  note      String?
 
   debts Debt[]
   plans PaymentPlan[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 model Debt {
   id          String   @id @default(cuid())
+  updatedAt   DateTime @default(now()) @updatedAt // sync móvil: pull incremental
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   contactId   String
@@ -248,11 +268,13 @@ model Debt {
   payments DebtPayment[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 // Plan de cuotas: ligado a una deuda o standalone (mensualidad tipo renta).
 model PaymentPlan {
   id          String    @id @default(cuid())
+  updatedAt   DateTime  @default(now()) @updatedAt // sync móvil: pull incremental
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   debtId      String?
@@ -277,11 +299,13 @@ model PaymentPlan {
   installments Installment[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 // Cuota materializada. VENCIDA es derivado: PENDING con dueAt < ahora.
 model Installment {
   id            String       @id @default(cuid())
+  updatedAt     DateTime     @default(now()) @updatedAt // sync móvil: pull incremental
   planId        String
   plan          PaymentPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
   dueAt         DateTime
@@ -296,6 +320,7 @@ model Installment {
 
 model DebtPayment {
   id            String      @id @default(cuid())
+  updatedAt     DateTime    @default(now()) @updatedAt // sync móvil: pull incremental
   debtId        String
   debt          Debt        @relation(fields: [debtId], references: [id])
   transactionId String      @unique
@@ -305,27 +330,30 @@ model DebtPayment {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
+  id             String   @id @default(cuid())
+  updatedAt      DateTime @default(now()) @updatedAt // sync móvil: pull incremental
+  name           String
+  email          String   @unique
+  passwordHash   String
   // Preferencias de la vista de Inicio (JSON serializado; ver
   // src/lib/dashboard-prefs.ts). Null = valores por defecto.
   dashboardPrefs String?
-  createdAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  sessions      Session[]
-  currencies    Currency[]
-  accountGroups AccountGroup[]
-  accounts      Account[]
-  categories    Category[]
-  transactions  Transaction[]
-  exchangeRates ExchangeRate[]
-  cashCounts    CashCount[]
-  contacts      Contact[]
-  debts         Debt[]
-  paymentPlans  PaymentPlan[]
-  accountShares AccountShare[]
+  sessions       Session[]
+  currencies     Currency[]
+  accountGroups  AccountGroup[]
+  accounts       Account[]
+  categories     Category[]
+  transactions   Transaction[]
+  exchangeRates  ExchangeRate[]
+  cashCounts     CashCount[]
+  contacts       Contact[]
+  debts          Debt[]
+  paymentPlans   PaymentPlan[]
+  accountShares  AccountShare[]
+  syncTombstones SyncTombstone[]
+  syncOperations SyncOperation[]
 }
 
 // Sesión con token opaco: la cookie lleva el token en claro y en BD se
@@ -357,4 +385,36 @@ model AccountShare {
   createdAt DateTime  @default(now())
 
   @@index([accountId])
+}
+
+// ── Sincronización con la app móvil (Changebox Android) ─────────────────────
+// Lápida de un borrado: el pull incremental la entrega para que el móvil
+// borre la fila local. Solo se registran los borrados RAÍZ (cuenta, grupo,
+// categoría, denominación, movimiento, deuda, plan); los hijos caen en el
+// móvil por las mismas cascadas que aquí.
+model SyncTombstone {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collection String
+  rowId      String
+  deletedAt  DateTime @default(now())
+
+  @@index([userId, deletedAt])
+}
+
+// Idempotencia del push: una operación del outbox del móvil (opId generado
+// en el cliente) se aplica UNA sola vez. Se registra en la MISMA transacción
+// que la mutación, así que un reintento tras un corte devuelve "duplicate".
+model SyncOperation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opId      String
+  type      String
+  status    String // APPLIED | REJECTED
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, opId])
 }

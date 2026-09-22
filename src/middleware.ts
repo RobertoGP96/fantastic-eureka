@@ -11,6 +11,9 @@ export function middleware(request: NextRequest) {
   // /compartir[/<código>] es la vista pública de solo lectura de una cuenta:
   // se abre sin sesión (y también con ella, sin redirigir a Inicio).
   const isPublicShare = pathname.startsWith("/compartir");
+  // La API móvil autentica con token Bearer (src/lib/mobile-auth.ts), no con
+  // cookie: nunca se redirige; cada ruta responde 401 si el token no vale.
+  if (pathname.startsWith("/api/mobile")) return NextResponse.next();
 
   if (!hasSession && !isAuthPage && !isPublicShare) {
     return NextResponse.redirect(new URL("/auth/login", request.url));

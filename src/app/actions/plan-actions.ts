@@ -1,22 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { parseAmountToMinor } from "@/lib/money";
-import { fmtMinor } from "@/lib/format";
-import { nextDueDate } from "@/lib/dates";
-import { debtRemainingMinor } from "@/lib/debts";
 import { getSessionUser } from "@/lib/auth";
-import type { Frequency } from "@/lib/domain";
-import {
-  ActionError,
-  createPlanSchema,
-  idSchema,
-  setPlanAccountSchema,
-  settleInstallmentSchema,
-  type ActionResult,
-} from "@/lib/schemas";
+import type { ActionResult } from "@/lib/schemas";
+import { SESSION_EXPIRED } from "@/lib/services/context";
+import * as planService from "@/lib/services/plan-service";
+
+// La lógica vive en src/lib/services/plan-service.ts (la comparte la API
+// móvil); aquí solo sesión por cookie + revalidación de la UI web.
 
 function revalidatePlanPaths(planId: string, debtId?: string | null) {
   revalidatePath("/");
@@ -30,398 +22,100 @@ export async function createPlan(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = createPlanSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
-    };
-  }
-
-  try {
-    const currency = await prisma.currency.findFirst({
-      where: { id: parsed.data.currencyId, userId: user.id },
-    });
-    if (!currency || !currency.active) {
-      return { success: false, error: "Moneda no válida" };
-    }
-
-    let accountId: string | null = null;
-    if (parsed.data.accountId) {
-      const account = await prisma.account.findFirst({
-        where: { id: parsed.data.accountId, userId: user.id },
-      });
-      if (!account || account.archived) {
-        return { success: false, error: "Cuenta no válida" };
-      }
-      if (account.currencyId !== currency.id) {
-        return {
-          success: false,
-          error: `La cuenta debe estar en ${currency.code} (la moneda del plan)`,
-        };
-      }
-      accountId = account.id;
-    }
-
-    const amountMinor = parseAmountToMinor(parsed.data.amount, currency);
-    if (amountMinor <= 0) {
-      return { success: false, error: "La cuota debe ser mayor que cero" };
-    }
-    if (
-      parsed.data.endAt &&
-      parsed.data.endAt.getTime() < parsed.data.firstDueAt.getTime()
-    ) {
-      return { success: false, error: "El fin no puede ser antes del inicio" };
-    }
-
-    const plan = await prisma.paymentPlan.create({
-      data: {
-        contactId: parsed.data.contactId,
-        userId: user.id,
-        kind: parsed.data.kind,
-        description: parsed.data.description,
-        currencyId: currency.id,
-        accountId,
-        amountMinor,
-        frequency: parsed.data.frequency,
-        dayOfMonth:
-          parsed.data.frequency === "MONTHLY"
-            ? parsed.data.firstDueAt.getDate()
-            : null,
-        nextDueAt: parsed.data.firstDueAt,
-        endAt: parsed.data.endAt,
-        installments: {
-          create: { dueAt: parsed.data.firstDueAt, amountMinor },
-        },
-      },
-    });
-
-    revalidatePlanPaths(plan.id);
-    return { success: true, data: { id: plan.id } };
-  } catch (error) {
-    console.error("createPlan:", error);
-    return { success: false, error: "No se pudo crear el plan" };
-  }
+  const result = await planService.createPlan(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (result.success) revalidatePlanPaths(result.data.id);
+  return result;
 }
 
 export async function setPlanAccount(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = setPlanAccountSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
-
-  try {
-    const plan = await prisma.paymentPlan.findFirst({
-      where: { id: parsed.data.planId, userId: user.id },
-      include: { currency: true },
-    });
-    if (!plan) {
-      return { success: false, error: "Plan no encontrado" };
-    }
-
-    if (parsed.data.accountId) {
-      const account = await prisma.account.findFirst({
-        where: { id: parsed.data.accountId, userId: user.id },
-      });
-      if (!account || account.archived) {
-        return { success: false, error: "Cuenta no válida" };
-      }
-      if (account.currencyId !== plan.currencyId) {
-        return {
-          success: false,
-          error: `La cuenta debe estar en ${plan.currency.code} (la moneda del plan)`,
-        };
-      }
-    }
-
-    await prisma.paymentPlan.update({
-      where: { id: plan.id, userId: user.id },
-      data: { accountId: parsed.data.accountId },
-    });
-
-    revalidatePlanPaths(plan.id, plan.debtId);
-    return { success: true, data: { id: plan.id } };
-  } catch (error) {
-    console.error("setPlanAccount:", error);
-    return { success: false, error: "No se pudo actualizar la cuenta" };
-  }
-}
-
-interface PlanWithDebt {
-  id: string;
-  debtId: string | null;
-  frequency: string;
-  dayOfMonth: number | null;
-  endAt: Date | null;
-  active: boolean;
-  amountMinor: number;
-}
-
-/**
- * Genera la siguiente cuota tras saldar/omitir la actual, o desactiva el plan
- * si la frecuencia es única, se alcanzó endAt o la deuda quedó saldada.
- *
- * Los updates por id (sin userId) son seguros: el `plan` que llega aquí ya
- * fue validado como propiedad del usuario por quien llama (settleInstallment
- * / skipInstallment) antes de invocar este helper.
- */
-async function advancePlan(
-  tx: Prisma.TransactionClient,
-  plan: PlanWithDebt,
-  currentDueAt: Date,
-  debtSettled: boolean
-) {
-  const next = nextDueDate(
-    currentDueAt,
-    plan.frequency as Frequency,
-    plan.dayOfMonth
+  const result = await planService.setPlanAccount(
+    { db: prisma, userId: user.id },
+    input
   );
+  if (!result.success) return result;
 
-  const shouldContinue =
-    !debtSettled &&
-    next !== null &&
-    (!plan.endAt || next.getTime() <= plan.endAt.getTime());
-
-  if (shouldContinue) {
-    await tx.installment.upsert({
-      where: { planId_dueAt: { planId: plan.id, dueAt: next } },
-      update: {},
-      create: { planId: plan.id, dueAt: next, amountMinor: plan.amountMinor },
-    });
-    await tx.paymentPlan.update({
-      where: { id: plan.id },
-      data: { nextDueAt: next },
-    });
-  } else {
-    await tx.paymentPlan.update({
-      where: { id: plan.id },
-      data: { active: false },
-    });
-  }
+  revalidatePlanPaths(result.data.id, result.data.debtId);
+  return { success: true, data: { id: result.data.id } };
 }
 
 export async function settleInstallment(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = settleInstallmentSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
-    };
-  }
+  const result = await planService.settleInstallment(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
 
-  try {
-    const installment = await prisma.installment.findFirst({
-      where: { id: parsed.data.installmentId, plan: { userId: user.id } },
-      include: { plan: { include: { currency: true } } },
-    });
-    if (!installment || installment.status !== "PENDING") {
-      return { success: false, error: "La cuota no está pendiente" };
-    }
-    const plan = installment.plan;
-
-    const account = await prisma.account.findFirst({
-      where: { id: parsed.data.accountId, userId: user.id },
-    });
-    if (!account || account.archived) {
-      return { success: false, error: "Cuenta no válida" };
-    }
-    if (account.currencyId !== plan.currencyId) {
-      return {
-        success: false,
-        error: `La cuenta debe estar en ${plan.currency.code}`,
-      };
-    }
-
-    let amountMinor = installment.amountMinor;
-    if (parsed.data.amount) {
-      amountMinor = parseAmountToMinor(parsed.data.amount, plan.currency);
-    }
-    if (amountMinor <= 0) {
-      return { success: false, error: "El monto debe ser mayor que cero" };
-    }
-
-    await prisma.$transaction(async (tx) => {
-      // Releído dentro de la transacción: evita sobrepagos por doble envío.
-      let debtSettled = false;
-      if (plan.debtId) {
-        const remaining = await debtRemainingMinor(plan.debtId, tx);
-        if (amountMinor > remaining) {
-          throw new ActionError(
-            `El monto supera el saldo pendiente de la deuda (${fmtMinor(remaining, plan.currency)})`
-          );
-        }
-        debtSettled = amountMinor === remaining;
-      }
-
-      const transaction = await tx.transaction.create({
-        data: {
-          kind: plan.kind === "COLLECT" ? "INCOME" : "EXPENSE",
-          accountId: account.id,
-          amountMinor,
-          currencyId: plan.currencyId,
-          note: parsed.data.note || `${plan.description} · cuota`,
-          userId: user.id,
-        },
-      });
-
-      await tx.installment.update({
-        where: { id: installment.id },
-        data: {
-          status: "PAID",
-          transactionId: transaction.id,
-          settledAt: new Date(),
-        },
-      });
-
-      if (plan.debtId) {
-        await tx.debtPayment.create({
-          data: {
-            debtId: plan.debtId,
-            transactionId: transaction.id,
-            amountMinor,
-          },
-        });
-        if (debtSettled) {
-          await tx.debt.update({
-            where: { id: plan.debtId, userId: user.id },
-            data: { status: "PAID" },
-          });
-        }
-      }
-
-      await advancePlan(tx, plan, installment.dueAt, debtSettled);
-    });
-
-    revalidatePlanPaths(plan.id, plan.debtId);
-    revalidatePath("/cuentas");
-    revalidatePath(`/cuentas/${account.id}`);
-    revalidatePath("/movimientos");
-    return { success: true, data: { id: installment.id } };
-  } catch (error) {
-    if (error instanceof ActionError) {
-      return { success: false, error: error.message };
-    }
-    console.error("settleInstallment:", error);
-    return { success: false, error: "No se pudo registrar el pago de la cuota" };
-  }
+  const { id, planId, debtId, accountId } = result.data;
+  revalidatePlanPaths(planId, debtId);
+  revalidatePath("/cuentas");
+  revalidatePath(`/cuentas/${accountId}`);
+  revalidatePath("/movimientos");
+  return { success: true, data: { id } };
 }
 
 export async function skipInstallment(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = idSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
+  const result = await planService.skipInstallment(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
 
-  try {
-    const installment = await prisma.installment.findFirst({
-      where: { id: parsed.data, plan: { userId: user.id } },
-      include: { plan: true },
-    });
-    if (!installment || installment.status !== "PENDING") {
-      return { success: false, error: "La cuota no está pendiente" };
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.installment.update({
-        where: { id: installment.id },
-        data: { status: "SKIPPED" },
-      });
-      await advancePlan(tx, installment.plan, installment.dueAt, false);
-    });
-
-    revalidatePlanPaths(installment.plan.id, installment.plan.debtId);
-    return { success: true, data: { id: installment.id } };
-  } catch (error) {
-    console.error("skipInstallment:", error);
-    return { success: false, error: "No se pudo omitir la cuota" };
-  }
+  const { id, planId, debtId } = result.data;
+  revalidatePlanPaths(planId, debtId);
+  return { success: true, data: { id } };
 }
 
 export async function deactivatePlan(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = idSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
+  const result = await planService.deactivatePlan(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
 
-  try {
-    const plan = await prisma.paymentPlan.update({
-      where: { id: parsed.data, userId: user.id },
-      data: { active: false },
-    });
-    await prisma.installment.updateMany({
-      where: { planId: plan.id, plan: { userId: user.id }, status: "PENDING" },
-      data: { status: "SKIPPED" },
-    });
-
-    revalidatePlanPaths(plan.id, plan.debtId);
-    return { success: true, data: { id: plan.id } };
-  } catch (error) {
-    console.error("deactivatePlan:", error);
-    return { success: false, error: "No se pudo desactivar el plan" };
-  }
+  revalidatePlanPaths(result.data.id, result.data.debtId);
+  return { success: true, data: { id: result.data.id } };
 }
 
-// Eliminar un plan borra también todas sus cuotas (Cascade). Los movimientos
-// de cuotas ya saldadas se CONSERVAN (Installment solo los vincula): los
-// saldos de las cuentas no cambian. El UI confirma antes de llamar aquí.
+// Elimina el plan y sus cuotas (los movimientos se conservan). El UI confirma
+// antes. Detalle en planService.deletePlan.
 export async function deletePlan(
   input: unknown
 ): Promise<ActionResult<undefined>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = idSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
+  const result = await planService.deletePlan(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
 
-  try {
-    const plan = await prisma.paymentPlan.findFirst({
-      where: { id: parsed.data, userId: user.id },
-    });
-    if (!plan) return { success: false, error: "Plan no encontrado" };
-
-    await prisma.paymentPlan.delete({ where: { id: plan.id } });
-
-    revalidatePlanPaths(plan.id, plan.debtId);
-    revalidatePath("/movimientos");
-    return { success: true, data: undefined };
-  } catch (error) {
-    console.error("deletePlan:", error);
-    return { success: false, error: "No se pudo eliminar el plan" };
-  }
+  revalidatePlanPaths(result.data.planId, result.data.debtId);
+  revalidatePath("/movimientos");
+  return { success: true, data: undefined };
 }

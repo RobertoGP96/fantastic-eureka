@@ -3,87 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import {
-  normalizeDashboardPrefs,
-  serializeDashboardPrefs,
-} from "@/lib/dashboard-prefs";
-import { dashboardPrefsSchema, type ActionResult } from "@/lib/schemas";
+import type { ActionResult } from "@/lib/schemas";
+import { SESSION_EXPIRED } from "@/lib/services/context";
+import * as dashboardService from "@/lib/services/dashboard-service";
 
-/**
- * Guarda las preferencias del dashboard en `User.dashboardPrefs`. Los
- * gadgets que referencian cuentas o monedas de otro usuario (o borradas)
- * se descartan en silencio: al renderizar tampoco existirían.
- */
+// La lógica vive en src/lib/services/dashboard-service.ts (la comparte la
+// API móvil); aquí solo sesión por cookie + revalidación de la UI web.
 export async function saveDashboardPrefs(
   input: unknown
 ): Promise<ActionResult<undefined>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = dashboardPrefsSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Preferencias inválidas" };
-  }
-
-  try {
-    const prefs = normalizeDashboardPrefs(parsed.data);
-
-    // Propiedad: cuentas y monedas referenciadas deben ser del usuario.
-    const accountIds = new Set<string>([
-      ...prefs.widgets.flatMap((w) => (w.accountId ? [w.accountId] : [])),
-      ...(prefs.accountIds ?? []),
-    ]);
-    const currencyIds = new Set<string>(
-      prefs.widgets.flatMap((w) =>
-        w.type === "ratePair" ? [w.fromCurrencyId!, w.toCurrencyId!] : []
-      )
-    );
-    const [ownAccounts, ownCurrencies] = await Promise.all([
-      accountIds.size > 0
-        ? prisma.account.findMany({
-            where: { id: { in: [...accountIds] }, userId: user.id },
-            select: { id: true },
-          })
-        : Promise.resolve([]),
-      currencyIds.size > 0
-        ? prisma.currency.findMany({
-            where: { id: { in: [...currencyIds] }, userId: user.id },
-            select: { id: true },
-          })
-        : Promise.resolve([]),
-    ]);
-    const validAccounts = new Set(ownAccounts.map((a) => a.id));
-    const validCurrencies = new Set(ownCurrencies.map((c) => c.id));
-
-    const widgets = prefs.widgets.filter((w) => {
-      if (w.accountId && !validAccounts.has(w.accountId)) return false;
-      if (w.type === "ratePair") {
-        return (
-          validCurrencies.has(w.fromCurrencyId!) &&
-          validCurrencies.has(w.toCurrencyId!)
-        );
-      }
-      return true;
-    });
-    const cleaned = normalizeDashboardPrefs({
-      sections: prefs.sections,
-      widgets,
-      accountIds:
-        prefs.accountIds === null
-          ? null
-          : prefs.accountIds.filter((id) => validAccounts.has(id)),
-    });
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { dashboardPrefs: serializeDashboardPrefs(cleaned) },
-    });
-    revalidatePath("/");
-    return { success: true, data: undefined };
-  } catch (error) {
-    console.error("saveDashboardPrefs:", error);
-    return { success: false, error: "No se pudieron guardar las preferencias" };
-  }
+  const result = await dashboardService.saveDashboardPrefs(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (result.success) revalidatePath("/");
+  return result;
 }

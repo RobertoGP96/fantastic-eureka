@@ -26,10 +26,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   campos kind/status/direction son strings validados con las constantes de
   `src/lib/domain.ts` (única fuente de verdad + labels ES); herencia de
   SQLite que se mantiene. `prisma/dev.db` es el viejo SQLite (legado).
-  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. La BD tiene aplicada
-  una migración `20260715233430_mobile_sync_foundation` (añade `updatedAt` a
-  varias tablas) que NO existe en este repo — vino de otra rama/máquina; las
-  migraciones nuevas deben fechar después y ser aditivas.
+  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. (Una nota vieja
+  hablaba de una migración `mobile_sync_foundation` aplicada fuera del repo:
+  `prisma migrate status` del 2026-09-22 dice que NO está en la base.) Las
+  migraciones nuevas deben ser aditivas.
 - **Dinero**: SIEMPRE enteros en unidades menores (`amountMinor`); tasas
   escaladas ×10 000 (`rateScaled`, `RATE_SCALE`). Aritmética en
   `src/lib/money.ts` (BigInt para conversiones). Formateo estilo tienda
@@ -73,9 +73,21 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (`src/lib/user-defaults.ts`, sin server-only) crea monedas +
   denominaciones + categorías del usuario en la misma transacción;
   `prisma/seed.ts` aplica esos defaults a usuarios existentes sin monedas.
-- **Server actions** en `src/app/actions/*.ts`: validan con Zod
-  (`src/lib/schemas.ts`), devuelven `ActionResult<T>` ({success, data|error}),
-  loguean errores con console.error y mensajes amigables al UI.
+- **Server actions** en `src/app/actions/*.ts`: envoltorios FINOS (sesión por
+  cookie + servicio + `revalidatePath` si `success`). La lógica vive en
+  **`src/lib/services/*-service.ts`**: validan con Zod (`src/lib/schemas.ts`),
+  devuelven `ActionResult<T>` ({success, data|error}), loguean con
+  console.error y dan mensajes amigables. Firma `(ctx: {db, userId}, input,
+  options?)`: usan `ctx.db` (nunca el `prisma` global) y `inTx(ctx.db, …)` en
+  vez de `$transaction`, porque la API móvil los llama dentro de su propia
+  transacción. Las creaciones aceptan `options.id` (id generado en el móvil)
+  y los borrados raíz anotan `recordTombstone` DENTRO de su transacción. Una
+  feature nueva va en el servicio, no en la action.
+- **API móvil** (`/api/mobile/v1`, app Android `D:\Projects\changebox`):
+  token Bearer sobre la tabla `Session`, pull incremental por `updatedAt` +
+  lápidas y push idempotente por `opId` que llama a los MISMOS servicios.
+  Contrato completo en `docs/mobile-api.md`: si añades una operación que
+  muta datos, añádela a `src/lib/sync/op-registry.ts` y al contrato.
 - **Deudas**: saldo pendiente = totalMinor − Σ DebtPayment. Saldar/omitir una
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
