@@ -26,10 +26,12 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   campos kind/status/direction son strings validados con las constantes de
   `src/lib/domain.ts` (única fuente de verdad + labels ES); herencia de
   SQLite que se mantiene. `prisma/dev.db` es el viejo SQLite (legado).
-  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. (Una nota vieja
-  hablaba de una migración `mobile_sync_foundation` aplicada fuera del repo:
-  `prisma migrate status` del 2026-09-22 dice que NO está en la base.) Las
-  migraciones nuevas deben ser aditivas.
+  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. En Neon existe una
+  migración `20260715233430_mobile_sync_foundation` aplicada FUERA del repo
+  (sin carpeta local): `prisma migrate status` la lista como "not found
+  locally" y es normal; `20260922120000_mobile_sync` (idempotente, IF NOT
+  EXISTS) se aplicó el 2026-11-05. Las migraciones nuevas deben ser
+  aditivas.
 - **Dinero**: SIEMPRE enteros en unidades menores (`amountMinor`); tasas
   escaladas ×10 000 (`rateScaled`, `RATE_SCALE`). Aritmética en
   `src/lib/money.ts` (BigInt para conversiones). Formateo estilo tienda
