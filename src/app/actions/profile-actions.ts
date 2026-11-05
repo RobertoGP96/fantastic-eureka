@@ -1,15 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser, invalidateOtherSessions } from "@/lib/auth";
-import { hashPassword, verifyPassword } from "@/lib/password";
 import {
   updatePasswordSchema,
   updateProfileSchema,
   type ActionResult,
 } from "@/lib/schemas";
+import * as profileService from "@/lib/services/profile-service";
+
+// La lógica vive en src/lib/services/profile-service.ts (la comparte la API
+// móvil); aquí solo sesión por cookie + revalidación de la UI web y el
+// cierre de las otras sesiones (depende de la cookie actual).
+//
+// Estas actions validan la entrada ANTES de mirar la sesión (orden
+// histórico: un formulario inválido informa del campo aunque la sesión haya
+// caducado); el servicio vuelve a validar, es barato e idempotente.
 
 export async function updateProfile(
   input: unknown
@@ -25,24 +32,15 @@ export async function updateProfile(
   const user = await getSessionUser();
   if (!user) return { success: false, error: "Sesión no válida" };
 
-  try {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { name: parsed.data.name, email: parsed.data.email },
-    });
+  const result = await profileService.updateProfile(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (result.success) {
     revalidatePath("/perfil");
     revalidatePath("/");
-    return { success: true, data: { id: user.id } };
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { success: false, error: "Ya existe una cuenta con ese correo" };
-    }
-    console.error("updateProfile:", error);
-    return { success: false, error: "No se pudo actualizar el perfil" };
   }
+  return result;
 }
 
 export async function updatePassword(
@@ -59,21 +57,15 @@ export async function updatePassword(
   const sessionUser = await getSessionUser();
   if (!sessionUser) return { success: false, error: "Sesión no válida" };
 
+  const result = await profileService.updatePassword(
+    { db: prisma, userId: sessionUser.id },
+    input
+  );
+  if (!result.success) return result;
+
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: sessionUser.id },
-    });
-    if (!user || !verifyPassword(parsed.data.current, user.passwordHash)) {
-      return { success: false, error: "La contraseña actual no es correcta" };
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash: hashPassword(parsed.data.next) },
-    });
     // Seguridad: al cambiar la contraseña se cierran las demás sesiones.
-    await invalidateOtherSessions(user.id);
-
+    await invalidateOtherSessions(sessionUser.id);
     return { success: true, data: undefined };
   } catch (error) {
     console.error("updatePassword:", error);

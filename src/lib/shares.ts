@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { inTx, type Db } from "@/lib/services/context";
 import {
   isShareActive,
   isWellFormedShareToken,
@@ -44,14 +45,17 @@ export async function activeShareForAccount(
 /**
  * Crea el código de 24 h de la cuenta revocando cualquier otro vigente y
  * limpiando los ya caducados de esa cuenta (no acumulan basura).
+ * `db` opcional (por defecto el prisma global) para que share-service pueda
+ * pasar su conexión o una transacción ya abierta.
  */
 export async function issueShare(
   userId: string,
-  accountId: string
+  accountId: string,
+  db: Db = prisma
 ): Promise<ActiveShare> {
   const now = new Date();
   const token = newShareToken();
-  return prisma.$transaction(async (tx) => {
+  return inTx(db, async (tx) => {
     await tx.accountShare.deleteMany({
       where: { accountId, expiresAt: { lte: now } },
     });

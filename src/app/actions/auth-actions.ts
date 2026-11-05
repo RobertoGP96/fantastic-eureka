@@ -1,57 +1,23 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createSession, destroySession } from "@/lib/auth";
-import { hashPassword, verifyPassword } from "@/lib/password";
-import { bootstrapUserDefaults } from "@/lib/user-defaults";
-import {
-  loginSchema,
-  registerSchema,
-  type ActionResult,
-} from "@/lib/schemas";
+import type { ActionResult } from "@/lib/schemas";
+import * as authService from "@/lib/services/auth-service";
+
+// La lógica (alta con datos por defecto, verificación de contraseña) vive en
+// src/lib/services/auth-service.ts y la comparte la API móvil; aquí solo se
+// crea o destruye la cookie de sesión.
 
 export async function registerUser(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
-  // Cada usuario tiene sus propios datos; el flag permite cerrar el
-  // registro en despliegues privados (ALLOW_REGISTRATION=false).
-  if (process.env.ALLOW_REGISTRATION === "false") {
-    return { success: false, error: "El registro está deshabilitado" };
-  }
-
-  const parsed = registerSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
-    };
-  }
-
+  const result = await authService.registerUser(prisma, input);
+  if (!result.success) return result;
   try {
-    // Usuario + sus datos por defecto (monedas, denominaciones y categorías)
-    // en una sola transacción: nunca queda un usuario "vacío" a medias.
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          name: parsed.data.name,
-          email: parsed.data.email,
-          passwordHash: hashPassword(parsed.data.password),
-        },
-      });
-      await bootstrapUserDefaults(tx, created.id);
-      return created;
-    });
-
-    await createSession(user.id);
-    return { success: true, data: { id: user.id } };
+    await createSession(result.data.id);
+    return { success: true, data: { id: result.data.id } };
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { success: false, error: "Ya existe una cuenta con ese correo" };
-    }
     console.error("registerUser:", error);
     return { success: false, error: "No se pudo crear la cuenta" };
   }
@@ -60,25 +26,11 @@ export async function registerUser(
 export async function loginUser(
   input: unknown
 ): Promise<ActionResult<{ id: string }>> {
-  const parsed = loginSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
-    };
-  }
-
+  const result = await authService.verifyCredentials(prisma, input);
+  if (!result.success) return result;
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
-    });
-    // Mensaje genérico: no revelar si el correo existe.
-    if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
-      return { success: false, error: "Correo o contraseña incorrectos" };
-    }
-
-    await createSession(user.id);
-    return { success: true, data: { id: user.id } };
+    await createSession(result.data.id);
+    return { success: true, data: { id: result.data.id } };
   } catch (error) {
     console.error("loginUser:", error);
     return { success: false, error: "No se pudo iniciar sesión" };

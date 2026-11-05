@@ -3,42 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { idSchema, type ActionResult } from "@/lib/schemas";
-import { issueShare } from "@/lib/shares";
+import type { ActionResult } from "@/lib/schemas";
+import { SESSION_EXPIRED } from "@/lib/services/context";
+import * as shareService from "@/lib/services/share-service";
 
 // Código de seguimiento de una cuenta: enlace público de solo lectura
 // (saldo + movimientos) que caduca a las 24 h. Ver src/lib/shares.ts.
+// La lógica vive en src/lib/services/share-service.ts; aquí solo sesión por
+// cookie + revalidación de la UI web.
 
 export async function createAccountShare(
   input: unknown
 ): Promise<ActionResult<{ token: string; expiresAt: string }>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = idSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
-
-  try {
-    const account = await prisma.account.findFirst({
-      where: { id: parsed.data, userId: user.id },
-      select: { id: true },
-    });
-    if (!account) return { success: false, error: "Cuenta no encontrada" };
-
-    const share = await issueShare(user.id, account.id);
-    revalidatePath(`/cuentas/${account.id}`);
-    return {
-      success: true,
-      data: { token: share.token, expiresAt: share.expiresAt.toISOString() },
-    };
-  } catch (error) {
-    console.error("createAccountShare:", error);
-    return { success: false, error: "No se pudo generar el código" };
-  }
+  const result = await shareService.createAccountShare(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
+  revalidatePath(`/cuentas/${result.data.accountId}`);
+  return {
+    success: true,
+    data: { token: result.data.token, expiresAt: result.data.expiresAt },
+  };
 }
 
 /** Revoca los códigos vigentes de la cuenta: el enlace deja de abrir. */
@@ -46,30 +35,13 @@ export async function revokeAccountShare(
   input: unknown
 ): Promise<ActionResult<undefined>> {
   const user = await getSessionUser();
-  if (!user) {
-    return { success: false, error: "Tu sesión ha expirado. Vuelve a iniciar sesión." };
-  }
+  if (!user) return { success: false, error: SESSION_EXPIRED };
 
-  const parsed = idSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: "Datos inválidos" };
-  }
-
-  try {
-    const account = await prisma.account.findFirst({
-      where: { id: parsed.data, userId: user.id },
-      select: { id: true },
-    });
-    if (!account) return { success: false, error: "Cuenta no encontrada" };
-
-    await prisma.accountShare.updateMany({
-      where: { accountId: account.id, userId: user.id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    revalidatePath(`/cuentas/${account.id}`);
-    return { success: true, data: undefined };
-  } catch (error) {
-    console.error("revokeAccountShare:", error);
-    return { success: false, error: "No se pudo revocar el código" };
-  }
+  const result = await shareService.revokeAccountShare(
+    { db: prisma, userId: user.id },
+    input
+  );
+  if (!result.success) return result;
+  revalidatePath(`/cuentas/${result.data.accountId}`);
+  return { success: true, data: undefined };
 }
