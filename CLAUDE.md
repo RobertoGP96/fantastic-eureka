@@ -351,7 +351,14 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `ActionError` para abortar (patrón anti doble-envío) — mantenerlo así.
 - Neon + Prisma: la URL pooled DEBE llevar `pgbouncer=true` (sin eso, el pool
   se agota con P2024 "Timed out fetching a new connection"). También lleva
-  `connection_limit=10&connect_timeout=15`.
+  `connection_limit=10&connect_timeout=15`. Desde 2026-11-07
+  `src/lib/db.ts` pasa `DATABASE_URL` por `normalizeDatabaseUrl`
+  (`src/lib/db-url.ts`, con tests) que AÑADE lo que falte (schema=caja,
+  sslmode, connect_timeout=15 y, en hosts `-pooler`, pgbouncer+
+  connection_limit) sin pisar lo presente: un env mal copiado en Vercel ya
+  no provoca P1001 "Can't reach database server" por el arranque en frío
+  (Prisma espera solo 5 s por defecto). El CLI de Prisma (migraciones)
+  sigue leyendo la URL cruda del `.env`.
 - Cookie de sesión huérfana (ej. tras cambiar de BD): el layout de (app)
   redirige a `/auth/salir` (route handler que borra la cookie) — nunca
   directo a /auth/login, o se produce un bucle con el middleware.
