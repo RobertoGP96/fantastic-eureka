@@ -116,6 +116,9 @@ export default async function CuentaDetallePage({
       </ScreenHeader>
 
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
+        {/* Archivada: /registrar y /conteo solo admiten cuentas activas; el
+            enlace acababa preseleccionando en silencio otra cuenta. */}
+        {!account.archived && (
         <div className="flex gap-2.5">
           <Link
             href={`/registrar?cuenta=${account.id}`}
@@ -134,6 +137,7 @@ export default async function CuentaDetallePage({
             </Link>
           )}
         </div>
+        )}
 
         {activity.length > 0 && (
           <AccountActivityChart

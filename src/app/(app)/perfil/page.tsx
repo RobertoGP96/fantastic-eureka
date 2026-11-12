@@ -1,12 +1,12 @@
 import { ScreenHeader } from "@/components/screen-header";
-import { getSessionUser } from "@/lib/auth";
+import { requireSessionUser } from "@/lib/auth";
 import { ProfileForm } from "./profile-form";
 import { PasswordForm } from "./password-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function PerfilPage() {
-  const user = await getSessionUser();
+  const user = await requireSessionUser();
 
   return (
     <main className="flex flex-1 flex-col pb-8">

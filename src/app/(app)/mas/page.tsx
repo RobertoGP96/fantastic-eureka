@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
 import { LogoutButton } from "@/components/logout-button";
-import { getSessionUser } from "@/lib/auth";
+import { requireSessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +70,7 @@ const ITEMS: MenuItem[] = [
 ];
 
 export default async function MasPage() {
-  const user = await getSessionUser();
+  const user = await requireSessionUser();
 
   return (
     <main className="flex flex-1 flex-col pb-8">

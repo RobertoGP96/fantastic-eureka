@@ -7,7 +7,7 @@
 
 import { idSchema, type ActionResult } from "@/lib/schemas";
 import { issueShare } from "@/lib/shares";
-import type { ServiceContext } from "./context";
+import { unexpectedFailure, type ServiceContext } from "./context";
 
 export async function createAccountShare(
   { db, userId }: ServiceContext,
@@ -37,8 +37,7 @@ export async function createAccountShare(
       },
     };
   } catch (error) {
-    console.error("createAccountShare:", error);
-    return { success: false, error: "No se pudo generar el código" };
+    return unexpectedFailure("createAccountShare", error, "No se pudo generar el código");
   }
 }
 
@@ -65,7 +64,6 @@ export async function revokeAccountShare(
     });
     return { success: true, data: { accountId: account.id } };
   } catch (error) {
-    console.error("revokeAccountShare:", error);
-    return { success: false, error: "No se pudo revocar el código" };
+    return unexpectedFailure("revokeAccountShare", error, "No se pudo revocar el código");
   }
 }

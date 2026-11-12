@@ -15,6 +15,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 export async function createCategory(
@@ -47,8 +48,7 @@ export async function createCategory(
     ) {
       return { success: false, error: "Ya existe una categoría con ese nombre" };
     }
-    console.error("createCategory:", error);
-    return { success: false, error: "No se pudo crear la categoría" };
+    return unexpectedFailure("createCategory", error, "No se pudo crear la categoría");
   }
 }
 
@@ -82,8 +82,7 @@ export async function renameCategory(
     ) {
       return { success: false, error: "Ya existe una categoría con ese nombre" };
     }
-    console.error("renameCategory:", error);
-    return { success: false, error: "No se pudo renombrar la categoría" };
+    return unexpectedFailure("renameCategory", error, "No se pudo renombrar la categoría");
   }
 }
 
@@ -116,8 +115,7 @@ export async function deleteCategory(
     });
     return { success: true, data: { id: category.id } };
   } catch (error) {
-    console.error("deleteCategory:", error);
-    return { success: false, error: "No se pudo eliminar la categoría" };
+    return unexpectedFailure("deleteCategory", error, "No se pudo eliminar la categoría");
   }
 }
 
@@ -142,7 +140,6 @@ export async function toggleCategory(
     });
     return { success: true, data: { id: updated.id, active: updated.active } };
   } catch (error) {
-    console.error("toggleCategory:", error);
-    return { success: false, error: "No se pudo actualizar la categoría" };
+    return unexpectedFailure("toggleCategory", error, "No se pudo actualizar la categoría");
   }
 }

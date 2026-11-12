@@ -14,6 +14,11 @@ const state = vi.hoisted(() => ({
 
 vi.mock("server-only", () => ({}));
 
+// Sin Prisma real en el test: basta la clasificación del resultado.
+vi.mock("@/lib/services/context", () => ({
+  isTransientDbError: () => false,
+}));
+
 vi.mock("@/lib/db", () => {
   const syncOperation = (ops: Row[]) => ({
     findUnique: async ({ where }: { where: { userId_opId: { userId: string; opId: string } } }) =>
@@ -57,6 +62,11 @@ vi.mock("./op-registry", () => ({
     },
     "boom.op": async () => {
       throw new Error("conexión perdida");
+    },
+    // El servicio capturó un corte de BD y lo marcó como reintentable.
+    "flaky.op": async (ctx: { db: { write: (l: string) => void } }) => {
+      ctx.db.write("a-medias");
+      return { success: false, error: "No se pudo crear la cuenta", retryable: true };
     },
   },
 }));
@@ -115,6 +125,28 @@ describe("applyOps", () => {
     const [result] = await applyOps("u1", [op("op-00004", "boom.op")]);
     expect(result.status).toBe("rejected");
     expect(state.ops).toEqual([]);
+  });
+
+  it("un fallo transitorio del servicio NO queda REJECTED y detiene el lote", async () => {
+    const results = await applyOps("u1", [
+      op("op-00007", "flaky.op"),
+      op("op-00008", "ok.op"),
+    ]);
+    // Solo se responde la operación fallida; la siguiente (que podría
+    // depender de ella) se reintenta en el próximo push.
+    expect(results).toEqual([
+      {
+        opId: "op-00007",
+        status: "rejected",
+        error: "No se pudo aplicar la operación; se reintentará",
+      },
+    ]);
+    expect(state.ops).toEqual([]);
+    expect(state.writes).toEqual([]);
+
+    // En el reintento ambas se aplican con normalidad.
+    const retry = await applyOps("u1", [op("op-00008", "ok.op")]);
+    expect(retry[0].status).toBe("applied");
   });
 
   it("un rechazo no detiene el resto del lote", async () => {

@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { createPlan } from "@/app/actions/plan-actions";
 import { useUI } from "@/lib/ui-store";
+import { toLocalDateISO } from "@/lib/dates";
+import { runAction } from "@/lib/run-action";
 import {
   FREQUENCIES,
   FREQUENCY_LABELS,
@@ -39,7 +41,7 @@ interface AccountOption {
 const NO_CONTACT = "__none__";
 const NO_ACCOUNT = "__none_account__";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => toLocalDateISO();
 
 export function PlanForm({
   contacts,
@@ -78,7 +80,8 @@ export function PlanForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const result = await createPlan({
+    const result = await runAction(() =>
+      createPlan({
       kind,
       description,
       contactId: contactId === NO_CONTACT ? undefined : contactId,
@@ -88,12 +91,14 @@ export function PlanForm({
       frequency,
       firstDueAt: new Date(`${firstDueAt}T12:00:00`),
       endAt: endAt ? new Date(`${endAt}T12:00:00`) : undefined,
-    });
-    setSaving(false);
+      })
+    );
     if (result.success) {
+      // `saving` sigue en true mientras navega: evita un plan duplicado.
       showToast("Mensualidad creada");
       router.push(`/mensualidades/${result.data.id}`);
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };

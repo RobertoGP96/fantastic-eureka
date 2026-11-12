@@ -199,6 +199,9 @@ export async function IncomeCardWidget({
   }
   return (
     <IncomeCard
+      // key: el período elegido vive en estado del cliente; sin ella, cambiar
+      // «Empieza en» en el personalizador no surtía efecto hasta recargar.
+      key={widget.defaultPeriod ?? "month"}
       heading={widget.title || data.accountName || "Resumen de ingresos"}
       config={{
         variant: widget.variant ?? "soft",

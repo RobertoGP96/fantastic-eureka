@@ -12,6 +12,7 @@ import {
 } from "@/components/denomination-counter";
 import { countedTotalMinor } from "@/lib/counting";
 import { useUI } from "@/lib/ui-store";
+import { runAction } from "@/lib/run-action";
 import { fmtMinor, fmtSignedMinor, type DisplayCurrency } from "@/lib/format";
 
 export function CountForm({
@@ -46,7 +47,8 @@ export function CountForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const result = await createCashCount({
+    const result = await runAction(() =>
+      createCashCount({
       accountId: account.id,
       note: note.trim() || undefined,
       createAdjustment,
@@ -54,13 +56,15 @@ export function CountForm({
         denominationId: d.id,
         quantity: quantities[d.id] ?? 0,
       })),
-    });
-    setSaving(false);
+      })
+    );
     if (result.success) {
+      // `saving` sigue en true mientras navega: evita un arqueo duplicado.
       showToast("Arqueo guardado");
       router.push(`/cuentas/${account.id}`);
       router.refresh();
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };

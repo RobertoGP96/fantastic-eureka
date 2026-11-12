@@ -8,6 +8,7 @@ import {
   clientIdOrUndefined,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 // La tasa relaciona un PAR de monedas: unidades de destino por 1 de origen,
@@ -63,7 +64,6 @@ export async function createExchangeRate(
     });
     return { success: true, data: { id: rate.id } };
   } catch (error) {
-    console.error("createExchangeRate:", error);
-    return { success: false, error: "No se pudo guardar la tasa" };
+    return unexpectedFailure("createExchangeRate", error, "No se pudo guardar la tasa");
   }
 }

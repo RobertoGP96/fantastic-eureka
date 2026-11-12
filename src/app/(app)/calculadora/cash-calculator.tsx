@@ -21,6 +21,10 @@ export interface CalculatorCurrency {
 // Calculadora libre: cuenta efectivo por denominaciones sin tocar la BD.
 // Las cantidades se guardan por moneda, así cambiar de divisa no borra
 // el conteo en curso de la otra.
+// Referencia estable para «sin cantidades»: un `{}` nuevo en cada render
+// invalidaba los useMemo que dependen de `quantities`.
+const NO_QUANTITIES: Record<string, number> = {};
+
 export function CashCalculator({
   currencies,
 }: {
@@ -33,7 +37,7 @@ export function CashCalculator({
 
   const currency =
     currencies.find((c) => c.id === currencyId) ?? currencies[0];
-  const quantities = quantitiesByCurrency[currency.id] ?? {};
+  const quantities = quantitiesByCurrency[currency.id] ?? NO_QUANTITIES;
 
   const setQty = (id: string, qty: number) => {
     setQuantitiesByCurrency((prev) => ({

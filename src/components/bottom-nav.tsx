@@ -24,7 +24,7 @@ const LEFT: NavItem[] = [
     href: "/cuentas",
     icon: Wallet,
     label: "Cuentas",
-    isActive: (p) => p.startsWith("/cuentas") || p.startsWith("/conteo"),
+    isActive: (p) => p.startsWith("/cuentas"),
   },
 ];
 
@@ -47,6 +47,8 @@ const RIGHT: NavItem[] = [
       p.startsWith("/categorias") ||
       p.startsWith("/monedas") ||
       p.startsWith("/calculadora") ||
+      // Conteo se abre desde «Más» y su flecha vuelve ahí.
+      p.startsWith("/conteo") ||
       p.startsWith("/perfil"),
   },
 ];

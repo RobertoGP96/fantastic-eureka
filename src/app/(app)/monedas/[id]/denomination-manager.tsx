@@ -196,7 +196,11 @@ export function DenominationManager({
             aria-label={`Valor en ${currency.code}`}
             required
           />
-          <Button type="submit" disabled={saving || !value.trim()}>
+          <Button
+            type="submit"
+            disabled={saving || !value.trim()}
+            aria-label="Añadir denominación"
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </div>

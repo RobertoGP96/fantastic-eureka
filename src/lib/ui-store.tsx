@@ -24,7 +24,10 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((message: string) => {
     if (timer.current) clearTimeout(timer.current);
     setToast(message);
-    timer.current = setTimeout(() => setToast(null), 2200);
+    // Los avisos largos (errores) necesitan más tiempo de lectura que un
+    // «Guardado»: ~70 ms por carácter, entre 2,2 y 6 s.
+    const duration = Math.min(6000, Math.max(2200, message.length * 70));
+    timer.current = setTimeout(() => setToast(null), duration);
   }, []);
 
   const value = useMemo(() => ({ toast, showToast }), [toast, showToast]);

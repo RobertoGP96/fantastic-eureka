@@ -12,9 +12,10 @@ petróleo/esmeralda con acento dorado y tipografía Outfit.
   demás sesiones). Cada cuenta admite un **icono personalizable** elegido de
   un set curado de lucide.
 - **Registro e inicio de sesión** — usuarios con contraseña (scrypt de
-  node:crypto, sin dependencias externas), sesiones de 30 días en SQLite con
-  cookie httpOnly y middleware que protege toda la app. Los usuarios
-  registrados comparten los mismos datos (uso familiar/negocio).
+  node:crypto, sin dependencias externas), sesiones de 30 días con cookie
+  httpOnly y middleware que protege toda la app. Es **multi-tenant**: cada
+  usuario tiene sus propios datos (monedas, cuentas, tasas, deudas…) y al
+  registrarse recibe monedas, denominaciones y categorías por defecto.
 - **Cuentas** — cajas de efectivo, bancos y saldos digitales, cada una en su
   moneda. El saldo se deriva del libro de movimientos (nunca se edita directo).
   Se pueden organizar en **grupos** personalizables (Negocio, Personal…) con
@@ -53,12 +54,15 @@ Ctrl/Cmd+B); en móvil se mantiene la bottom nav estilo tienda.
 
 ```bash
 pnpm install
-pnpm db:migrate     # crea prisma/dev.db y ejecuta el seed
-pnpm dev            # http://localhost:3002
+cp .env.example .env   # rellena DATABASE_URL y DIRECT_URL (Neon Postgres)
+pnpm db:deploy         # aplica las migraciones (schema `caja`)
+pnpm dev               # http://localhost:3002
 ```
 
-El seed crea las monedas CUP (base), USD, EUR y MLC con sus denominaciones
-reales, y las categorías básicas de gastos/ingresos.
+Cada usuario nuevo recibe al registrarse las monedas CUP (base), USD, EUR y
+MLC con sus denominaciones reales y las categorías básicas de gastos e
+ingresos. `pnpm db:seed` aplica esos valores por defecto a usuarios que ya
+existieran sin monedas.
 
 ## Scripts
 
@@ -66,10 +70,11 @@ reales, y las categorías básicas de gastos/ingresos.
 |---|---|
 | `pnpm dev` | Servidor de desarrollo (puerto 3002, Turbopack) |
 | `pnpm build` / `pnpm start` | Build y servidor de producción |
+| `pnpm lint` / `pnpm typecheck` | ESLint y comprobación de tipos |
 | `pnpm test` / `pnpm test:watch` | Tests unitarios (Vitest) |
-| `pnpm db:migrate` | Migraciones + seed |
+| `pnpm db:deploy` | Aplica migraciones pendientes (producción y Neon) |
 | `pnpm db:studio` | Prisma Studio |
-| `pnpm tsx prisma/reset-data.ts` | Borra datos de trabajo conservando el seed |
+| `pnpm tsx prisma/reset-data.ts --user <correo> --yes` | Borra los datos de trabajo de ESE usuario conservando su configuración (sin `--yes` solo muestra qué borraría) |
 
 ## Deploy en Vercel
 
@@ -97,7 +102,11 @@ reales, y las categorías básicas de gastos/ingresos.
   las migraciones usan `DIRECT_URL` (endpoint sin pooler).
 - **Auth propia y ligera**: scrypt + tokens de sesión opacos (SHA-256 en BD).
   El middleware solo comprueba la cookie (corre en edge, sin Prisma); la
-  validación real ocurre en el layout del grupo `(app)`. Sin multi-tenancy:
-  todos los usuarios ven los mismos datos.
-- **Moneda base**: CUP. Las tasas se cotizan siempre contra la base; las
-  conversiones cruzadas se derivan de ella.
+  validación real ocurre en el layout del grupo `(app)`. Todas las consultas
+  van acotadas por `userId`.
+- **Moneda base**: CUP por defecto, personalizable. Las tasas se registran
+  por pares de monedas; el inverso y los cruces vía la base se resuelven
+  solos, así que cambiar la base no invalida ninguna tasa.
+- **Zona horaria**: el servidor calcula y muestra fechas en la zona de la
+  app (`APP_TIME_ZONE`, por defecto `America/Havana`), no en el UTC de
+  Vercel; ver `src/instrumentation.ts`.

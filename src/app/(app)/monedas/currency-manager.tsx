@@ -242,7 +242,7 @@ export function CurrencyManager({
                 (confirmBaseId === currency.id ? (
                   <>
                     <span className="mr-auto text-[11px] text-muted">
-                      Revisa las tasas tras el cambio
+                      Los totales se consolidarán en esta moneda
                     </span>
                     <Button size="sm" onClick={() => void makeBase(currency.id)}>
                       Confirmar base
@@ -280,12 +280,13 @@ export function CurrencyManager({
       </div>
 
       <p className="text-xs text-muted">
-        Las tasas de cambio se cotizan contra la moneda base. Si cambias la
-        base, registra tasas nuevas en{" "}
+        La moneda base es en la que se consolidan los totales. Las tasas se
+        registran por pares en{" "}
         <Link href="/tasas" className="font-semibold text-brand-mid">
           Tasas
         </Link>
-        .
+        , así que cambiar la base no invalida ninguna: solo hace falta que
+        exista un par (directo o inverso) entre cada moneda y la nueva base.
       </p>
     </div>
   );

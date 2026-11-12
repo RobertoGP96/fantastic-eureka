@@ -57,7 +57,15 @@ export default async function MensualidadesPage({
       include: {
         currency: true,
         contact: { select: { name: true } },
-        debt: { select: { id: true, contact: { select: { name: true } } } },
+        debt: {
+          select: {
+            id: true,
+            totalMinor: true,
+            accountId: true,
+            contact: { select: { name: true } },
+            payments: { select: { amountMinor: true } },
+          },
+        },
         installments: {
           select: { id: true, dueAt: true, amountMinor: true, status: true },
           orderBy: { dueAt: "asc" },
@@ -217,6 +225,13 @@ export default async function MensualidadesPage({
               const planAccounts = accounts.filter(
                 (account) => account.currencyId === plan.currencyId
               );
+              // En un plan de deuda no se puede cobrar más de lo pendiente:
+              // el monto propuesto se recorta igual que en /deudas/[id].
+              const debtRemaining = plan.debt
+                ? plan.debt.totalMinor -
+                  plan.debt.payments.reduce((sum, p) => sum + p.amountMinor, 0)
+                : null;
+              const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
               return (
                 <article
                   key={plan.id}
@@ -277,18 +292,22 @@ export default async function MensualidadesPage({
 
                   {canSettle && next && (
                     <div className="border-t border-line-2 bg-app/60 px-4 py-3">
-                      {/* key: re-inicializa la preselección si cambia la cuenta */}
+                      {/* key por cuota y cuenta: al saldar llega la cuota
+                          siguiente y el formulario debe re-inicializarse (si
+                          no, heredaba el monto editado de la anterior). */}
                       <SettleInstallment
-                        key={plan.accountId ?? "none"}
+                        key={`${next.id}-${settleAccountId ?? "none"}`}
                         installmentId={next.id}
                         accounts={planAccounts}
                         defaultAmount={minorToInput(
-                          next.amountMinor,
+                          debtRemaining === null
+                            ? next.amountMinor
+                            : Math.min(next.amountMinor, Math.max(debtRemaining, 0)),
                           plan.currency.decimalPlaces
                         )}
                         currencyCode={plan.currency.code}
                         kind={plan.kind}
-                        defaultAccountId={plan.accountId}
+                        defaultAccountId={settleAccountId}
                       />
                     </div>
                   )}

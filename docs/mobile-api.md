@@ -119,13 +119,19 @@ el mismo orden.
   - `duplicate`: ese `opId` ya se procesó. Si se rechazó, viene su `error`.
     Sirve para reintentar tras un corte sin duplicar nada.
   - `rejected`: fallo de negocio (mensaje de la web). No se aplicó **nada**
-    de esa operación y no se reintenta. El siguiente pull devuelve el estado
-    real y el cliente revierte su cambio optimista.
-- Si falla la infraestructura, llega `rejected` con "No se pudo aplicar la
-  operación; se reintentará". En ese caso el `opId` **no** se registra y el
-  cliente debe reintentarlo.
-- Un rechazo no detiene el lote. Las operaciones que dependían de la
-  rechazada fallan con su propio mensaje.
+    de esa operación y no se reintenta. OJO: el pull incremental NO revierte
+    por sí solo el cambio optimista (una operación rechazada no toca ninguna
+    fila del servidor, así que no hay `updatedAt` nuevo que entregar): el
+    cliente debe deshacer su cambio local o pedir un pull completo
+    (`resync`).
+- Si falla la infraestructura (conexión, pool, timeout, deadlock), llega
+  `rejected` con "No se pudo aplicar la operación; se reintentará". En ese
+  caso el `opId` **no** se registra y el cliente debe reintentarlo. Además
+  el lote **se corta ahí**: las operaciones posteriores NO vienen en
+  `results` y el cliente las reenvía en el siguiente push (un `opId` ausente
+  de la respuesta = pendiente).
+- Un rechazo de negocio no detiene el lote. Las operaciones que dependían
+  de la rechazada fallan con su propio mensaje.
 - Tras un push, el cliente hace **siempre** un pull.
 
 ### Ids generados en el cliente

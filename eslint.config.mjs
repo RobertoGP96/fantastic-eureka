@@ -10,6 +10,20 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // `next lint` (deprecado, se elimina en Next 16) ignoraba esto por su
+  // cuenta; con la CLI de ESLint hay que decirlo.
+  {
+    ignores: [
+      "**/.next/**",
+      "**/node_modules/**",
+      // Worktrees de sesiones de Claude: copias completas del repo.
+      ".claude/**",
+      "playwright-report/**",
+      "test-results/**",
+      "coverage/**",
+      "next-env.d.ts",
+    ],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 

@@ -16,6 +16,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 export async function createAccountGroup(
@@ -47,8 +48,7 @@ export async function createAccountGroup(
     ) {
       return { success: false, error: "Ya existe un grupo con ese nombre" };
     }
-    console.error("createAccountGroup:", error);
-    return { success: false, error: "No se pudo crear el grupo" };
+    return unexpectedFailure("createAccountGroup", error, "No se pudo crear el grupo");
   }
 }
 
@@ -77,8 +77,7 @@ export async function renameAccountGroup(
     ) {
       return { success: false, error: "Ya existe un grupo con ese nombre" };
     }
-    console.error("renameAccountGroup:", error);
-    return { success: false, error: "No se pudo renombrar el grupo" };
+    return unexpectedFailure("renameAccountGroup", error, "No se pudo renombrar el grupo");
   }
 }
 
@@ -101,8 +100,7 @@ export async function deleteAccountGroup(
     });
     return { success: true, data: { id: group.id } };
   } catch (error) {
-    console.error("deleteAccountGroup:", error);
-    return { success: false, error: "No se pudo eliminar el grupo" };
+    return unexpectedFailure("deleteAccountGroup", error, "No se pudo eliminar el grupo");
   }
 }
 
@@ -127,7 +125,6 @@ export async function assignAccountGroup(
     });
     return { success: true, data: { id: account.id } };
   } catch (error) {
-    console.error("assignAccountGroup:", error);
-    return { success: false, error: "No se pudo asignar el grupo" };
+    return unexpectedFailure("assignAccountGroup", error, "No se pudo asignar el grupo");
   }
 }

@@ -19,6 +19,13 @@ export const amountText = z
 
 export const idSchema = z.string().min(1);
 
+// Fecha opcional. `null` y "" cuentan como ausente: `z.coerce.date()` a secas
+// convertiría un null (p. ej. de un cliente móvil) en el 1 de enero de 1970.
+const optionalDate = z.preprocess(
+  (value) => (value === null || value === "" ? undefined : value),
+  z.coerce.date().optional()
+);
+
 export const createAccountSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
   type: z.enum(ACCOUNT_TYPES),
@@ -130,7 +137,7 @@ export const incomeExpenseSchema = z.object({
   rateDirection: z.enum(["AMOUNT_TO_ACCOUNT", "ACCOUNT_TO_AMOUNT"]).optional(),
   categoryId: idSchema.optional(),
   note: z.string().trim().max(200).optional(),
-  occurredAt: z.coerce.date().optional(),
+  occurredAt: optionalDate,
   // Desglose en la moneda de la cuenta (si la cuenta es CASH_BOX)
   denominationLines: txDenominationLines.optional(),
 });
@@ -157,7 +164,7 @@ export const transferSchema = z.object({
   amount: amountText,
   counterAmount: amountText.optional(),
   note: z.string().trim().max(200).optional(),
-  occurredAt: z.coerce.date().optional(),
+  occurredAt: optionalDate,
   // Desglose de salida (origen CASH_BOX) y de entrada (destino CASH_BOX)
   denominationLines: txDenominationLines.optional(),
   counterDenominationLines: txDenominationLines.optional(),
@@ -181,7 +188,7 @@ export const exchangeRateSchema = z.object({
   fromCurrencyId: idSchema,
   toCurrencyId: idSchema,
   rate: amountText,
-  effectiveAt: z.coerce.date().optional(),
+  effectiveAt: optionalDate,
 });
 
 export const categorySchema = z.object({
@@ -212,7 +219,7 @@ export const createDebtSchema = z.object({
   // Plan de cuotas opcional al crear la deuda
   frequency: z.enum(FREQUENCIES).optional(),
   installmentAmount: amountText.optional(),
-  firstDueAt: z.coerce.date().optional(),
+  firstDueAt: optionalDate,
 });
 
 export const createPlanSchema = z.object({
@@ -226,7 +233,7 @@ export const createPlanSchema = z.object({
   amount: amountText,
   frequency: z.enum(FREQUENCIES),
   firstDueAt: z.coerce.date(),
-  endAt: z.coerce.date().optional(),
+  endAt: optionalDate,
 });
 
 // Editar la cuenta vinculada tras crear: null la desvincula.
@@ -310,7 +317,9 @@ export const loginSchema = z.object({
 
 export type ActionResult<T = undefined> =
   | { success: true; data: T }
-  | { success: false; error: string };
+  // `retryable`: el fallo fue de infraestructura (conexión/pool/timeout), no
+  // un rechazo de negocio. Lo marca `unexpectedFailure` y lo usa el push móvil.
+  | { success: false; error: string; retryable?: boolean };
 
 /**
  * Error de negocio lanzado DENTRO de un $transaction para abortarlo y

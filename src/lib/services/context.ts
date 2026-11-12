@@ -8,7 +8,7 @@
 // Por eso cada servicio recibe la conexión (`db`) en vez de usar el prisma
 // global: puede ser el cliente normal o una transacción ya abierta.
 
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -49,6 +49,47 @@ export async function inTx<T>(
     return (db as PrismaClient).$transaction(fn);
   }
   return fn(db);
+}
+
+// Códigos de Prisma que indican un fallo de INFRAESTRUCTURA (conexión, pool,
+// transacción caducada, deadlock): la misma operación puede funcionar si se
+// reintenta. Todo lo demás (P2002 id duplicado, P2003 FK, errores de código)
+// es permanente.
+const TRANSIENT_PRISMA_CODES = new Set([
+  "P1001", // no se alcanza el servidor
+  "P1002", // timeout al conectar
+  "P1008", // timeout de la operación
+  "P1017", // el servidor cerró la conexión
+  "P2024", // pool agotado
+  "P2028", // transacción caducada / cerrada
+  "P2034", // conflicto de escritura o deadlock
+]);
+
+export function isTransientDbError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return TRANSIENT_PRISMA_CODES.has(error.code);
+  }
+  return (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    // Errores de BD sin código de Prisma: típicamente la conexión cortada
+    // (reinicio o suspensión del cómputo de Neon a mitad de consulta).
+    error instanceof Prisma.PrismaClientUnknownRequestError
+  );
+}
+
+/**
+ * Resultado del `catch` genérico de un servicio: loguea y devuelve el mensaje
+ * amigable. `retryable` distingue un fallo transitorio de infraestructura de
+ * un rechazo definitivo: el push móvil NO debe registrar como REJECTED (para
+ * siempre) una operación que solo falló porque se cayó la conexión.
+ */
+export function unexpectedFailure(
+  scope: string,
+  error: unknown,
+  message: string
+): { success: false; error: string; retryable: boolean } {
+  console.error(`${scope}:`, error);
+  return { success: false, error: message, retryable: isTransientDbError(error) };
 }
 
 /** Mensaje común cuando no hay usuario (acciones web y API móvil). */

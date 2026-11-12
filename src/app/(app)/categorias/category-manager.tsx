@@ -159,6 +159,7 @@ export function CategoryManager({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   maxLength={40}
+                  aria-label="Nuevo nombre de la categoría"
                   className="h-9"
                   autoFocus
                   required

@@ -6,7 +6,7 @@
 // lo usa para revalidar /monedas/[id] y lo quita de la respuesta pública).
 
 import { Prisma } from "@prisma/client";
-import { parseAmountToMinor } from "@/lib/money";
+import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
 import { basicDenominations } from "@/lib/user-defaults";
 import {
   currencySchema,
@@ -16,13 +16,14 @@ import {
   updateDenominationSchema,
   type ActionResult,
 } from "@/lib/schemas";
-import { CASH_LIKE_TYPES } from "@/lib/domain";
+import { CASH_LIKE_TYPES, isDigitalCurrencyKind } from "@/lib/domain";
 import { recordTombstone } from "@/lib/sync/tombstones";
 import {
   clientIdOrUndefined,
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /**
@@ -76,8 +77,7 @@ export async function createCurrency(
     ) {
       return { success: false, error: "Ya existe una moneda con ese código" };
     }
-    console.error("createCurrency:", error);
-    return { success: false, error: "No se pudo crear la moneda" };
+    return unexpectedFailure("createCurrency", error, "No se pudo crear la moneda");
   }
 }
 
@@ -106,8 +106,7 @@ export async function toggleCurrency(
     });
     return { success: true, data: { id: updated.id, active: updated.active } };
   } catch (error) {
-    console.error("toggleCurrency:", error);
-    return { success: false, error: "No se pudo actualizar la moneda" };
+    return unexpectedFailure("toggleCurrency", error, "No se pudo actualizar la moneda");
   }
 }
 
@@ -164,8 +163,7 @@ export async function setCurrencyKind(
     });
     return { success: true, data: { id: updated.id, changed: true } };
   } catch (error) {
-    console.error("setCurrencyKind:", error);
-    return { success: false, error: "No se pudo cambiar la clasificación" };
+    return unexpectedFailure("setCurrencyKind", error, "No se pudo cambiar la clasificación");
   }
 }
 
@@ -198,8 +196,7 @@ export async function setBaseCurrency(
 
     return { success: true, data: { id: currency.id } };
   } catch (error) {
-    console.error("setBaseCurrency:", error);
-    return { success: false, error: "No se pudo cambiar la moneda base" };
+    return unexpectedFailure("setBaseCurrency", error, "No se pudo cambiar la moneda base");
   }
 }
 
@@ -221,10 +218,21 @@ export async function createDenomination(
       where: { id: parsed.data.currencyId, userId },
     });
     if (!currency) return { success: false, error: "Moneda no válida" };
+    // La regla vivía solo en la UI: la API móvil podía crear billetes de una
+    // moneda digital, que la web ni muestra ni deja borrar.
+    if (isDigitalCurrencyKind(currency.kind)) {
+      return {
+        success: false,
+        error: `${currency.code} es digital: no lleva denominaciones`,
+      };
+    }
 
     const valueMinor = parseAmountToMinor(parsed.data.value, currency);
     if (valueMinor <= 0) {
       return { success: false, error: "El valor debe ser mayor que cero" };
+    }
+    if (valueMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Valor demasiado grande" };
     }
 
     const denomination = await db.denomination.create({
@@ -246,8 +254,7 @@ export async function createDenomination(
     ) {
       return { success: false, error: "Ya existe esa denominación" };
     }
-    console.error("createDenomination:", error);
-    return { success: false, error: "No se pudo crear la denominación" };
+    return unexpectedFailure("createDenomination", error, "No se pudo crear la denominación");
   }
 }
 
@@ -290,6 +297,9 @@ export async function updateDenomination(
     if (valueMinor <= 0) {
       return { success: false, error: "El valor debe ser mayor que cero" };
     }
+    if (valueMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Valor demasiado grande" };
+    }
 
     const updated = await db.denomination.update({
       where: { id: denomination.id },
@@ -306,8 +316,7 @@ export async function updateDenomination(
     ) {
       return { success: false, error: "Ya existe esa denominación" };
     }
-    console.error("updateDenomination:", error);
-    return { success: false, error: "No se pudo editar la denominación" };
+    return unexpectedFailure("updateDenomination", error, "No se pudo editar la denominación");
   }
 }
 
@@ -345,8 +354,7 @@ export async function deleteDenomination(
       data: { id: denomination.id, currencyId: denomination.currencyId },
     };
   } catch (error) {
-    console.error("deleteDenomination:", error);
-    return { success: false, error: "No se pudo eliminar la denominación" };
+    return unexpectedFailure("deleteDenomination", error, "No se pudo eliminar la denominación");
   }
 }
 
@@ -380,7 +388,6 @@ export async function toggleDenomination(
       },
     };
   } catch (error) {
-    console.error("toggleDenomination:", error);
-    return { success: false, error: "No se pudo actualizar la denominación" };
+    return unexpectedFailure("toggleDenomination", error, "No se pudo actualizar la denominación");
   }
 }

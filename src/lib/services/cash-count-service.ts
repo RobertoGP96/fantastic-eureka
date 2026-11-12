@@ -4,7 +4,7 @@
 // que la action web revalide el detalle de la caja arqueada.
 
 import { accountBalanceMinor } from "@/lib/balances";
-import { sumMinor } from "@/lib/money";
+import { PRISMA_INT_MAX, sumMinor } from "@/lib/money";
 import { cashCountSchema, type ActionResult } from "@/lib/schemas";
 import { isCashLikeType } from "@/lib/domain";
 import {
@@ -12,6 +12,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /**
@@ -56,10 +57,15 @@ export async function createCashCount(
     });
     const byId = new Map(denominations.map((d) => [d.id, d]));
 
+    const seen = new Set<string>();
     for (const line of parsed.data.lines) {
       if (!byId.has(line.denominationId)) {
         return { success: false, error: "Denominación no válida para esta moneda" };
       }
+      if (seen.has(line.denominationId)) {
+        return { success: false, error: "Hay denominaciones repetidas en el conteo" };
+      }
+      seen.add(line.denominationId);
     }
 
     const totalMinor = sumMinor(
@@ -67,6 +73,9 @@ export async function createCashCount(
         (line) => byId.get(line.denominationId)!.valueMinor * line.quantity
       )
     );
+    if (totalMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "El total contado es demasiado grande" };
+    }
     const storedLines = parsed.data.lines.filter((line) => line.quantity > 0);
 
     const { cashCount, differenceMinor } = await inTx(db, async (tx) => {
@@ -119,7 +128,6 @@ export async function createCashCount(
       data: { id: cashCount.id, differenceMinor, accountId: account.id },
     };
   } catch (error) {
-    console.error("createCashCount:", error);
-    return { success: false, error: "No se pudo guardar el arqueo" };
+    return unexpectedFailure("createCashCount", error, "No se pudo guardar el arqueo");
   }
 }

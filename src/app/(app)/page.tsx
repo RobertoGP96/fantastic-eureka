@@ -92,7 +92,15 @@ export default async function HomePage() {
     const direct = rateSeries.get(pairKey(fromId, toId));
     if (direct) return direct.map((p) => p.rateScaled);
     const inverse = rateSeries.get(pairKey(toId, fromId));
-    return inverse ? inverse.map((p) => invertRateScaled(p.rateScaled)) : [];
+    if (!inverse) return [];
+    // invertRateScaled LANZA si la inversa redondea a 0 (tasas > 20 000, p.
+    // ej. BTC→USD). Sin este catch Inicio entero fallaba y, como el
+    // personalizador vive aquí, el gadget no se podía quitar.
+    try {
+      return inverse.map((p) => invertRateScaled(p.rateScaled));
+    } catch {
+      return [];
+    }
   };
 
   const accountById = new Map(accounts.map((a) => [a.id, a]));
@@ -151,7 +159,17 @@ export default async function HomePage() {
     }
     const from = currencyById.get(widget.fromCurrencyId ?? "");
     const to = currencyById.get(widget.toCurrencyId ?? "");
-    if (!from || !to) return <span key={`widget-${widget.id}`} />;
+    if (!from || !to) {
+      return (
+        <div
+          key={`widget-${widget.id}`}
+          className="rounded-2xl border border-dashed border-line bg-white p-4 text-xs text-muted"
+        >
+          Este gadget de tasa usa una moneda oculta o eliminada. Edítalo o
+          quítalo desde «Personalizar».
+        </div>
+      );
+    }
     return (
       <RatePairWidget
         key={`widget-${widget.id}`}
