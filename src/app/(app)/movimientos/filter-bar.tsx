@@ -78,13 +78,13 @@ export function FilterBar({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between rounded-[16px] border border-line bg-white px-2 py-1.5">
+      <div className="flex items-center justify-between rounded-2xl border border-line bg-white px-2 py-1.5">
         <button
           type="button"
           onClick={() => apply({ mes: shiftMonth(filters.mes, -1) })}
           disabled={isAllTime}
           aria-label="Mes anterior"
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -93,7 +93,7 @@ export function FilterBar({
           onClick={() =>
             apply({ mes: isAllTime ? shiftMonth("", 0) : "todos" })
           }
-          className="text-[13px] font-semibold text-navy capitalize transition-colors hover:text-brand"
+          className="text-sm font-semibold text-navy capitalize transition-colors hover:text-brand"
           title="Alternar entre mes y todo el historial"
         >
           {monthLabel(filters.mes)}
@@ -103,7 +103,7 @@ export function FilterBar({
           onClick={() => apply({ mes: shiftMonth(filters.mes, 1) })}
           disabled={isAllTime}
           aria-label="Mes siguiente"
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -165,7 +165,7 @@ export function FilterBar({
 
         <a
           href={`/api/export?${exportParams.toString()}`}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-chip px-[11px] py-1.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand-soft/30"
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-chip px-[11px] py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft/30"
         >
           <Download className="h-3.5 w-3.5" />
           CSV

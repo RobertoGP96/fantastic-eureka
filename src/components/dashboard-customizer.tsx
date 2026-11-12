@@ -71,7 +71,7 @@ const newWidgetId = () =>
   `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
 const selectTriggerCls =
-  "h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink";
+  "h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink";
 
 function CheckRow({
   checked,
@@ -86,7 +86,7 @@ function CheckRow({
     <button
       type="button"
       onClick={onToggle}
-      className="flex w-full items-center gap-2.5 rounded-[12px] px-1 py-1.5 text-left"
+      className="flex w-full items-center gap-2.5 rounded-xl px-1 py-1.5 text-left"
     >
       <span
         className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors ${
@@ -97,7 +97,7 @@ function CheckRow({
       >
         <Check className="h-3.5 w-3.5" />
       </span>
-      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink-soft">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-soft">
         {label}
       </span>
     </button>
@@ -368,12 +368,12 @@ export function DashboardCustomizer({
 
   const sizeSelect = (
     <div className="flex items-center gap-2">
-      <span className="text-[12px] text-muted">Tamaño</span>
+      <span className="text-xs text-muted">Tamaño</span>
       <Select
         value={addSize}
         onValueChange={(v) => setAddSize(v as WidgetSize)}
       >
-        <SelectTrigger className="h-10 flex-1 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+        <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -400,13 +400,13 @@ export function DashboardCustomizer({
       </SheetTrigger>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[88vh] w-full overflow-y-auto rounded-t-[22px] border-line sm:max-w-md"
+        className="mx-auto max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border-line sm:max-w-md"
       >
         <SheetHeader className="pb-0">
-          <SheetTitle className="text-[15px] text-navy">
+          <SheetTitle className="text-base text-navy">
             Personalizar Inicio
           </SheetTitle>
-          <SheetDescription className="text-[12.5px] text-muted">
+          <SheetDescription className="text-sm text-muted">
             Ordena y oculta secciones, y arma tu panel de gadgets.
           </SheetDescription>
         </SheetHeader>
@@ -415,7 +415,7 @@ export function DashboardCustomizer({
           {sections.map((item, index) => (
             <div
               key={item.key}
-              className={`flex items-center gap-2 rounded-[14px] border px-3 py-2.5 transition-colors ${
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
                 item.visible
                   ? "border-line bg-white"
                   : "border-line-2 bg-app opacity-70"
@@ -429,7 +429,7 @@ export function DashboardCustomizer({
                     ? `Ocultar ${FIXED_LABELS.get(item.key) ?? item.key}`
                     : `Mostrar ${FIXED_LABELS.get(item.key) ?? item.key}`
                 }
-                className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] transition-colors ${
+                className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg transition-colors ${
                   item.visible ? "bg-chip text-brand" : "bg-white text-muted"
                 }`}
               >
@@ -439,7 +439,7 @@ export function DashboardCustomizer({
                   <EyeOff className="h-4 w-4" />
                 )}
               </button>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-soft">
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-soft">
                 {FIXED_LABELS.get(item.key) ?? item.key}
               </span>
               <button
@@ -447,7 +447,7 @@ export function DashboardCustomizer({
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
                 aria-label={`Subir ${FIXED_LABELS.get(item.key) ?? item.key}`}
-                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
               >
                 <ArrowUp className="h-4 w-4" />
               </button>
@@ -456,7 +456,7 @@ export function DashboardCustomizer({
                 onClick={() => move(index, 1)}
                 disabled={index === sections.length - 1}
                 aria-label={`Bajar ${FIXED_LABELS.get(item.key) ?? item.key}`}
-                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
               >
                 <ArrowDown className="h-4 w-4" />
               </button>
@@ -466,8 +466,8 @@ export function DashboardCustomizer({
 
         {/* Gadgets del panel bento: tamaño, orden y baja */}
         {widgets.length > 0 && (
-          <div className="mx-4 rounded-[16px] border border-line bg-white p-3.5">
-            <div className="mb-1 text-[12.5px] font-bold text-navy">
+          <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
+            <div className="mb-1 text-sm font-bold text-navy">
               Gadgets del panel
             </div>
             <p className="mb-2 text-[11px] text-muted">
@@ -477,9 +477,9 @@ export function DashboardCustomizer({
               {widgets.map((widget, index) => (
                 <div
                   key={widget.id}
-                  className="flex items-center gap-2 rounded-[14px] border border-line bg-white px-3 py-2"
+                  className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2"
                 >
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink-soft">
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-soft">
                     {widgetLabel(widget)}
                     <span className="ml-1.5 text-[11px] font-medium text-muted">
                       {
@@ -493,7 +493,7 @@ export function DashboardCustomizer({
                     type="button"
                     onClick={() => startEdit(widget)}
                     aria-label={`Editar ${widgetLabel(widget)}`}
-                    className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] transition-colors ${
+                    className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg transition-colors ${
                       editingId === widget.id
                         ? "bg-chip text-brand"
                         : "bg-app text-brand-mid hover:text-brand"
@@ -506,7 +506,7 @@ export function DashboardCustomizer({
                     onClick={() => moveWidget(index, -1)}
                     disabled={index === 0}
                     aria-label={`Subir ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>
@@ -515,7 +515,7 @@ export function DashboardCustomizer({
                     onClick={() => moveWidget(index, 1)}
                     disabled={index === widgets.length - 1}
                     aria-label={`Bajar ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
                   >
                     <ArrowDown className="h-4 w-4" />
                   </button>
@@ -523,7 +523,7 @@ export function DashboardCustomizer({
                     type="button"
                     onClick={() => removeWidget(widget.id)}
                     aria-label={`Eliminar ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-app text-muted transition-colors hover:text-danger"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-muted transition-colors hover:text-danger"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -534,12 +534,12 @@ export function DashboardCustomizer({
         )}
 
         {/* Alta y edición de gadgets */}
-        <div className="mx-4 rounded-[16px] border border-line bg-white p-3.5">
-          <div className="mb-2 text-[12.5px] font-bold text-navy">
+        <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
+          <div className="mb-2 text-sm font-bold text-navy">
             {editingId ? "Editar gadget" : "Añadir gadget"}
           </div>
           {widgets.length >= MAX_WIDGETS && !editingId ? (
-            <p className="text-[12px] text-muted">
+            <p className="text-xs text-muted">
               Límite de {MAX_WIDGETS} gadgets alcanzado: elimina alguno para
               añadir otro.
             </p>
@@ -555,7 +555,7 @@ export function DashboardCustomizer({
                     type="button"
                     disabled={disabled}
                     onClick={() => startAdd(type)}
-                    className="flex items-center gap-1.5 rounded-[12px] border border-line px-3 py-2 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     {WIDGET_TYPE_LABELS[type]}
@@ -565,7 +565,7 @@ export function DashboardCustomizer({
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
-              <div className="text-[12px] font-semibold text-ink-soft">
+              <div className="text-xs font-semibold text-ink-soft">
                 {WIDGET_TYPE_LABELS[addType]}
               </div>
               {addType === "accountCard" && (
@@ -599,7 +599,7 @@ export function DashboardCustomizer({
               {addType === "ratePair" && (
                 <div className="flex items-center gap-2">
                   <Select value={addFromId} onValueChange={setAddFromId}>
-                    <SelectTrigger className="h-10 flex-1 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+                    <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
                       <SelectValue placeholder="Origen" />
                     </SelectTrigger>
                     <SelectContent>
@@ -610,9 +610,9 @@ export function DashboardCustomizer({
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-[12px] text-muted">→</span>
+                  <span className="text-xs text-muted">→</span>
                   <Select value={addToId} onValueChange={setAddToId}>
-                    <SelectTrigger className="h-10 flex-1 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+                    <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
                       <SelectValue placeholder="Destino" />
                     </SelectTrigger>
                     <SelectContent>
@@ -628,7 +628,7 @@ export function DashboardCustomizer({
                 </div>
               )}
               {addType === "currencyTotals" && (
-                <p className="text-[12px] text-muted">
+                <p className="text-xs text-muted">
                   Muestra la suma de saldos por cada divisa, sin conversión.
                 </p>
               )}
@@ -697,7 +697,7 @@ export function DashboardCustomizer({
                     onChange={(e) => setAddTitle(e.target.value)}
                     maxLength={40}
                     placeholder="Título propio (opcional)"
-                    className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink outline-none placeholder:text-muted-2 focus:border-brand-soft"
+                    className="h-11 w-full rounded-xl border border-input bg-card px-4 text-base text-ink outline-none placeholder:text-muted focus:border-ring"
                   />
                   <CheckRow
                     checked={addShowTabs}
@@ -757,16 +757,16 @@ export function DashboardCustomizer({
 
         {/* Cuentas visibles en la sección Cuentas */}
         {accounts.length > 0 && (
-          <div className="mx-4 rounded-[16px] border border-line bg-white p-3.5">
+          <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
             <div className="mb-1 flex items-center justify-between">
-              <div className="text-[12.5px] font-bold text-navy">
+              <div className="text-sm font-bold text-navy">
                 Cuentas visibles
               </div>
               <button
                 type="button"
                 onClick={() => setAccountIds(null)}
                 disabled={accountIds === null}
-                className="text-[11.5px] font-semibold text-brand-mid transition-colors hover:text-brand disabled:opacity-40"
+                className="text-xs font-semibold text-brand-mid transition-colors hover:text-brand disabled:opacity-40"
               >
                 Todas
               </button>
@@ -788,7 +788,7 @@ export function DashboardCustomizer({
         )}
 
         {error && (
-          <div className="mx-4 rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+          <div className="mx-4 rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
             {error}
           </div>
         )}

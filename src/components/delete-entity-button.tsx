@@ -86,7 +86,7 @@ export function DeleteEntityButton({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <span className="min-w-0 flex-1 text-[11.5px] text-muted">
+      <span className="min-w-0 flex-1 text-xs text-muted">
         {labels.warning}
       </span>
       <Button

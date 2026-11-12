@@ -2,39 +2,56 @@
 @import "tw-animate-css";
 
 /*
- * Identidad propia de Caja: paleta petróleo/esmeralda con acento dorado.
- * Se mantienen los NOMBRES de los tokens heredados (navy, brand, chip, ok…)
- * para que todo el UI se re-vista sin tocar componentes.
+ * Identidad de Caja (sistema de diseño v2): petróleo/esmeralda con acento
+ * dorado. Dos familias de tokens:
+ *  - MARCA (navy, brand*, gold*): rellenos de degradados, logotipo y sidebar.
+ *  - SEMÁNTICOS (app, card, heading, ink, muted, brand-ink, primary, estados):
+ *    los que usa el contenido. Todo par texto/fondo llega a 4,5:1.
+ * muted-2 NO es color de texto: solo borde de campos e iconos decorativos.
+ * heading y brand-ink valen hoy lo mismo que navy y brand; existen para que
+ * un futuro tema oscuro pueda cambiar el texto sin tocar los rellenos.
  */
 @theme {
-  --color-page: #c3d6d3;
-  --color-app: #eef4f2;
+  /* Marca */
   --color-navy: #07272e;
   --color-brand: #0c6b70;
-  --color-brand-mid: #128f89;
+  --color-brand-mid: #0d7a77;
   --color-brand-light: #27b3a4;
   --color-brand-soft: #82d7c9;
+  --color-gold: #d9a13b;
+  --color-gold-soft: #eec06b;
+  --color-danger-soft: #e79aa7;
+
+  /* Superficies */
+  --color-page: #c3d6d3;
+  --color-app: #eef4f2;
   --color-chip: #dcf0ec;
-  --color-photo: #e2edea;
-  --color-photo-fg: #8fa9a5;
+  --color-inverse: #07272e;
+  --color-inverse-foreground: #ffffff;
+
+  /* Texto */
+  --color-heading: #07272e;
   --color-ink: #12292d;
   --color-ink-soft: #43605f;
-  --color-muted: #6d8885;
-  --color-muted-2: #97aeab;
+  --color-muted: #526e6c;
+  --color-muted-2: #708a87;
+  --color-brand-ink: #0c6b70;
+  --color-disabled: #b5c6c3;
+
+  /* Bordes */
   --color-line: #d9e5e2;
   --color-line-2: #e4eeeb;
-  --color-ok: #1d8a4e;
+
+  /* Estados (tinta sobre su -bg >= 4,5:1) */
+  --color-ok: #17703f;
   --color-ok-bg: #e0f3e7;
-  --color-warn: #b07b2e;
+  --color-warn: #855712;
   --color-warn-bg: #f6ecdc;
-  --color-fav: #e0596e;
-  --color-danger: #c04b5d;
+  --color-danger: #a83a4c;
   --color-danger-bg: #f7e3e6;
-  --color-disabled: #b5c6c3;
-  --color-gold: #d9a13b;
   --color-gold-bg: #f8eed9;
 
-  /* Tokens semánticos de shadcn/ui mapeados a la identidad de Caja */
+  /* Tokens semánticos de shadcn/ui */
   --color-background: #eef4f2;
   --color-foreground: #12292d;
   --color-card: #ffffff;
@@ -43,38 +60,44 @@
   --color-popover-foreground: #12292d;
   --color-primary: #0c6b70;
   --color-primary-foreground: #ffffff;
+  --color-primary-hover: #0d7a77;
   --color-secondary: #dcf0ec;
   --color-secondary-foreground: #0c6b70;
   --color-accent: #dcf0ec;
   --color-accent-foreground: #0c6b70;
-  --color-destructive: #c04b5d;
+  --color-destructive: #a83a4c;
   --color-destructive-foreground: #ffffff;
   --color-border: #d9e5e2;
-  --color-input: #d9e5e2;
-  --color-ring: #82d7c9;
-  --color-muted-foreground: #6d8885;
+  --color-input: #708a87;
+  --color-ring: #128f89;
+  --color-muted-foreground: #526e6c;
 
   /* Sidebar en petróleo profundo */
   --color-sidebar: #07272e;
   --color-sidebar-foreground: #cfe4e0;
-  --color-sidebar-primary: #128f89;
+  --color-sidebar-primary: #0d7a77;
   --color-sidebar-primary-foreground: #ffffff;
   --color-sidebar-accent: #0e3a40;
   --color-sidebar-accent-foreground: #ffffff;
   --color-sidebar-border: #14454b;
   --color-sidebar-ring: #82d7c9;
+
+  /* Sombras: solo para lo que flota, en la tinta del petróleo */
+  --shadow-popover: 0 10px 30px rgba(7, 39, 46, 0.16);
+  --shadow-toast: 0 6px 20px rgba(7, 39, 46, 0.3);
+  --shadow-nav: 0 -6px 24px rgba(7, 39, 46, 0.1);
+  --shadow-fab: 0 10px 24px rgba(12, 107, 112, 0.45);
+  --shadow-modal: 0 20px 60px rgba(7, 39, 46, 0.3);
 }
 
+/* Degradados de marca. Texto encima: blanco en header/confirm, navy en
+   gold; grad-cta y grad-progress solo llevan icono, nunca texto. */
 .grad-header {
-  background: linear-gradient(150deg, #07272e 0%, #0c6b70 78%, #128f89 100%);
+  background: linear-gradient(150deg, #07272e 0%, #0c6b70 78%, #0d7a77 100%);
 }
 
 .grad-cta {
   background: linear-gradient(120deg, #0c6b70, #27b3a4);
-}
-
-.grad-offer {
-  background: linear-gradient(120deg, #0c6b70, #82d7c9);
 }
 
 .grad-progress {

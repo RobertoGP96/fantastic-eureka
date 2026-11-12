@@ -83,14 +83,14 @@ export default async function DeudaDetallePage({
       <ScreenHeader title={debt.contact.name} backHref="/deudas">
         <div className="mt-3">
           <div className="flex items-center justify-between">
-            <span className="text-[12.5px] text-white/70">
+            <span className="text-sm text-white/80">
               {debt.description}
             </span>
             <Badge variant="neutral" className="bg-white/15 text-white">
               {DEBT_DIRECTION_LABELS[debt.direction as DebtDirection]}
             </Badge>
           </div>
-          <div className="mt-2 text-[26px] font-bold tracking-[-0.5px]">
+          <div className="mt-2 text-[28px] font-bold tracking-[-0.5px]">
             {isOpen ? fmtMinor(remaining, debt.currency) : "Saldada"}
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
@@ -99,7 +99,7 @@ export default async function DeudaDetallePage({
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="mt-1.5 text-[11.5px] text-white/60">
+          <div className="mt-1.5 text-xs text-white/80">
             Abonado {fmtMinor(paid, debt.currency)} de{" "}
             {fmtMinor(debt.totalMinor, debt.currency)} ({pct}%)
           </div>
@@ -110,13 +110,13 @@ export default async function DeudaDetallePage({
         {isOpen && pendingInstallments.length > 0 && (
           <section>
             <div className="mb-2.5 flex items-center justify-between gap-3">
-              <h2 className="text-[14.5px] font-bold text-navy">
+              <h2 className="text-base font-bold text-navy">
                 Cuotas pendientes
               </h2>
               {planId && (
                 <Link
                   href={`/mensualidades/${planId}`}
-                  className="flex items-center gap-0.5 text-[12px] font-semibold text-brand-mid hover:text-brand"
+                  className="flex items-center gap-0.5 text-xs font-semibold text-brand-mid hover:text-brand"
                 >
                   Ver mensualidad
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -129,14 +129,14 @@ export default async function DeudaDetallePage({
                 return (
                   <div
                     key={inst.id}
-                    className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4"
+                    className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-[13.5px] font-bold text-navy">
+                        <div className="text-sm font-bold text-navy">
                           {fmtMinor(inst.amountMinor, debt.currency)}
                         </div>
-                        <div className="text-[11.5px] text-muted">
+                        <div className="text-xs text-muted">
                           {DATE_FMT.format(inst.dueAt)}
                         </div>
                       </div>
@@ -167,7 +167,7 @@ export default async function DeudaDetallePage({
 
         {isOpen && (
           <section className="flex flex-col gap-2">
-            <h2 className="mb-0.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-0.5 text-base font-bold text-navy">
               Registrar abono
             </h2>
             {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
@@ -192,14 +192,14 @@ export default async function DeudaDetallePage({
 
         {debt.payments.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Historial de abonos
             </h2>
             <div className="flex flex-col gap-1.5">
               {debt.payments.map((payment) => (
                 <div
                   key={payment.id}
-                  className="flex items-center justify-between rounded-[13px] border border-line bg-white px-3.5 py-2.5 text-[12.5px]"
+                  className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
                 >
                   <span className="text-muted">
                     {DATE_FMT.format(payment.paidAt)}

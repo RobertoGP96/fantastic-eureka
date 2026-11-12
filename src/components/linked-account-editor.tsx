@@ -48,7 +48,7 @@ export function LinkedAccountEditor({
 
   if (accounts.length === 0) {
     return (
-      <p className="rounded-[14px] border border-line bg-white px-3.5 py-2.5 text-[11.5px] text-muted">
+      <p className="rounded-xl border border-line bg-white px-3.5 py-2.5 text-xs text-muted">
         Crea una cuenta en {currencyCode} para poder vincularla.
       </p>
     );
@@ -76,9 +76,9 @@ export function LinkedAccountEditor({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2.5 rounded-[14px] border border-line bg-white px-3.5 py-2.5">
-        <Wallet className="h-4 w-4 flex-none text-muted-2" />
-        <span className="text-[12px] font-medium text-muted">
+      <div className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-2.5">
+        <Wallet className="h-4 w-4 flex-none text-muted" />
+        <span className="text-xs font-medium text-muted">
           Cuenta habitual
         </span>
         <Select value={value} onValueChange={(next) => void change(next)}>
@@ -102,7 +102,7 @@ export function LinkedAccountEditor({
         </Select>
       </div>
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

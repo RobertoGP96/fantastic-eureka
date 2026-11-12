@@ -83,7 +83,7 @@ export function AppBreadcrumb() {
 
   return (
     <Breadcrumb>
-      <BreadcrumbList className="flex-nowrap gap-1.5 text-[13px] sm:gap-1.5">
+      <BreadcrumbList className="flex-nowrap gap-1.5 text-sm sm:gap-1.5">
         {crumbs.map((crumb, i) => (
           <Fragment key={crumb.href}>
             {i > 0 && <BreadcrumbSeparator />}

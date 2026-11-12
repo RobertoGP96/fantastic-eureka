@@ -31,7 +31,7 @@ export default async function MonedasPage() {
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Monedas" backHref="/mas">
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           Divisas del sistema y sus denominaciones
         </p>
       </ScreenHeader>

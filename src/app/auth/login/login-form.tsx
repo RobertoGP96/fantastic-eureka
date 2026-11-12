@@ -36,7 +36,7 @@ export function LoginForm() {
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Correo
         </span>
         <Input
@@ -50,7 +50,7 @@ export function LoginForm() {
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Contraseña
         </span>
         <Input
@@ -64,7 +64,7 @@ export function LoginForm() {
       </label>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}
@@ -78,7 +78,7 @@ export function LoginForm() {
         {saving ? "Entrando…" : "Entrar"}
       </Button>
 
-      <p className="text-center text-[12.5px] text-muted">
+      <p className="text-center text-sm text-muted">
         ¿No tienes cuenta?{" "}
         <Link
           href="/auth/registro"

@@ -40,7 +40,7 @@ export function ShareCodeForm({ invalid = false }: { invalid?: boolean }) {
         submit();
       }}
     >
-      <label className="text-[12px] font-semibold text-ink-soft" htmlFor="share-code">
+      <label className="text-xs font-semibold text-ink-soft" htmlFor="share-code">
         Código de seguimiento
       </label>
       <div className="flex gap-2">
@@ -52,7 +52,7 @@ export function ShareCodeForm({ invalid = false }: { invalid?: boolean }) {
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
-          className="h-10 font-mono text-[12.5px]"
+          className="h-10 font-mono text-sm"
           required
         />
         <Button type="submit" disabled={!code.trim()}>
@@ -60,7 +60,7 @@ export function ShareCodeForm({ invalid = false }: { invalid?: boolean }) {
           Abrir
         </Button>
       </div>
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </form>
   );
 }

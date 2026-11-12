@@ -40,7 +40,7 @@ export function NotificationsBell({ items }: { items: InstallmentNotice[] }) {
           <Bell className="h-[18px] w-[18px]" />
           {items.length > 0 && (
             <span
-              className={`absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ring-2 ring-brand ${
+              className={`absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold text-white ring-2 ring-brand ${
                 overdueCount > 0 ? "bg-danger" : "bg-gold"
               }`}
             >
@@ -54,12 +54,12 @@ export function NotificationsBell({ items }: { items: InstallmentNotice[] }) {
         sideOffset={8}
         className="max-h-[70vh] w-[300px] overflow-y-auto rounded-xl border-line"
       >
-        <DropdownMenuLabel className="text-[13px] font-semibold text-navy">
+        <DropdownMenuLabel className="text-sm font-semibold text-navy">
           Mensualidades por vencer
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
-          <div className="px-3 py-5 text-center text-[12.5px] text-muted">
+          <div className="px-3 py-5 text-center text-sm text-muted">
             Sin vencimientos en los próximos días.
           </div>
         ) : (
@@ -67,7 +67,7 @@ export function NotificationsBell({ items }: { items: InstallmentNotice[] }) {
             <DropdownMenuItem key={item.id} asChild>
               <Link href={item.href} className="items-start gap-2.5 py-2">
                 <span
-                  className={`mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-[10px] ${
+                  className={`mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg ${
                     item.overdue
                       ? "bg-danger-bg text-danger"
                       : "bg-chip text-brand"
@@ -76,7 +76,7 @@ export function NotificationsBell({ items }: { items: InstallmentNotice[] }) {
                   <HandCoins className="h-4 w-4" />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[12.5px] font-semibold text-navy">
+                  <span className="truncate text-sm font-semibold text-navy">
                     {item.title}
                   </span>
                   <span className="truncate text-[11px] text-muted">
@@ -98,7 +98,7 @@ export function NotificationsBell({ items }: { items: InstallmentNotice[] }) {
         <DropdownMenuItem asChild>
           <Link
             href="/deudas"
-            className="justify-center text-[12px] font-semibold text-brand-mid"
+            className="justify-center text-xs font-semibold text-brand-mid"
           >
             Ver todas las deudas
           </Link>

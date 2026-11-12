@@ -302,7 +302,20 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados
   (navy/brand/chip/ok/warn/danger + nuevo `gold`) con valores nuevos, así el
   UI entero se re-viste sin tocar componentes. Gradientes `.grad-*` (+
-  `.grad-gold`). Componentes base en `src/components/ui/`. Logotipo FE
+  `.grad-gold`). Desde el rework v2 (2026-11-12) rigen estas reglas:
+  texto secundario/placeholder en `text-muted` (4,5:1; `muted-2` es SOLO
+  borde de campos vía `border-input`, nunca texto); tamaños de texto solo
+  `text-[11px]`, `text-xs`, `text-sm`, `text-[15px]` (montos de fila),
+  `text-base`, `text-xl`, `text-[22px]`, `text-[28px]` — sin medios
+  píxeles; radios solo `rounded-md|lg|xl|2xl|3xl|full` (sin `rounded-[Npx]`);
+  sombras `shadow-popover|toast|nav|fab|modal`; foco con `ring-ring` +
+  `ring-offset-2`; controles táctiles de 44px (`min-h-11`, Input `h-11` con
+  `text-base` para que iOS no haga zoom). Tokens nuevos `heading`,
+  `brand-ink`, `primary-hover`, `inverse`, `gold-soft`, `danger-soft`: en
+  código nuevo usar `text-heading`/`text-brand-ink`/`bg-card` en vez de
+  `text-navy`/`text-brand`/`bg-white` (prepara el tema oscuro; el código
+  viejo aún no está migrado). Texto sobre `grad-header`: blanco o
+  `text-white/80` como mínimo. Componentes base en `src/components/ui/`. Logotipo FE
   («pecera»: F y E partidas por una ola senoidal, verde petróleo arriba/
   blanco bajo el agua, colores de la paleta brand/brand-light/chip; letras =
   contornos de la fuente American Captain convertidos a path con opentype.js,

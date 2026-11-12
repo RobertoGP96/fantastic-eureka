@@ -80,9 +80,9 @@ export function CountForm({
         currency={currency}
       />
 
-      <div className="rounded-[18px] border border-line bg-white p-4">
+      <div className="rounded-2xl border border-line bg-white p-4">
         <div className="flex items-center justify-between">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Total contado
           </span>
           <span className="text-[22px] font-bold tracking-[-0.5px] text-navy">
@@ -90,7 +90,7 @@ export function CountForm({
           </span>
         </div>
         <div className="mt-2 flex items-center justify-between border-t border-line-2 pt-2.5">
-          <span className="text-[12.5px] text-muted">
+          <span className="text-sm text-muted">
             Teórico: {fmtMinor(expectedMinor, currency)}
           </span>
           {differenceMinor === 0 ? (
@@ -104,14 +104,14 @@ export function CountForm({
         </div>
       </div>
 
-      <label className="flex items-center gap-2.5 rounded-[13px] border border-line bg-white px-3.5 py-3">
+      <label className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-3">
         <input
           type="checkbox"
           checked={createAdjustment}
           onChange={(e) => setCreateAdjustment(e.target.checked)}
           className="h-4 w-4 accent-[#0c6b70]"
         />
-        <span className="text-[12.5px] font-medium text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Registrar ajuste por la diferencia
           {differenceMinor !== 0 &&
             ` (${fmtSignedMinor(differenceMinor, currency)})`}
@@ -126,7 +126,7 @@ export function CountForm({
       />
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

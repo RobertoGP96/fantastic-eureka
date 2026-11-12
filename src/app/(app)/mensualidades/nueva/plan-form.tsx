@@ -112,7 +112,7 @@ export function PlanForm({
             key={planKind}
             type="button"
             onClick={() => setKind(planKind)}
-            className={`rounded-[13px] border px-3 py-2.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
               kind === planKind
                 ? "border-brand bg-chip text-brand"
                 : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -125,7 +125,7 @@ export function PlanForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Descripción
         </span>
         <Input
@@ -138,11 +138,11 @@ export function PlanForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Contacto (opcional)
         </span>
         <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -158,7 +158,7 @@ export function PlanForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Cuota
           </span>
           <Input
@@ -170,11 +170,11 @@ export function PlanForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Moneda
           </span>
           <Select value={currencyId} onValueChange={changeCurrency}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -190,11 +190,11 @@ export function PlanForm({
 
       {currencyAccounts.length > 0 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Cuenta habitual (opcional)
           </span>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -206,7 +206,7 @@ export function PlanForm({
               ))}
             </SelectContent>
           </Select>
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             Se usará por defecto al pagar o cobrar cada cuota.
           </span>
         </label>
@@ -214,11 +214,11 @@ export function PlanForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Frecuencia
           </span>
           <Select value={frequency} onValueChange={setFrequency}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -231,7 +231,7 @@ export function PlanForm({
           </Select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Primer vencimiento
           </span>
           <Input
@@ -244,7 +244,7 @@ export function PlanForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Termina el (opcional)
         </span>
         <Input
@@ -256,7 +256,7 @@ export function PlanForm({
       </label>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

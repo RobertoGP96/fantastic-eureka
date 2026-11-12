@@ -50,16 +50,16 @@ export function CurrencyKindEditor({
   };
 
   return (
-    <section className="rounded-[18px] border border-line bg-white p-4">
+    <section className="rounded-2xl border border-line bg-white p-4">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[12px] bg-chip text-brand">
+        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-chip text-brand">
           <Icon className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold text-navy">
+          <div className="text-sm font-bold text-navy">
             {CURRENCY_KIND_LABELS[kind as CurrencyKind] ?? kind}
           </div>
-          <div className="text-[11.5px] text-muted">
+          <div className="text-xs text-muted">
             {isDigital
               ? "Solo saldo: sin denominaciones ni cuentas de caja."
               : "Admite denominaciones, arqueos y cuentas de caja."}
@@ -90,7 +90,7 @@ export function CurrencyKindEditor({
         )}
       </div>
       {error && (
-        <div className="mt-2.5 rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="mt-2.5 rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

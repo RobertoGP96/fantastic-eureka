@@ -119,7 +119,7 @@ export function DebtForm({
             key={dir}
             type="button"
             onClick={() => setDirection(dir)}
-            className={`rounded-[13px] border px-3 py-2.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
               direction === dir
                 ? "border-brand bg-chip text-brand"
                 : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -131,11 +131,11 @@ export function DebtForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Contacto
         </span>
         <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -160,7 +160,7 @@ export function DebtForm({
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Descripción
         </span>
         <Input
@@ -174,7 +174,7 @@ export function DebtForm({
 
       <div className="grid grid-cols-[1fr_110px] gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Monto total
           </span>
           <Input
@@ -186,11 +186,11 @@ export function DebtForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Moneda
           </span>
           <Select value={currencyId} onValueChange={changeCurrency}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -206,11 +206,11 @@ export function DebtForm({
 
       {currencyAccounts.length > 0 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Cuenta para abonos (opcional)
           </span>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -222,33 +222,33 @@ export function DebtForm({
               ))}
             </SelectContent>
           </Select>
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             Se preseleccionará al registrar abonos y cuotas.
           </span>
         </label>
       )}
 
-      <label className="flex items-center gap-2.5 rounded-[13px] border border-line bg-white px-3.5 py-3">
+      <label className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-3">
         <input
           type="checkbox"
           checked={withPlan}
           onChange={(e) => setWithPlan(e.target.checked)}
           className="h-4 w-4 accent-[#0c6b70]"
         />
-        <span className="text-[12.5px] font-medium text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Con plan de cuotas (recordatorios periódicos)
         </span>
       </label>
 
       {withPlan && (
-        <div className="flex flex-col gap-3 rounded-[18px] border border-brand-soft/50 bg-chip/40 p-4">
+        <div className="flex flex-col gap-3 rounded-2xl border border-brand-soft/50 bg-chip/40 p-4">
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="text-[12.5px] font-semibold text-ink-soft">
+              <span className="text-sm font-semibold text-ink-soft">
                 Frecuencia
               </span>
               <Select value={frequency} onValueChange={setFrequency}>
-                <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+                <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,7 +261,7 @@ export function DebtForm({
               </Select>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-[12.5px] font-semibold text-ink-soft">
+              <span className="text-sm font-semibold text-ink-soft">
                 Cuota
               </span>
               <Input
@@ -274,7 +274,7 @@ export function DebtForm({
             </label>
           </div>
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12.5px] font-semibold text-ink-soft">
+            <span className="text-sm font-semibold text-ink-soft">
               Primer vencimiento
             </span>
             <Input
@@ -288,7 +288,7 @@ export function DebtForm({
       )}
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

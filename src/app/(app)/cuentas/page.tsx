@@ -93,7 +93,7 @@ export default async function CuentasPage() {
           {archivedCount > 0 && (
             <Link
               href="/cuentas/archivadas"
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
             >
               <Archive className="h-3.5 w-3.5" />
               Archivadas ({archivedCount})
@@ -101,14 +101,14 @@ export default async function CuentasPage() {
           )}
           <Link
             href="/cuentas/grupos"
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+            className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
           >
             <FolderOpen className="h-3.5 w-3.5" />
             Grupos
           </Link>
           <Link
             href="/cuentas/nueva"
-            className="flex items-center gap-1.5 rounded-lg bg-brand px-[11px] py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-brand-mid"
+            className="flex items-center gap-1.5 rounded-lg bg-brand px-[11px] py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-mid"
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva cuenta
@@ -138,12 +138,12 @@ export default async function CuentasPage() {
               {section.name && (
                 <div className="mb-2 flex flex-col gap-1">
                   <div className="flex items-baseline justify-between">
-                    <h2 className="text-[13.5px] font-bold text-navy">
+                    <h2 className="text-sm font-bold text-navy">
                       {section.name}
                     </h2>
                     {base && section.subtotalMinor !== null && (
                       <span
-                        className="text-[12px] font-semibold text-muted"
+                        className="text-xs font-semibold text-muted"
                         title={`Consolidado en ${base.code}`}
                       >
                         {onlyBase ? "" : "≈ "}

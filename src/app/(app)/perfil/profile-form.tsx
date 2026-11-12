@@ -45,7 +45,7 @@ export function ProfileForm({
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Nombre
         </span>
         <Input
@@ -58,7 +58,7 @@ export function ProfileForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Correo
         </span>
         <Input
@@ -71,7 +71,7 @@ export function ProfileForm({
       </label>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

@@ -97,11 +97,11 @@ export default async function CuentaDetallePage({
       <ScreenHeader title={account.name} backHref="/cuentas">
         <div className="mt-3 flex items-end justify-between">
           <div>
-            <div className="text-[11.5px] font-medium tracking-wide text-white/60 uppercase">
+            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
               Saldo actual
             </div>
             <div
-              className={`mt-0.5 text-[26px] font-bold tracking-[-0.5px] ${
+              className={`mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
                 balanceMinor < 0 ? "text-red-300" : ""
               }`}
             >
@@ -119,7 +119,7 @@ export default async function CuentaDetallePage({
         <div className="flex gap-2.5">
           <Link
             href={`/registrar?cuenta=${account.id}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-[13px] bg-brand py-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-mid"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-mid"
           >
             <Plus className="h-4 w-4" />
             Registrar
@@ -127,7 +127,7 @@ export default async function CuentaDetallePage({
           {isCashLikeType(account.type) && (
             <Link
               href={`/conteo/${account.id}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[13px] border border-line bg-white py-3 text-[13px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-white py-3 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
             >
               <Banknote className="h-4 w-4" />
               Arqueo
@@ -145,7 +145,7 @@ export default async function CuentaDetallePage({
           />
         )}
 
-        <div className="rounded-[16px] border border-line bg-white px-4 py-3">
+        <div className="rounded-2xl border border-line bg-white px-4 py-3">
           <AccountIconEditor
             accountId={account.id}
             icon={account.icon}
@@ -154,8 +154,8 @@ export default async function CuentaDetallePage({
         </div>
 
         {groups.length > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-[16px] border border-line bg-white px-4 py-2.5">
-            <span className="text-[12.5px] font-semibold text-ink-soft">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-2.5">
+            <span className="text-sm font-semibold text-ink-soft">
               Grupo
             </span>
             <GroupSelect
@@ -192,11 +192,11 @@ export default async function CuentaDetallePage({
         )}
 
         <section>
-          <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+          <h2 className="mb-2.5 text-base font-bold text-navy">
             Movimientos recientes
           </h2>
           {rows.length === 0 ? (
-            <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[12.5px] text-muted">
+            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
               Sin movimientos todavía.
             </div>
           ) : (

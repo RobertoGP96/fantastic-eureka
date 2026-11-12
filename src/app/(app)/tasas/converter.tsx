@@ -63,7 +63,7 @@ export function Converter({
   }
 
   return (
-    <div className="rounded-[18px] border border-line bg-white p-4">
+    <div className="rounded-2xl border border-line bg-white p-4">
       <div className="flex items-center gap-2.5">
         <Input
           value={amount}
@@ -73,7 +73,7 @@ export function Converter({
           aria-label="Monto a convertir"
         />
         <Select value={fromId} onValueChange={setFromId}>
-          <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -91,12 +91,12 @@ export function Converter({
             setToId(fromId);
           }}
           aria-label="Intercambiar monedas"
-          className="flex h-10 w-12 flex-none items-center justify-center rounded-[13px] bg-chip text-brand transition-transform active:scale-90"
+          className="flex h-10 w-12 flex-none items-center justify-center rounded-xl bg-chip text-brand transition-transform active:scale-90"
         >
           <ArrowUpDown className="h-4 w-4" />
         </button>
         <Select value={toId} onValueChange={setToId}>
-          <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -111,18 +111,18 @@ export function Converter({
 
       <div className="mt-3.5 border-t border-line-2 pt-3">
         {warning ? (
-          <div className="text-[12.5px] text-muted">{warning}</div>
+          <div className="text-sm text-muted">{warning}</div>
         ) : result ? (
           <>
             <div className="money text-[22px] font-bold tracking-[-0.5px] text-brand">
               {result}
             </div>
             {rateInfo && (
-              <div className="mt-0.5 text-[11.5px] text-muted">{rateInfo}</div>
+              <div className="mt-0.5 text-xs text-muted">{rateInfo}</div>
             )}
           </>
         ) : (
-          <div className="text-[12.5px] text-muted">
+          <div className="text-sm text-muted">
             Escribe un monto para convertir.
           </div>
         )}

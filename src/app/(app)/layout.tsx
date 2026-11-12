@@ -33,7 +33,7 @@ export default async function AppLayout({
           <SidebarTrigger className="text-ink-soft hover:bg-chip hover:text-brand" />
           <Separator orientation="vertical" className="h-5" />
           <AppBreadcrumb />
-          <span className="ml-auto hidden items-center gap-1 text-[11px] text-muted-2 lg:flex">
+          <span className="ml-auto hidden items-center gap-1 text-[11px] text-muted lg:flex">
             <kbd className="rounded-md border border-line bg-white px-1.5 py-0.5 font-sans">
               Ctrl
             </kbd>

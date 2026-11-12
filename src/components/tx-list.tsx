@@ -49,29 +49,35 @@ export function TxList({
       {rows.map((row) => {
         const Icon = KIND_ICONS[row.kind] ?? ArrowRightLeft;
         const positive = row.amountMinor > 0;
+        // Mover dinero (transferencia/ajuste) no es perderlo: tinte neutro.
+        const neutral = row.kind === "TRANSFER" || row.kind === "ADJUSTMENT";
         const className =
-          "flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft";
+          "flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 transition-colors hover:border-brand-soft";
         const content = (
           <>
             <span
-              className={`flex h-9 w-9 flex-none items-center justify-center rounded-[12px] ${
-                positive ? "bg-ok-bg text-ok" : "bg-danger-bg text-danger"
+              className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${
+                neutral
+                  ? "bg-chip text-brand-ink"
+                  : positive
+                    ? "bg-ok-bg text-ok"
+                    : "bg-danger-bg text-danger"
               }`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-[18px] w-[18px]" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold text-navy">
+              <div className="truncate text-sm font-semibold text-heading">
                 {row.title}
               </div>
-              <div className="truncate text-[11.5px] text-muted">
+              <div className="truncate text-xs text-muted">
                 {row.subtitle ? `${row.subtitle} · ` : ""}
                 {DATE_FMT.format(row.occurredAt)}
               </div>
             </div>
             <div
-              className={`text-[13.5px] font-bold whitespace-nowrap ${
-                positive ? "text-ok" : "text-navy"
+              className={`money text-[15px] font-bold whitespace-nowrap ${
+                positive ? "text-ok" : "text-heading"
               }`}
             >
               {fmtSignedMinor(row.amountMinor, row.currency)}

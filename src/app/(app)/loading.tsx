@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
     <main className="flex flex-1 flex-col pb-8">
-      <div className="grad-header relative overflow-hidden rounded-b-[26px] px-5 pt-[22px] pb-6 md:mt-6 md:rounded-[26px] md:px-7 md:py-7">
+      <div className="grad-header relative overflow-hidden rounded-b-3xl px-5 pt-[22px] pb-6 md:mt-6 md:rounded-3xl md:px-7 md:py-7">
         <Skeleton className="h-7 w-40 bg-white/20" />
         <Skeleton className="mt-4 h-4 w-56 bg-white/15" />
       </div>

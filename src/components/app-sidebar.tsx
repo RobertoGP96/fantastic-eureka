@@ -151,7 +151,7 @@ export function AppSidebar({
                 <span className="flex size-8 shrink-0 items-center justify-center">
                   <BrandMark className="size-8" idPrefix="fe-sidebar" />
                 </span>
-                <span className="text-[15px] font-bold tracking-[-0.3px] text-white">
+                <span className="text-base font-bold tracking-[-0.3px] text-white">
                   {APP_NAME}
                 </span>
               </Link>

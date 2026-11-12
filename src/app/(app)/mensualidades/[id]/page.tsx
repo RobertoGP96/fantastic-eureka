@@ -64,10 +64,10 @@ export default async function MensualidadDetallePage({
         <div className="mt-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <div className="text-[26px] font-bold tracking-[-0.5px]">
+              <div className="text-[28px] font-bold tracking-[-0.5px]">
                 {fmtMinor(plan.amountMinor, plan.currency)}
               </div>
-              <div className="mt-1 text-[12.5px] text-white/70">
+              <div className="mt-1 text-sm text-white/80">
                 {PLAN_KIND_LABELS[plan.kind as PlanKind]} ·{" "}
                 {FREQUENCY_LABELS[plan.frequency as Frequency]}
               </div>
@@ -76,7 +76,7 @@ export default async function MensualidadDetallePage({
               {plan.active ? "Activa" : "Finalizada"}
             </Badge>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/60">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
             <span className="flex items-center gap-1">
               <UserRound className="h-3 w-3" />
               {contactName ?? "Sin contacto"}
@@ -93,16 +93,16 @@ export default async function MensualidadDetallePage({
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-xl md:px-0">
         {plan.active && pending && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Próxima cuota
             </h2>
-            <div className="flex flex-col gap-3 rounded-[18px] border border-line bg-white p-4">
+            <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[15px] font-bold text-navy">
+                  <div className="text-base font-bold text-navy">
                     {fmtMinor(pending.amountMinor, plan.currency)}
                   </div>
-                  <div className="text-[11.5px] text-muted">
+                  <div className="text-xs text-muted">
                     {DATE_FMT.format(pending.dueAt)}
                   </div>
                 </div>
@@ -141,23 +141,23 @@ export default async function MensualidadDetallePage({
         {plan.debt && (
           <Link
             href={`/deudas/${plan.debt.id}`}
-            className="flex items-center justify-between rounded-[16px] border border-line bg-white px-4 py-3 text-[12.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+            className="flex items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
           >
             Ver deuda de {plan.debt.contact.name}
-            <ChevronRight className="h-4 w-4 text-muted-2" />
+            <ChevronRight className="h-4 w-4 text-muted" />
           </Link>
         )}
 
         {plan.installments.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Historial de cuotas
             </h2>
             <div className="flex flex-col gap-1.5">
               {plan.installments.map((inst) => (
                 <div
                   key={inst.id}
-                  className="flex items-center justify-between rounded-[13px] border border-line bg-white px-3.5 py-2.5 text-[12.5px]"
+                  className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
                 >
                   <span className="text-muted">
                     {DATE_FMT.format(inst.dueAt)}

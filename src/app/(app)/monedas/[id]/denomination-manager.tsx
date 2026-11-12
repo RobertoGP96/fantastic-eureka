@@ -57,7 +57,7 @@ function KindPicker({
           key={option}
           type="button"
           onClick={() => onChange(option)}
-          className={`rounded-[10px] border px-3 py-2 text-[11.5px] font-semibold transition-colors ${
+          className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
             value === option
               ? "border-brand bg-chip text-brand"
               : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -177,13 +177,13 @@ export function DenominationManager({
   return (
     <div className="flex flex-col gap-4">
       <form
-        className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4"
+        className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
         onSubmit={(e) => {
           e.preventDefault();
           void add();
         }}
       >
-        <div className="text-[13px] font-bold text-navy">
+        <div className="text-sm font-bold text-navy">
           Nueva denominación
         </div>
         <div className="flex gap-2.5">
@@ -201,7 +201,7 @@ export function DenominationManager({
           </Button>
         </div>
         {error && (
-          <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
             {error}
           </div>
         )}
@@ -211,7 +211,7 @@ export function DenominationManager({
         (group) =>
           group.items.length > 0 && (
             <section key={group.kind}>
-              <h2 className="mb-2 text-[13.5px] font-bold text-navy">
+              <h2 className="mb-2 text-sm font-bold text-navy">
                 {DENOMINATION_KIND_LABELS[group.kind as DenominationKind]}s
               </h2>
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -219,7 +219,7 @@ export function DenominationManager({
                   editingId === denomination.id ? (
                     <form
                       key={denomination.id}
-                      className="col-span-full flex items-center gap-2 rounded-[13px] border border-brand-soft bg-white p-2.5"
+                      className="col-span-full flex items-center gap-2 rounded-xl border border-brand-soft bg-white p-2.5"
                       onSubmit={(e) => {
                         e.preventDefault();
                         void update(denomination.id);
@@ -254,9 +254,9 @@ export function DenominationManager({
                   ) : confirmDeleteId === denomination.id ? (
                     <div
                       key={denomination.id}
-                      className="col-span-full flex items-center gap-2 rounded-[13px] border border-line bg-white p-2.5"
+                      className="col-span-full flex items-center gap-2 rounded-xl border border-line bg-white p-2.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted">
                         ¿Eliminar{" "}
                         {fmtMinor(denomination.valueMinor, currency)}?
                       </span>
@@ -280,11 +280,11 @@ export function DenominationManager({
                   ) : (
                     <div
                       key={denomination.id}
-                      className={`flex items-center justify-between gap-1.5 rounded-[13px] border border-line bg-white py-1.5 pr-1.5 pl-3 ${
+                      className={`flex items-center justify-between gap-1.5 rounded-xl border border-line bg-white py-1.5 pr-1.5 pl-3 ${
                         denomination.active ? "" : "opacity-55"
                       }`}
                     >
-                      <span className="truncate text-[12.5px] font-bold text-navy">
+                      <span className="truncate text-sm font-bold text-navy">
                         {fmtMinor(denomination.valueMinor, currency)}
                       </span>
                       <div className="flex flex-none items-center gap-1">
@@ -337,7 +337,7 @@ export function DenominationManager({
           )
       )}
 
-      <p className="text-[11.5px] text-muted">
+      <p className="text-xs text-muted">
         Las denominaciones usadas en arqueos guardados no se pueden editar ni
         eliminar; ocúltalas y dejarán de aparecer en los arqueos nuevos.
       </p>

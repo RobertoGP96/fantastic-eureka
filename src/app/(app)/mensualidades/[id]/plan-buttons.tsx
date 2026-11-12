@@ -35,7 +35,7 @@ export function PlanButtons({ planId }: { planId: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11.5px] text-muted">¿Finalizar? Las cuotas pendientes se omiten.</span>
+      <span className="text-xs text-muted">¿Finalizar? Las cuotas pendientes se omiten.</span>
       <Button
         variant="danger"
         size="sm"

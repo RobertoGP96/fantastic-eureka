@@ -26,7 +26,7 @@ export default async function CuentasArchivadasPage() {
           />
         ) : (
           <>
-            <p className="text-[12px] text-muted">
+            <p className="text-xs text-muted">
               Las cuentas archivadas conservan su historial y no aparecen al
               registrar movimientos. Entra al detalle para activarlas de nuevo.
             </p>

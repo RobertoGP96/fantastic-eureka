@@ -85,7 +85,7 @@ export default async function TasasPage() {
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Tasas de cambio" backHref="/mas">
         {base && (
-          <p className="mt-1 text-[12.5px] text-white/70">
+          <p className="mt-1 text-sm text-white/80">
             Moneda base: {base.code} · se cambia en{" "}
             <Link href="/monedas" className="underline">
               Monedas
@@ -96,7 +96,7 @@ export default async function TasasPage() {
 
       <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:max-w-xl md:px-0">
         <section>
-          <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+          <h2 className="mb-2.5 text-base font-bold text-navy">
             Registrar tasa
           </h2>
           <RateForm
@@ -109,17 +109,17 @@ export default async function TasasPage() {
 
         <section>
           <div className="mb-2.5">
-            <h2 className="text-[14.5px] font-bold text-navy">
+            <h2 className="text-base font-bold text-navy">
               Pares vigentes
             </h2>
             {currentPairs.length > 0 && (
-              <p className="text-[11.5px] text-muted">
+              <p className="text-xs text-muted">
                 Toca un par para ver su evolución en detalle.
               </p>
             )}
           </div>
           {currentPairs.length === 0 ? (
-            <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[12.5px] text-muted">
+            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
               Sin tasas registradas todavía. Registra la primera arriba — el
               par inverso se resuelve solo.
             </div>
@@ -129,16 +129,16 @@ export default async function TasasPage() {
                 <Link
                   key={pair.key}
                   href={`/tasas/${pair.fromCode}/${pair.toCode}`}
-                  className="rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+                  className="rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-navy">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold text-navy">
                         {pair.fromCode}
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-2" />
+                        <ArrowRight className="h-3.5 w-3.5 text-muted" />
                         {pair.toCode}
                       </div>
-                      <div className="money mt-1 text-[20px] font-bold tracking-[-0.5px] text-brand">
+                      <div className="money mt-1 text-xl font-bold tracking-[-0.5px] text-brand">
                         {fmtRate(pair.rateScaled)}
                       </div>
                     </div>
@@ -155,7 +155,7 @@ export default async function TasasPage() {
         </section>
 
         <section>
-          <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+          <h2 className="mb-2.5 text-base font-bold text-navy">
             Conversor rápido
           </h2>
           <Converter
@@ -171,14 +171,14 @@ export default async function TasasPage() {
 
         {history.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Histórico
             </h2>
             <div className="flex flex-col gap-1.5">
               {history.map((rate, i) => (
                 <div
                   key={`${rate.fromCode}-${rate.toCode}-${rate.effectiveAt.getTime()}-${i}`}
-                  className="flex items-center justify-between rounded-[13px] border border-line bg-white px-3.5 py-2.5 text-[12.5px]"
+                  className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
                 >
                   <span className="money font-semibold text-ink-soft">
                     1 {rate.fromCode} = {fmtRate(rate.rateScaled)}{" "}

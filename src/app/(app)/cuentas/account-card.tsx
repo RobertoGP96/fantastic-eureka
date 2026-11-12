@@ -10,10 +10,10 @@ export function AccountCard({ account }: { account: AccountWithBalance }) {
   return (
     <Link
       href={`/cuentas/${account.id}`}
-      className="flex items-center gap-3.5 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+      className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
     >
       <span
-        className={`flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip ${
+        className={`flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip ${
           account.archived ? "text-muted" : "text-brand"
         }`}
       >
@@ -21,22 +21,22 @@ export function AccountCard({ account }: { account: AccountWithBalance }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-[13.5px] font-semibold text-navy">
+          <span className="truncate text-sm font-semibold text-navy">
             {account.name}
           </span>
           {account.archived && (
-            <span className="flex-none rounded-full bg-chip px-2 py-0.5 text-[10px] font-semibold text-muted">
+            <span className="flex-none rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold text-muted">
               Archivada
             </span>
           )}
         </div>
-        <div className="text-[11.5px] text-muted">
+        <div className="text-xs text-muted">
           {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type} ·{" "}
           {account.currency.code}
         </div>
       </div>
       <div
-        className={`text-[15px] font-bold whitespace-nowrap ${
+        className={`text-base font-bold whitespace-nowrap ${
           negative ? "text-danger" : "text-navy"
         }`}
       >

@@ -84,7 +84,7 @@ export function SettleInstallment({
 
   if (accounts.length === 0) {
     return (
-      <p className="text-[11.5px] text-muted">
+      <p className="text-xs text-muted">
         Crea una cuenta en {currencyCode} para registrar el{" "}
         {kind === "COLLECT" ? "cobro" : "pago"}.
       </p>
@@ -98,7 +98,7 @@ export function SettleInstallment({
     <div className="flex flex-col gap-2">
       {picking ? (
         <div className="flex items-center gap-2">
-          <Wallet className="h-3.5 w-3.5 flex-none text-muted-2" />
+          <Wallet className="h-3.5 w-3.5 flex-none text-muted" />
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger
               aria-label="Cuenta"
@@ -118,8 +118,8 @@ export function SettleInstallment({
           </Select>
         </div>
       ) : (
-        <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
-          <Wallet className="h-3.5 w-3.5 flex-none text-muted-2" />
+        <div className="flex items-center gap-1.5 text-xs text-muted">
+          <Wallet className="h-3.5 w-3.5 flex-none text-muted" />
           <span className="truncate">
             {kind === "COLLECT" ? "Entra en" : "Sale de"}{" "}
             <span className="font-semibold text-ink-soft">{selectedName}</span>
@@ -139,7 +139,7 @@ export function SettleInstallment({
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           aria-label={`Monto en ${currencyCode}`}
-          className="h-9 w-24 rounded-[10px] px-2 text-center text-[12px]"
+          className="h-9 w-24 rounded-lg px-2 text-center text-xs"
         />
         <Button
           size="sm"
@@ -159,7 +159,7 @@ export function SettleInstallment({
         </Button>
       </div>
       {error && (
-        <div className="rounded-[10px] bg-danger-bg px-3 py-2 text-[11.5px] font-medium text-danger">
+        <div className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-medium text-danger">
           {error}
         </div>
       )}
