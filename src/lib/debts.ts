@@ -22,6 +22,46 @@ export async function debtRemainingMinor(
   return debt.totalMinor - (paid._sum.amountMinor ?? 0);
 }
 
+/**
+ * Bloquea la fila de la deuda hasta el final de la transacción. Llamar ANTES
+ * de `debtRemainingMinor`: releer el pendiente dentro de la transacción no
+ * basta por sí solo, porque con el aislamiento por defecto de Postgres (READ
+ * COMMITTED) dos abonos simultáneos leen el mismo pendiente y ambos pasan. Con
+ * el bloqueo el segundo espera al primero y ya ve su abono.
+ * Se hace con un UPDATE de Prisma (y no con SELECT … FOR UPDATE en SQL crudo)
+ * para no depender del search_path bajo PgBouncer.
+ */
+export async function lockDebt(
+  tx: Prisma.TransactionClient,
+  debtId: string
+): Promise<void> {
+  await tx.debt.update({
+    where: { id: debtId },
+    data: { updatedAt: new Date() },
+    select: { id: true },
+  });
+}
+
+/**
+ * Una deuda que queda SALDADA ya no necesita sus planes: las cuotas
+ * pendientes pasan a SKIPPED y los planes se desactivan. Lo comparten el
+ * abono directo y la edición de un movimiento de abono.
+ */
+export async function closeDebtPlans(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  debtId: string
+): Promise<void> {
+  await tx.installment.updateMany({
+    where: { plan: { debtId, userId }, status: "PENDING" },
+    data: { status: "SKIPPED" },
+  });
+  await tx.paymentPlan.updateMany({
+    where: { debtId, userId },
+    data: { active: false },
+  });
+}
+
 /** Cuotas pendientes vencidas o que vencen dentro de `withinDays` días. */
 export async function upcomingInstallments(userId: string, withinDays = 7) {
   const limit = new Date();

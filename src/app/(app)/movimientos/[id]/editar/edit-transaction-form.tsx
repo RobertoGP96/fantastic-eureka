@@ -20,16 +20,13 @@ import {
 } from "@/components/denomination-breakdown-field";
 import { TRANSACTION_KIND_LABELS, type TransactionKind } from "@/lib/domain";
 import { useUI } from "@/lib/ui-store";
+import { toLocalDateISO } from "@/lib/dates";
+import { runAction } from "@/lib/run-action";
 
 // Radix Select no admite value "": valor especial para «Sin categoría».
 const NO_CATEGORY = "__none__";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-const toLocalDateISO = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+const todayISO = () => toLocalDateISO();
 
 export interface EditableTx {
   id: string;
@@ -160,7 +157,8 @@ export function EditTransactionForm({
       occurredAt.getMilliseconds()
     );
 
-    const result = await updateTransaction({
+    const result = await runAction(() =>
+      updateTransaction({
       id: tx.id,
       amount,
       counterAmount: cross ? counterAmount : undefined,
@@ -177,14 +175,15 @@ export function EditTransactionForm({
       counterDenominationLines: destDenoms.length
         ? linesPayload(destLines)
         : undefined,
-    });
+      })
+    );
 
-    setSaving(false);
     if (result.success) {
       showToast("Movimiento actualizado");
       router.push(`/movimientos/${tx.id}`);
       router.refresh();
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };

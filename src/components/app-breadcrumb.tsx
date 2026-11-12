@@ -17,6 +17,7 @@ const STATIC_LABELS: Record<string, string> = {
   "/cuentas": "Cuentas",
   "/cuentas/nueva": "Nueva cuenta",
   "/cuentas/grupos": "Grupos",
+  "/cuentas/archivadas": "Archivadas",
   "/movimientos": "Movimientos",
   "/deudas": "Deudas",
   "/deudas/nueva": "Nueva deuda",

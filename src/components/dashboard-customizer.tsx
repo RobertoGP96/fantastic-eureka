@@ -332,9 +332,12 @@ export function DashboardCustomizer({
   const toggleAccount = (id: string) => {
     setAccountIds((prev) => {
       const current = prev ?? accounts.map((a) => a.id);
-      return current.includes(id)
+      const next = current.includes(id)
         ? current.filter((x) => x !== id)
         : [...current, id];
+      // Todas marcadas = «todas» (null): así una cuenta creada después
+      // aparece sola, en vez de quedar fuera de una lista explícita.
+      return accounts.every((a) => next.includes(a.id)) ? null : next;
     });
   };
 
@@ -806,7 +809,14 @@ export function DashboardCustomizer({
           <Button
             type="button"
             onClick={() => void save()}
-            disabled={saving}
+            // Con un gadget a medio configurar, «Guardar» lo descartaba en
+            // silencio: primero hay que añadirlo o cancelarlo.
+            disabled={saving || addType !== null}
+            title={
+              addType !== null
+                ? "Termina o cancela el gadget que estás configurando"
+                : undefined
+            }
             className="flex-1"
           >
             {saving ? "Guardando…" : "Guardar"}

@@ -8,6 +8,7 @@ import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
+import { debtRemainingMinor } from "@/lib/debts";
 import { fmtMinor, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import { dueTone, nextPending } from "@/lib/plans-core";
@@ -47,9 +48,13 @@ export default async function MensualidadDetallePage({
   if (!plan) notFound();
 
   const pending = nextPending(plan.installments);
-  const paidCount = plan.installments.filter(
-    (inst) => inst.status === "PAID"
-  ).length;
+  // Conteo aparte: `installments` viene recortado a las 24 más recientes y
+  // un plan largo mostraba como mucho «23 cuotas saldadas».
+  const [paidCount, debtRemaining] = await Promise.all([
+    prisma.installment.count({ where: { planId: plan.id, status: "PAID" } }),
+    plan.debtId ? debtRemainingMinor(plan.debtId) : null,
+  ]);
+  const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
   const contactName = plan.contact?.name ?? plan.debt?.contact.name ?? null;
 
   const accounts = await prisma.account.findMany({
@@ -111,18 +116,21 @@ export default async function MensualidadDetallePage({
                   {dueLabel(pending.dueAt)}
                 </Badge>
               </div>
-              {/* key: re-inicializa la preselección si cambia la cuenta */}
+              {/* key por cuota y cuenta: re-inicializa el formulario al
+                  llegar la cuota siguiente o cambiar la cuenta vinculada. */}
               <SettleInstallment
-                key={plan.accountId ?? "none"}
+                key={`${pending.id}-${settleAccountId ?? "none"}`}
                 installmentId={pending.id}
                 accounts={accounts}
                 defaultAmount={minorToInput(
-                  pending.amountMinor,
+                  debtRemaining === null
+                    ? pending.amountMinor
+                    : Math.min(pending.amountMinor, Math.max(debtRemaining, 0)),
                   plan.currency.decimalPlaces
                 )}
                 currencyCode={plan.currency.code}
                 kind={plan.kind}
-                defaultAccountId={plan.accountId}
+                defaultAccountId={settleAccountId}
               />
             </div>
           </section>

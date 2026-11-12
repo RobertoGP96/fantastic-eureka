@@ -14,7 +14,7 @@ import {
   PRISMA_INT_MAX,
 } from "@/lib/money";
 import { fmtMinor } from "@/lib/format";
-import { debtRemainingMinor } from "@/lib/debts";
+import { closeDebtPlans, debtRemainingMinor, lockDebt } from "@/lib/debts";
 import {
   ActionError,
   idSchema,
@@ -30,6 +30,7 @@ import {
   type CreateOptions,
   type Db,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /** Entidades afectadas por un movimiento (para revalidar vistas). */
@@ -225,6 +226,9 @@ export async function registerIncomeExpense(
       if (amountMinor <= 0) {
         return { success: false, error: "El monto debe ser mayor que cero" };
       }
+      if (amountMinor > PRISMA_INT_MAX) {
+        return { success: false, error: "Monto demasiado grande" };
+      }
     }
 
     if (parsed.data.categoryId) {
@@ -281,8 +285,7 @@ export async function registerIncomeExpense(
       },
     };
   } catch (error) {
-    console.error("registerIncomeExpense:", error);
-    return { success: false, error: "No se pudo registrar el movimiento" };
+    return unexpectedFailure("registerIncomeExpense", error, "No se pudo registrar el movimiento");
   }
 }
 
@@ -321,6 +324,9 @@ export async function registerTransfer(
     if (amountMinor <= 0) {
       return { success: false, error: "El monto debe ser mayor que cero" };
     }
+    if (amountMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Monto demasiado grande" };
+    }
 
     const sameCurrency = from.currencyId === to.currencyId;
     let counterAmountMinor = amountMinor;
@@ -339,6 +345,9 @@ export async function registerTransfer(
       );
       if (counterAmountMinor <= 0) {
         return { success: false, error: "El monto recibido debe ser mayor que cero" };
+      }
+      if (counterAmountMinor > PRISMA_INT_MAX) {
+        return { success: false, error: "El monto recibido es demasiado grande" };
       }
       // Tasa implícita (destino por 1 origen), solo informativa; null si no
       // cabe en un Int de Prisma.
@@ -410,8 +419,7 @@ export async function registerTransfer(
       },
     };
   } catch (error) {
-    console.error("registerTransfer:", error);
-    return { success: false, error: "No se pudo registrar la transferencia" };
+    return unexpectedFailure("registerTransfer", error, "No se pudo registrar la transferencia");
   }
 }
 
@@ -559,6 +567,7 @@ export async function updateTransaction(
       // monto y el pendiente se relee AQUÍ dentro (patrón anti doble-envío).
       const payment = existing.debtPayment;
       if (payment && amountMinor !== payment.amountMinor) {
+        await lockDebt(tx, payment.debtId);
         const remaining = await debtRemainingMinor(payment.debtId, tx);
         const available = remaining + payment.amountMinor;
         if (amountMinor > available) {
@@ -575,10 +584,14 @@ export async function updateTransaction(
           select: { status: true },
         });
         if (debt && debt.status !== "CANCELLED") {
+          const settled = amountMinor === available;
           await tx.debt.update({
             where: { id: payment.debtId },
-            data: { status: amountMinor === available ? "PAID" : "OPEN" },
+            data: { status: settled ? "PAID" : "OPEN" },
           });
+          // Igual que un abono que salda: sin esto el plan seguía activo con
+          // una cuota pendiente imposible de pagar (pendiente 0).
+          if (settled) await closeDebtPlans(tx, userId, payment.debtId);
         }
       }
       if (payment) {
@@ -638,8 +651,7 @@ export async function updateTransaction(
     if (error instanceof ActionError) {
       return { success: false, error: error.message };
     }
-    console.error("updateTransaction:", error);
-    return { success: false, error: "No se pudo actualizar el movimiento" };
+    return unexpectedFailure("updateTransaction", error, "No se pudo actualizar el movimiento");
   }
 }
 
@@ -707,7 +719,6 @@ export async function deleteTransaction(
       },
     };
   } catch (error) {
-    console.error("deleteTransaction:", error);
-    return { success: false, error: "No se pudo eliminar el movimiento" };
+    return unexpectedFailure("deleteTransaction", error, "No se pudo eliminar el movimiento");
   }
 }

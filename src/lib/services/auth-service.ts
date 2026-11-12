@@ -10,7 +10,7 @@ import {
   registerSchema,
   type ActionResult,
 } from "@/lib/schemas";
-import { inTx, type Db } from "./context";
+import { inTx, type Db, unexpectedFailure } from "./context";
 
 export interface AuthUser {
   id: string;
@@ -62,10 +62,15 @@ export async function registerUser(
     ) {
       return { success: false, error: "Ya existe una cuenta con ese correo" };
     }
-    console.error("registerUser:", error);
-    return { success: false, error: "No se pudo crear la cuenta" };
+    return unexpectedFailure("registerUser", error, "No se pudo crear la cuenta");
   }
 }
+
+// Hash señuelo contra el que se verifica cuando el correo NO existe: sin él
+// el login respondía al instante (no ejecutaba scrypt) y el tiempo de
+// respuesta delataba qué correos están registrados.
+let decoyHash: string | null = null;
+const getDecoyHash = () => (decoyHash ??= hashPassword("caja-señuelo"));
 
 /** Comprueba correo + contraseña. Mensaje genérico: no revela si existe. */
 export async function verifyCredentials(
@@ -84,7 +89,11 @@ export async function verifyCredentials(
     const user = await db.user.findUnique({
       where: { email: parsed.data.email },
     });
-    if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+    const passwordOk = verifyPassword(
+      parsed.data.password,
+      user?.passwordHash ?? getDecoyHash()
+    );
+    if (!user || !passwordOk) {
       return { success: false, error: "Correo o contraseña incorrectos" };
     }
     return {
@@ -92,7 +101,6 @@ export async function verifyCredentials(
       data: { id: user.id, name: user.name, email: user.email },
     };
   } catch (error) {
-    console.error("loginUser:", error);
-    return { success: false, error: "No se pudo iniciar sesión" };
+    return unexpectedFailure("loginUser", error, "No se pudo iniciar sesión");
   }
 }

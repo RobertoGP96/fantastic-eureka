@@ -44,6 +44,24 @@ export function nextDueDate(
   }
 }
 
+/**
+ * Fecha LOCAL en formato `YYYY-MM-DD` (el de `<input type="date">`).
+ * NO usar `toISOString().slice(0, 10)`: eso da la fecha UTC y, de noche en
+ * zonas al oeste de Greenwich, ya es «mañana».
+ */
+export function toLocalDateISO(date: Date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** Último instante del día local de `date` (para límites inclusivos por día). */
+export function endOfLocalDay(date: Date): Date {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
 /** Días (con signo) desde hoy hasta dueAt comparando fechas locales. */
 export function daysUntil(dueAt: Date, now: Date = new Date()): number {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

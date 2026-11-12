@@ -7,10 +7,10 @@
 // la action necesita para revalidar rutas; la action los recorta.
 
 import type { Prisma } from "@prisma/client";
-import { parseAmountToMinor } from "@/lib/money";
+import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
 import { fmtMinor } from "@/lib/format";
-import { nextDueDate } from "@/lib/dates";
-import { debtRemainingMinor } from "@/lib/debts";
+import { endOfLocalDay, nextDueDate } from "@/lib/dates";
+import { debtRemainingMinor, lockDebt } from "@/lib/debts";
 import type { Frequency } from "@/lib/domain";
 import {
   ActionError,
@@ -26,6 +26,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /**
@@ -75,9 +76,21 @@ export async function createPlan(
       accountId = account.id;
     }
 
+    // Id ajeno = inexistente: sin esto el plan quedaba ligado al contacto de
+    // otro usuario y sus vistas mostraban ese nombre.
+    if (parsed.data.contactId) {
+      const contact = await db.contact.findFirst({
+        where: { id: parsed.data.contactId, userId },
+      });
+      if (!contact) return { success: false, error: "Contacto no válido" };
+    }
+
     const amountMinor = parseAmountToMinor(parsed.data.amount, currency);
     if (amountMinor <= 0) {
       return { success: false, error: "La cuota debe ser mayor que cero" };
+    }
+    if (amountMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Monto demasiado grande" };
     }
     if (
       parsed.data.endAt &&
@@ -115,8 +128,7 @@ export async function createPlan(
 
     return { success: true, data: { id: plan.id } };
   } catch (error) {
-    console.error("createPlan:", error);
-    return { success: false, error: "No se pudo crear el plan" };
+    return unexpectedFailure("createPlan", error, "No se pudo crear el plan");
   }
 }
 
@@ -161,8 +173,7 @@ export async function setPlanAccount(
 
     return { success: true, data: { id: plan.id, debtId: plan.debtId } };
   } catch (error) {
-    console.error("setPlanAccount:", error);
-    return { success: false, error: "No se pudo actualizar la cuenta" };
+    return unexpectedFailure("setPlanAccount", error, "No se pudo actualizar la cuenta");
   }
 }
 
@@ -186,6 +197,13 @@ interface PlanWithDebt {
  *
  * `nextInstallmentId` (solo push móvil) es el id que el dispositivo dio a la
  * cuota siguiente; solo se usa si la cuota se CREA (upsert por planId+dueAt).
+ *
+ * `endAt` es inclusivo POR DÍA: se compara contra el final de ese día y no por
+ * instante, porque ambas fechas se guardan a «mediodía local» y esa hora
+ * cambia en UTC con el horario de verano (la última cuota se perdía).
+ *
+ * En un plan de deuda la cuota siguiente nunca supera lo que queda por pagar
+ * (si no, salía una cuota de 300 con 100 pendientes y saldarla fallaba).
  */
 async function advancePlan(
   tx: Prisma.TransactionClient,
@@ -200,10 +218,18 @@ async function advancePlan(
     plan.dayOfMonth
   );
 
+  let debtOpen = !debtSettled;
+  let amountMinor = plan.amountMinor;
+  if (debtOpen && plan.debtId) {
+    const remaining = await debtRemainingMinor(plan.debtId, tx);
+    if (remaining <= 0) debtOpen = false;
+    else amountMinor = Math.min(amountMinor, remaining);
+  }
+
   const shouldContinue =
-    !debtSettled &&
+    debtOpen &&
     next !== null &&
-    (!plan.endAt || next.getTime() <= plan.endAt.getTime());
+    (!plan.endAt || next.getTime() <= endOfLocalDay(plan.endAt).getTime());
 
   if (shouldContinue) {
     await tx.installment.upsert({
@@ -213,7 +239,7 @@ async function advancePlan(
         id: clientIdOrUndefined(nextInstallmentId),
         planId: plan.id,
         dueAt: next,
-        amountMinor: plan.amountMinor,
+        amountMinor,
       },
     });
     await tx.paymentPlan.update({
@@ -294,11 +320,27 @@ export async function settleInstallment(
     if (amountMinor <= 0) {
       return { success: false, error: "El monto debe ser mayor que cero" };
     }
+    if (amountMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Monto demasiado grande" };
+    }
 
     await inTx(db, async (tx) => {
-      // Releído dentro de la transacción: evita sobrepagos por doble envío.
+      // La cuota se «reclama» con un UPDATE condicionado a PENDING: si dos
+      // peticiones la saldan a la vez (dos pestañas, web + móvil), la segunda
+      // espera el bloqueo de fila, encuentra 0 filas y aborta sin duplicar
+      // el movimiento.
+      const claimed = await tx.installment.updateMany({
+        where: { id: installment.id, status: "PENDING" },
+        data: { status: "PAID", settledAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new ActionError("La cuota no está pendiente");
+      }
+
+      // Bloqueo + relectura dentro de la transacción: evita sobrepagos.
       let debtSettled = false;
       if (plan.debtId) {
+        await lockDebt(tx, plan.debtId);
         const remaining = await debtRemainingMinor(plan.debtId, tx);
         if (amountMinor > remaining) {
           throw new ActionError(
@@ -322,11 +364,7 @@ export async function settleInstallment(
 
       await tx.installment.update({
         where: { id: installment.id },
-        data: {
-          status: "PAID",
-          transactionId: transaction.id,
-          settledAt: new Date(),
-        },
+        data: { transactionId: transaction.id },
       });
 
       if (plan.debtId) {
@@ -368,8 +406,7 @@ export async function settleInstallment(
     if (error instanceof ActionError) {
       return { success: false, error: error.message };
     }
-    console.error("settleInstallment:", error);
-    return { success: false, error: "No se pudo registrar el pago de la cuota" };
+    return unexpectedFailure("settleInstallment", error, "No se pudo registrar el pago de la cuota");
   }
 }
 
@@ -402,10 +439,14 @@ export async function skipInstallment(
     }
 
     await inTx(db, async (tx) => {
-      await tx.installment.update({
-        where: { id: installment.id },
+      // Mismo «reclamo» condicionado que al saldar (ver settleInstallment).
+      const claimed = await tx.installment.updateMany({
+        where: { id: installment.id, status: "PENDING" },
         data: { status: "SKIPPED" },
       });
+      if (claimed.count !== 1) {
+        throw new ActionError("La cuota no está pendiente");
+      }
       await advancePlan(
         tx,
         installment.plan,
@@ -424,8 +465,10 @@ export async function skipInstallment(
       },
     };
   } catch (error) {
-    console.error("skipInstallment:", error);
-    return { success: false, error: "No se pudo omitir la cuota" };
+    if (error instanceof ActionError) {
+      return { success: false, error: error.message };
+    }
+    return unexpectedFailure("skipInstallment", error, "No se pudo omitir la cuota");
   }
 }
 
@@ -440,19 +483,22 @@ export async function deactivatePlan(
   }
 
   try {
-    const plan = await db.paymentPlan.update({
-      where: { id: parsed.data, userId },
-      data: { active: false },
-    });
-    await db.installment.updateMany({
-      where: { planId: plan.id, plan: { userId }, status: "PENDING" },
-      data: { status: "SKIPPED" },
+    // Las dos escrituras en una transacción: sin plan inactivo con cuota viva.
+    const plan = await inTx(db, async (tx) => {
+      const updated = await tx.paymentPlan.update({
+        where: { id: parsed.data, userId },
+        data: { active: false },
+      });
+      await tx.installment.updateMany({
+        where: { planId: updated.id, plan: { userId }, status: "PENDING" },
+        data: { status: "SKIPPED" },
+      });
+      return updated;
     });
 
     return { success: true, data: { id: plan.id, debtId: plan.debtId } };
   } catch (error) {
-    console.error("deactivatePlan:", error);
-    return { success: false, error: "No se pudo desactivar el plan" };
+    return unexpectedFailure("deactivatePlan", error, "No se pudo desactivar el plan");
   }
 }
 
@@ -483,7 +529,6 @@ export async function deletePlan(
 
     return { success: true, data: { planId: plan.id, debtId: plan.debtId } };
   } catch (error) {
-    console.error("deletePlan:", error);
-    return { success: false, error: "No se pudo eliminar el plan" };
+    return unexpectedFailure("deletePlan", error, "No se pudo eliminar el plan");
   }
 }

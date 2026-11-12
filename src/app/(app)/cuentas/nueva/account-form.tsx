@@ -14,6 +14,7 @@ import {
 import { createAccount } from "@/app/actions/account-actions";
 import { IconPicker } from "@/components/icon-picker";
 import { useUI } from "@/lib/ui-store";
+import { runAction } from "@/lib/run-action";
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
@@ -46,7 +47,12 @@ export function AccountForm({
   const { showToast } = useUI();
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("CASH");
-  const [currencyId, setCurrencyId] = useState(currencies[0]?.id ?? "");
+  // El tipo inicial es CASH: la moneda por defecto debe ser de efectivo
+  // (si la base es digital, p. ej. MLC, el selector salía en blanco).
+  const [currencyId, setCurrencyId] = useState(
+    (currencies.find((c) => !isDigitalCurrencyKind(c.kind)) ?? currencies[0])
+      ?.id ?? ""
+  );
 
   // Las monedas digitales no existen en efectivo: para tipos de caja se
   // ocultan del selector (y la action lo re-valida en el servidor).
@@ -79,19 +85,22 @@ export function AccountForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const result = await createAccount({
-      name,
-      type,
-      currencyId,
-      initialAmount: initialAmount.trim() || undefined,
-      groupId: groupId === NO_GROUP ? undefined : groupId,
-      icon: icon ?? undefined,
-    });
-    setSaving(false);
+    const result = await runAction(() =>
+      createAccount({
+        name,
+        type,
+        currencyId,
+        initialAmount: initialAmount.trim() || undefined,
+        groupId: groupId === NO_GROUP ? undefined : groupId,
+        icon: icon ?? undefined,
+      })
+    );
     if (result.success) {
+      // `saving` sigue en true mientras navega: evita una segunda cuenta.
       showToast("Cuenta creada");
       router.push(`/cuentas/${result.data.id}`);
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };

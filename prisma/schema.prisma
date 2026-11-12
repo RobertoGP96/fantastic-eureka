@@ -78,7 +78,7 @@ model Account {
   userId     String
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
-  type       String // CASH | BANK | DIGITAL
+  type       String // CASH | CASH_BOX | BANK | DIGITAL
   currencyId String
   currency   Currency      @relation(fields: [currencyId], references: [id])
   groupId    String?
@@ -357,7 +357,9 @@ model User {
 }
 
 // Sesión con token opaco: la cookie lleva el token en claro y en BD se
-// guarda su hash SHA-256. Expiración fija de 30 días, sin renovación.
+// guarda su hash SHA-256. 30 días: fijos en la web (cookie); la sesión de
+// la app móvil se renueva sola cuando le quedan menos de 15 días
+// (src/lib/mobile-auth.ts).
 model Session {
   id        String   @id @default(cuid())
   token     String   @unique

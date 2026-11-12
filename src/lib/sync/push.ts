@@ -14,12 +14,19 @@ import "server-only";
 //     su `inTx` reutiliza la transacción exterior en vez de abrir la suya.
 //   · Las reglas son las de la web: cada operación llama al MISMO servicio
 //     que la server action equivalente.
-//   · Un rechazo no detiene el lote: las operaciones siguientes se intentan
-//     (las que dependan de la rechazada fallarán con su propio mensaje).
+//   · Un rechazo de NEGOCIO no detiene el lote: las operaciones siguientes
+//     se intentan (las que dependan de la rechazada fallarán con su mensaje).
+//   · Un fallo TRANSITORIO de infraestructura (conexión, pool, timeout,
+//     deadlock) no registra el opId y SÍ detiene el lote: lo que quede se
+//     reintenta entero en el próximo push. Seguir era peor: los movimientos
+//     de una cuenta cuyo `account.create` acababa de fallar por un corte se
+//     rechazaban como negocio («Cuenta no válida») y quedaban REJECTED para
+//     siempre aunque la cuenta se creara en el reintento.
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/lib/schemas";
+import { isTransientDbError } from "@/lib/services/context";
 import { OP_HANDLERS } from "./op-registry";
 
 export const MAX_OPS_PER_PUSH = 200;
@@ -52,6 +59,15 @@ class RejectedOp extends Error {
     super(reason);
   }
 }
+
+/**
+ * El servicio capturó un fallo transitorio de BD y lo devolvió como
+ * `{ success: false, retryable: true }`: aborta la transacción SIN registrar
+ * el opId, para que el móvil reintente la operación.
+ */
+class TransientOpFailure extends Error {}
+
+const RETRY_MESSAGE = "No se pudo aplicar la operación; se reintentará";
 
 export async function applyOps(
   userId: string,
@@ -86,13 +102,16 @@ export async function applyOps(
             op.payload,
             op.ids ?? {}
           );
-          if (!result.success) throw new RejectedOp(result.error);
+          if (!result.success) {
+            if (result.retryable) throw new TransientOpFailure(result.error);
+            throw new RejectedOp(result.error);
+          }
           await tx.syncOperation.create({
             data: { userId, opId: op.opId, type: op.type, status: "APPLIED" },
           });
           return result.data;
         },
-        { timeout: 20_000 }
+        { maxWait: 10_000, timeout: 20_000 }
       );
       results.push({ opId: op.opId, status: "applied", data });
     } catch (error) {
@@ -102,11 +121,12 @@ export async function applyOps(
         console.error(`mobile push ${op.type}:`, error);
         // Fallo de infraestructura: NO se registra el opId, así que el
         // móvil lo reintentará en el próximo push.
-        results.push({
-          opId: op.opId,
-          status: "rejected",
-          error: "No se pudo aplicar la operación; se reintentará",
-        });
+        results.push({ opId: op.opId, status: "rejected", error: RETRY_MESSAGE });
+        // Si es transitorio, el resto del lote se deja para el reintento
+        // (el cliente trata un opId ausente de la respuesta como pendiente).
+        if (error instanceof TransientOpFailure || isTransientDbError(error)) {
+          break;
+        }
       }
     }
   }
@@ -120,10 +140,20 @@ async function reject(
   op: { opId: string; type: string },
   error: string
 ): Promise<OpResult> {
-  await prisma.syncOperation
-    .create({
+  try {
+    await prisma.syncOperation.create({
       data: { userId, opId: op.opId, type: op.type, status: "REJECTED", error },
-    })
-    .catch(() => undefined); // carrera con un reintento simultáneo: inocuo
+    });
+  } catch {
+    // Carrera con un reintento simultáneo del mismo opId: si la OTRA petición
+    // llegó a aplicarlo, este «rechazo» es falso (chocó con lo que ella
+    // acababa de crear) y lo correcto es responder duplicate.
+    const existing = await prisma.syncOperation
+      .findUnique({ where: { userId_opId: { userId, opId: op.opId } } })
+      .catch(() => null);
+    if (existing?.status === "APPLIED") {
+      return { opId: op.opId, status: "duplicate" };
+    }
+  }
   return { opId: op.opId, status: "rejected", error };
 }

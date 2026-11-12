@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { daysUntil, dueLabel, isOverdue, nextDueDate } from "@/lib/dates";
+import {
+  daysUntil,
+  dueLabel,
+  endOfLocalDay,
+  isOverdue,
+  nextDueDate,
+  toLocalDateISO,
+} from "@/lib/dates";
+
+describe("toLocalDateISO", () => {
+  it("usa la fecha LOCAL, no la UTC", () => {
+    // 23:30 local: al oeste de Greenwich toISOString() ya da el día
+    // siguiente; la fecha del formulario debe seguir siendo la de hoy.
+    expect(toLocalDateISO(new Date(2026, 10, 12, 23, 30))).toBe("2026-11-12");
+    expect(toLocalDateISO(new Date(2026, 0, 5, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("endOfLocalDay", () => {
+  it("lleva la fecha al último instante de su día sin mutarla", () => {
+    const noon = new Date(2026, 5, 15, 12, 0, 0);
+    expect(endOfLocalDay(noon)).toEqual(new Date(2026, 5, 15, 23, 59, 59, 999));
+    expect(noon.getHours()).toBe(12);
+  });
+});
 
 describe("nextDueDate", () => {
   it("ONCE no genera siguiente", () => {

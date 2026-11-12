@@ -36,6 +36,8 @@ import {
   type BreakdownDenomination,
 } from "@/components/denomination-breakdown-field";
 import { useUI } from "@/lib/ui-store";
+import { toLocalDateISO } from "@/lib/dates";
+import { runAction } from "@/lib/run-action";
 
 export interface AccountOption {
   id: string;
@@ -71,7 +73,12 @@ const MODES: { key: Mode; label: string }[] = [
   { key: "transferencia", label: "Transferencia" },
 ];
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Radix Select no admite value "": valor especial para «Sin categoría».
+const NO_CATEGORY = "__none__";
+
+// Fecha LOCAL: con toISOString() (UTC) el formulario proponía «mañana»
+// cada noche y el movimiento se guardaba 24 h en el futuro.
+const todayISO = () => toLocalDateISO();
 
 export function RegisterForm({
   accounts,
@@ -318,9 +325,9 @@ export function RegisterForm({
       now.getMilliseconds()
     );
 
-    const result =
+    const result = await runAction(() =>
       mode === "transferencia"
-        ? await registerTransfer({
+        ? registerTransfer({
             accountId,
             counterAccountId,
             amount,
@@ -334,7 +341,7 @@ export function RegisterForm({
               ? linesPayload(destLines)
               : undefined,
           })
-        : await registerIncomeExpense({
+        : registerIncomeExpense({
             kind,
             accountId,
             amount,
@@ -348,10 +355,12 @@ export function RegisterForm({
             denominationLines: originBoxDenoms?.length
               ? linesPayload(originLines)
               : undefined,
-          });
+          })
+    );
 
-    setSaving(false);
     if (result.success) {
+      // `saving` se queda en true: el botón no debe reactivarse mientras
+      // navega, o un segundo toque duplicaría el movimiento.
       showToast(
         mode === "gasto"
           ? "Gasto registrado"
@@ -364,6 +373,7 @@ export function RegisterForm({
       router.push(`/cuentas/${accountId}`);
       router.refresh();
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };
@@ -441,6 +451,11 @@ export function RegisterForm({
           onValueChange={(id) => {
             setAccountId(id);
             setOriginLines({});
+            // El destino no puede ser la nueva cuenta de origen.
+            if (id === counterAccountId) {
+              setCounterAccountId("");
+              setDestLines({});
+            }
           }}
         >
           <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
@@ -598,11 +613,19 @@ export function RegisterForm({
           <span className="text-sm font-semibold text-ink-soft">
             Categoría (opcional)
           </span>
-          <Select value={categoryId} onValueChange={setCategoryId}>
+          <Select
+            value={categoryId}
+            onValueChange={(value) =>
+              setCategoryId(value === NO_CATEGORY ? "" : value)
+            }
+          >
             <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue placeholder="Sin categoría" />
             </SelectTrigger>
             <SelectContent>
+              {/* Sin este ítem, una vez elegida una categoría no había
+                  forma de quitarla (Radix no admite value ""). */}
+              <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
               {modeCategories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}

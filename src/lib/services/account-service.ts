@@ -1,7 +1,7 @@
 // Servicio de cuentas. Lógica extraída de src/app/actions/account-actions.ts
 // sin cambios de comportamiento: mismas validaciones y mismos mensajes.
 
-import { parseAmountToMinor } from "@/lib/money";
+import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
 import { ACCOUNT_ICON_NAMES } from "@/lib/account-icons";
 import { isCashLikeType, isDigitalCurrencyKind } from "@/lib/domain";
 import {
@@ -17,6 +17,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /**
@@ -70,6 +71,9 @@ export async function createAccount(
     const initialMinor = parsed.data.initialAmount
       ? parseAmountToMinor(parsed.data.initialAmount, currency)
       : 0;
+    if (initialMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Saldo inicial demasiado grande" };
+    }
 
     // Cuenta y saldo inicial en una sola transacción: sin cuentas a medias.
     const account = await inTx(db, async (tx) => {
@@ -102,8 +106,7 @@ export async function createAccount(
 
     return { success: true, data: { id: account.id } };
   } catch (error) {
-    console.error("createAccount:", error);
-    return { success: false, error: "No se pudo crear la cuenta" };
+    return unexpectedFailure("createAccount", error, "No se pudo crear la cuenta");
   }
 }
 
@@ -126,8 +129,7 @@ export async function setAccountIcon(
     });
     return { success: true, data: { id: account.id } };
   } catch (error) {
-    console.error("setAccountIcon:", error);
-    return { success: false, error: "No se pudo actualizar el icono" };
+    return unexpectedFailure("setAccountIcon", error, "No se pudo actualizar el icono");
   }
 }
 
@@ -155,8 +157,7 @@ export async function updateAccount(
     });
     return { success: true, data: { id: account.id } };
   } catch (error) {
-    console.error("updateAccount:", error);
-    return { success: false, error: "No se pudo actualizar la cuenta" };
+    return unexpectedFailure("updateAccount", error, "No se pudo actualizar la cuenta");
   }
 }
 
@@ -192,9 +193,27 @@ export async function deleteAccount(
     // líneas de arqueo caen por Cascade.
     await inTx(db, async (tx) => {
       await tx.cashCount.deleteMany({ where: { accountId: account.id } });
+      const affectedDebts = await tx.debtPayment.findMany({
+        where: { transaction: touchesAccount },
+        select: { debtId: true },
+        distinct: ["debtId"],
+      });
       await tx.debtPayment.deleteMany({
         where: { transaction: touchesAccount },
       });
+      // Igual que deleteTransaction: al perder abonos, una deuda SALDADA
+      // vuelve a estar abierta. Sin esto quedaba «Saldada · abonado 0» y sin
+      // forma de abonarle (las CANCELLED no se tocan).
+      if (affectedDebts.length > 0) {
+        await tx.debt.updateMany({
+          where: {
+            id: { in: affectedDebts.map((payment) => payment.debtId) },
+            userId,
+            status: "PAID",
+          },
+          data: { status: "OPEN" },
+        });
+      }
       await tx.transaction.deleteMany({
         where: { userId, ...touchesAccount },
       });
@@ -206,7 +225,6 @@ export async function deleteAccount(
 
     return { success: true, data: undefined };
   } catch (error) {
-    console.error("deleteAccount:", error);
-    return { success: false, error: "No se pudo eliminar la cuenta" };
+    return unexpectedFailure("deleteAccount", error, "No se pudo eliminar la cuenta");
   }
 }

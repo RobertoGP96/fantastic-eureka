@@ -17,5 +17,13 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
   }
-  return ok({ results: await applyOps(user.id, parsed.data.ops) });
+  try {
+    return ok({ results: await applyOps(user.id, parsed.data.ops) });
+  } catch (error) {
+    // Fallo fuera de las transacciones por operación (p. ej. la BD no
+    // responde al consultar el opId): 500 con el sobre JSON de siempre, no
+    // un cuerpo vacío. El cliente reintenta el lote completo.
+    console.error("mobile push:", error);
+    return fail("No se pudo sincronizar", 500);
+  }
 }

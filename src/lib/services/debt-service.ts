@@ -5,9 +5,9 @@
 // Los servicios devuelven, además de lo que ve el cliente web, los ids que
 // la action necesita para revalidar rutas; la action los recorta.
 
-import { parseAmountToMinor } from "@/lib/money";
+import { parseAmountToMinor, PRISMA_INT_MAX } from "@/lib/money";
 import { fmtMinor } from "@/lib/format";
-import { debtRemainingMinor } from "@/lib/debts";
+import { closeDebtPlans, debtRemainingMinor, lockDebt } from "@/lib/debts";
 import {
   ActionError,
   createDebtSchema,
@@ -22,6 +22,7 @@ import {
   inTx,
   type CreateOptions,
   type ServiceContext,
+  unexpectedFailure,
 } from "./context";
 
 /**
@@ -100,6 +101,9 @@ export async function createDebt(
     if (totalMinor <= 0) {
       return { success: false, error: "El total debe ser mayor que cero" };
     }
+    if (totalMinor > PRISMA_INT_MAX) {
+      return { success: false, error: "Monto demasiado grande" };
+    }
 
     let installmentMinor = 0;
     if (withPlan) {
@@ -169,8 +173,7 @@ export async function createDebt(
 
     return { success: true, data: { id: debt.id } };
   } catch (error) {
-    console.error("createDebt:", error);
-    return { success: false, error: "No se pudo crear la deuda" };
+    return unexpectedFailure("createDebt", error, "No se pudo crear la deuda");
   }
 }
 
@@ -214,8 +217,7 @@ export async function setDebtAccount(
 
     return { success: true, data: { id: debt.id } };
   } catch (error) {
-    console.error("setDebtAccount:", error);
-    return { success: false, error: "No se pudo actualizar la cuenta" };
+    return unexpectedFailure("setDebtAccount", error, "No se pudo actualizar la cuenta");
   }
 }
 
@@ -276,8 +278,9 @@ export async function registerDebtPayment(
     }
 
     const { payment, settled } = await inTx(db, async (tx) => {
-      // Releído dentro de la transacción: un doble envío concurrente no puede
-      // pasar la validación con un saldo pendiente obsoleto.
+      // Bloqueo + relectura dentro de la transacción: un doble envío
+      // concurrente espera aquí y ya no pasa con un pendiente obsoleto.
+      await lockDebt(tx, debt.id);
       const remaining = await debtRemainingMinor(debt.id, tx);
       if (amountMinor > remaining) {
         throw new ActionError(
@@ -313,17 +316,7 @@ export async function registerDebtPayment(
           data: { status: "PAID" },
         });
         // La deuda quedó saldada: sus cuotas pendientes ya no aplican.
-        await tx.installment.updateMany({
-          where: {
-            plan: { debtId: debt.id, userId },
-            status: "PENDING",
-          },
-          data: { status: "SKIPPED" },
-        });
-        await tx.paymentPlan.updateMany({
-          where: { debtId: debt.id, userId },
-          data: { active: false },
-        });
+        await closeDebtPlans(tx, userId, debt.id);
       }
 
       return { payment: created, settled };
@@ -337,8 +330,7 @@ export async function registerDebtPayment(
     if (error instanceof ActionError) {
       return { success: false, error: error.message };
     }
-    console.error("registerDebtPayment:", error);
-    return { success: false, error: "No se pudo registrar el abono" };
+    return unexpectedFailure("registerDebtPayment", error, "No se pudo registrar el abono");
   }
 }
 
@@ -373,7 +365,6 @@ export async function deleteDebt(
 
     return { success: true, data: { debtId: debt.id } };
   } catch (error) {
-    console.error("deleteDebt:", error);
-    return { success: false, error: "No se pudo eliminar la deuda" };
+    return unexpectedFailure("deleteDebt", error, "No se pudo eliminar la deuda");
   }
 }

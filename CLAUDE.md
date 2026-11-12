@@ -9,7 +9,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - `pnpm test` — Vitest (tests co-locados `src/lib/*.test.ts`)
 - `pnpm build` — build de producción (incluye typecheck)
 - `pnpm db:migrate` — migración + seed; `pnpm db:studio` — Prisma Studio
-- `pnpm tsx prisma/reset-data.ts` — limpia datos conservando seed
+- `pnpm lint` (ESLint CLI) y `pnpm typecheck` (`tsc --noEmit`)
+- `pnpm tsx prisma/reset-data.ts --user <correo> --yes` — limpia los datos
+  de trabajo de ESE usuario conservando su configuración (`--all` = todos;
+  sin `--yes` solo muestra qué borraría)
 - `pnpm db:deploy` — `prisma migrate deploy` (producción; no corre en build)
 - Deploy: Vercel (build = `prisma generate && next build`); env vars
   DATABASE_URL, DIRECT_URL y ALLOW_REGISTRATION=true (registro abierto;
@@ -26,7 +29,8 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   campos kind/status/direction son strings validados con las constantes de
   `src/lib/domain.ts` (única fuente de verdad + labels ES); herencia de
   SQLite que se mantiene. `prisma/dev.db` es el viejo SQLite (legado).
-  OJO: `prisma/reset-data.ts` ahora borra datos EN NEON. En Neon existe una
+  OJO: `prisma/reset-data.ts` borra datos EN NEON (por eso exige
+  `--user`/`--all` y `--yes`). En Neon existe una
   migración `20260715233430_mobile_sync_foundation` aplicada FUERA del repo
   (sin carpeta local): `prisma migrate status` la lista como "not found
   locally" y es normal; `20260922120000_mobile_sync` (idempotente, IF NOT
@@ -53,6 +57,26 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   BigInt (`convertMinorInverse`) para no perder precisión. El historial
   (`tx-rows.ts`) muestra el monto original en el subtítulo — los `include`
   de transacciones deben traer `counterCurrency`.
+- **Fechas y zona horaria**: el servidor calcula y pinta fechas en la zona
+  de la app (variable `APP_TIME_ZONE`, por defecto
+  `America/Havana`), que `src/instrumentation.ts` fija en `process.env.TZ`
+  al arrancar — Vercel corre en UTC y sin esto lo registrado de noche caía
+  en el día/mes siguiente. Es una zona por INSTANCIA, no por usuario. En
+  cliente, la fecha para `<input type="date">` sale de `toLocalDateISO()`
+  (`src/lib/dates.ts`); PROHIBIDO `toISOString().slice(0, 10)` (da la fecha
+  UTC). Los límites «hasta el día X» se comparan con `endOfLocalDay`.
+- **Formularios cliente**: las server actions se llaman con `runAction()`
+  (`src/lib/run-action.ts`), que convierte un fallo de red en un
+  `ActionResult` de error, y `saving` solo vuelve a false en la rama de
+  error: tras un éxito el botón sigue deshabilitado mientras navega (si no,
+  un segundo toque duplicaba el registro).
+- **Errores de servicio**: el `catch` genérico de un servicio devuelve
+  `unexpectedFailure(scope, error, mensaje)` (`services/context.ts`), que
+  marca `retryable` cuando el fallo es de infraestructura (conexión, pool,
+  timeout, deadlock). El push móvil no registra esos como REJECTED y corta
+  el lote para reintentarlo entero. Deudas: `lockDebt(tx, id)` ANTES de
+  `debtRemainingMinor` (la relectura sola no basta bajo READ COMMITTED) y
+  `closeDebtPlans` cuando una deuda queda saldada (`src/lib/debts.ts`).
 - **Auth**: User + Session en Prisma. Contraseñas con scrypt
   (`src/lib/password.ts`, sin deps); sesiones de 30 días con token opaco
   (cookie `caja_session` httpOnly, SHA-256 del token en BD,
@@ -385,6 +409,11 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   carga `.env` solo — lo repone el `import "dotenv/config"` de ese archivo
   (dotenv no pisa variables ya definidas, así el override de DATABASE_URL
   en `e2e/setup-db.ts` sigue ganando).
+- OJO: la suite E2E está ROTA desde la migración a Postgres —
+  `e2e/test-db.ts` sigue apuntando a `file:./test.db` y `prisma migrate
+  deploy` no acepta esa URL. Lo que sigue describe el diseño original con
+  SQLite; el plan es una BD Postgres aislada (schema `caja_e2e`, ya previsto
+  en `db-url.ts`).
 - Playwright E2E (`e2e/`, config en `playwright.config.ts`): BD aislada
   `prisma/test.db` recreada en cada corrida (migrate deploy + seed vía
   `e2e/setup-db.ts`, encadenado en el comando del webServer porque este

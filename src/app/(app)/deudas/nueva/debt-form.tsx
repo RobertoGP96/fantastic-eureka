@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { createDebt } from "@/app/actions/debt-actions";
 import { useUI } from "@/lib/ui-store";
+import { toLocalDateISO } from "@/lib/dates";
+import { runAction } from "@/lib/run-action";
 import {
   DEBT_DIRECTIONS,
   DEBT_DIRECTION_LABELS,
@@ -39,7 +41,7 @@ interface AccountOption {
 const NEW_CONTACT = "__new__";
 const NO_ACCOUNT = "__none__";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => toLocalDateISO();
 
 export function DebtForm({
   contacts,
@@ -80,7 +82,8 @@ export function DebtForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const result = await createDebt({
+    const result = await runAction(() =>
+      createDebt({
       direction,
       contactId: contactId === NEW_CONTACT ? undefined : contactId,
       contactName: contactId === NEW_CONTACT ? contactName : undefined,
@@ -95,12 +98,14 @@ export function DebtForm({
             firstDueAt: new Date(`${firstDueAt}T12:00:00`),
           }
         : {}),
-    });
-    setSaving(false);
+      })
+    );
     if (result.success) {
+      // `saving` sigue en true mientras navega: evita una deuda duplicada.
       showToast("Deuda creada");
       router.push(`/deudas/${result.data.id}`);
     } else {
+      setSaving(false);
       setError(result.error);
     }
   };

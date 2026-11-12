@@ -6,7 +6,7 @@ import {
   serializeDashboardPrefs,
 } from "@/lib/dashboard-prefs";
 import { dashboardPrefsSchema, type ActionResult } from "@/lib/schemas";
-import type { ServiceContext } from "./context";
+import { unexpectedFailure, type ServiceContext } from "./context";
 
 /**
  * Guarda las preferencias del dashboard en `User.dashboardPrefs`. Los
@@ -77,7 +77,6 @@ export async function saveDashboardPrefs(
     });
     return { success: true, data: undefined };
   } catch (error) {
-    console.error("saveDashboardPrefs:", error);
-    return { success: false, error: "No se pudieron guardar las preferencias" };
+    return unexpectedFailure("saveDashboardPrefs", error, "No se pudieron guardar las preferencias");
   }
 }

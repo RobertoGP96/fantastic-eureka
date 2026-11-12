@@ -8,33 +8,41 @@ import { latestRatesByCurrency } from "@/lib/balances";
 import { toTxRow } from "@/lib/tx-rows";
 import { fmtMinor } from "@/lib/format";
 import { convertMinor } from "@/lib/money";
-import { buildTxWhere, currentMonthParam } from "@/lib/report";
+import { buildTxWhere, firstParam, resolveMonthParam } from "@/lib/report";
 import { FilterBar } from "./filter-bar";
 
 export const dynamic = "force-dynamic";
 
+// La lista muestra como mucho estos movimientos; los totales NO dependen de
+// este límite (se agregan aparte sobre todo el filtro).
+const LIST_LIMIT = 200;
+
 export default async function MovimientosPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    mes?: string;
-    cuenta?: string;
-    categoria?: string;
-    tipo?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
   const user = await requireSessionUser();
   const filters = {
-    mes: params.mes ?? currentMonthParam(),
-    cuenta: params.cuenta ?? "",
-    categoria: params.categoria ?? "",
-    tipo: params.tipo ?? "",
+    mes: resolveMonthParam(firstParam(params.mes)),
+    cuenta: firstParam(params.cuenta) ?? "",
+    categoria: firstParam(params.categoria) ?? "",
+    tipo: firstParam(params.tipo) ?? "",
   };
+  const where = buildTxWhere(user.id, filters);
 
-  const [transactions, accounts, categories, base, rates] = await Promise.all([
+  const [
+    transactions,
+    totalCount,
+    totals,
+    accounts,
+    allCategories,
+    currencies,
+    rates,
+  ] = await Promise.all([
     prisma.transaction.findMany({
-      where: buildTxWhere(user.id, filters),
+      where,
       include: {
         account: { select: { name: true } },
         counterAccount: { select: { name: true } },
@@ -43,21 +51,37 @@ export default async function MovimientosPage({
         category: { select: { name: true } },
       },
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
-      take: 200,
+      take: LIST_LIMIT,
+    }),
+    prisma.transaction.count({ where }),
+    // Totales sobre TODO el filtro, no sobre las filas listadas: con más de
+    // 200 movimientos los totales se quedaban cortos sin avisar.
+    prisma.transaction.groupBy({
+      by: ["kind", "currencyId", "categoryId"],
+      where: { AND: [where, { kind: { in: ["INCOME", "EXPENSE"] } }] },
+      _sum: { amountMinor: true },
     }),
     prisma.account.findMany({
       where: { archived: false, userId: user.id },
       select: { id: true, name: true },
       orderBy: { createdAt: "asc" },
     }),
+    // Todas (también las ocultas): los totales nombran categorías inactivas.
     prisma.category.findMany({
-      where: { active: true, userId: user.id },
-      select: { id: true, name: true },
+      where: { userId: user.id },
+      select: { id: true, name: true, active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
+    prisma.currency.findMany({
+      where: { userId: user.id },
+      select: { id: true, code: true, decimalPlaces: true, isBase: true },
+    }),
     latestRatesByCurrency(user.id),
   ]);
+  const categories = allCategories.filter((category) => category.active);
+  const categoryNames = new Map(allCategories.map((c) => [c.id, c.name]));
+  const currencyById = new Map(currencies.map((c) => [c.id, c]));
+  const base = currencies.find((currency) => currency.isBase) ?? null;
 
   // Totales y reporte por categoría convertidos a moneda base con la tasa vigente.
   let expenseMinor = 0;
@@ -66,25 +90,24 @@ export default async function MovimientosPage({
   const missingRates = new Set<string>();
 
   if (base) {
-    for (const tx of transactions) {
-      if (tx.kind !== "EXPENSE" && tx.kind !== "INCOME") continue;
-      let converted = tx.amountMinor;
-      if (tx.currency.id !== base.id) {
-        const rate = rates.get(tx.currency.id);
+    for (const group of totals) {
+      const currency = currencyById.get(group.currencyId);
+      const sumMinor = group._sum.amountMinor ?? 0;
+      if (!currency || sumMinor === 0) continue;
+      let converted = sumMinor;
+      if (currency.id !== base.id) {
+        const rate = rates.get(currency.id);
         if (!rate) {
-          missingRates.add(tx.currency.code);
+          missingRates.add(currency.code);
           continue;
         }
-        converted = convertMinor(
-          tx.amountMinor,
-          tx.currency,
-          base,
-          rate.rateScaled
-        );
+        converted = convertMinor(sumMinor, currency, base, rate.rateScaled);
       }
-      if (tx.kind === "EXPENSE") {
+      if (group.kind === "EXPENSE") {
         expenseMinor += converted;
-        const name = tx.category?.name ?? "Sin categoría";
+        const name =
+          (group.categoryId && categoryNames.get(group.categoryId)) ||
+          "Sin categoría";
         byCategory.set(name, (byCategory.get(name) ?? 0) + converted);
       } else {
         incomeMinor += converted;
@@ -97,8 +120,14 @@ export default async function MovimientosPage({
     .slice(0, 8);
   const maxCategory = topCategories[0]?.[1] ?? 0;
 
-  // Orden cronológico ascendente (el más reciente al final).
-  const rows = transactions.map((tx) => toTxRow(tx)).reverse();
+  // Orden cronológico ascendente (el más reciente al final). Con filtro de
+  // cuenta, las filas se pintan desde SU perspectiva: una transferencia
+  // recibida entra en positivo y en la moneda de esa cuenta.
+  const perspective = filters.cuenta || undefined;
+  const rows = transactions
+    .map((tx) => toTxRow(tx, perspective, tx.counterCurrency ?? undefined))
+    .reverse();
+  const hiddenCount = totalCount - transactions.length;
 
   return (
     <main className="flex flex-1 flex-col pb-8">
@@ -176,7 +205,16 @@ export default async function MovimientosPage({
             ctaHref="/registrar"
           />
         ) : (
-          <TxList rows={rows} />
+          <>
+            {hiddenCount > 0 && (
+              <p className="text-xs text-muted">
+                Se muestran los {transactions.length} movimientos más recientes
+                de {totalCount}. Los totales incluyen todos; para verlos uno a
+                uno acota el filtro o exporta el CSV.
+              </p>
+            )}
+            <TxList rows={rows} />
+          </>
         )}
       </div>
     </main>

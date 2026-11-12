@@ -13,7 +13,7 @@ import {
   updateProfileSchema,
   type ActionResult,
 } from "@/lib/schemas";
-import type { ServiceContext } from "./context";
+import { unexpectedFailure, type ServiceContext } from "./context";
 
 export async function updateProfile(
   { db, userId }: ServiceContext,
@@ -40,8 +40,7 @@ export async function updateProfile(
     ) {
       return { success: false, error: "Ya existe una cuenta con ese correo" };
     }
-    console.error("updateProfile:", error);
-    return { success: false, error: "No se pudo actualizar el perfil" };
+    return unexpectedFailure("updateProfile", error, "No se pudo actualizar el perfil");
   }
 }
 
@@ -73,7 +72,6 @@ export async function updatePassword(
     });
     return { success: true, data: undefined };
   } catch (error) {
-    console.error("updatePassword:", error);
-    return { success: false, error: "No se pudo cambiar la contraseña" };
+    return unexpectedFailure("updatePassword", error, "No se pudo cambiar la contraseña");
   }
 }
