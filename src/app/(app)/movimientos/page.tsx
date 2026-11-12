@@ -113,19 +113,19 @@ export default async function MovimientosPage({
 
         {base && (expenseMinor > 0 || incomeMinor > 0) && (
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-[16px] border border-line bg-white p-3.5">
+            <div className="rounded-2xl border border-line bg-white p-3.5">
               <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
                 Gastos
               </div>
-              <div className="mt-0.5 text-[17px] font-bold text-danger">
+              <div className="mt-0.5 text-lg font-bold text-danger">
                 {fmtMinor(expenseMinor, base)}
               </div>
             </div>
-            <div className="rounded-[16px] border border-line bg-white p-3.5">
+            <div className="rounded-2xl border border-line bg-white p-3.5">
               <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
                 Ingresos
               </div>
-              <div className="mt-0.5 text-[17px] font-bold text-ok">
+              <div className="mt-0.5 text-lg font-bold text-ok">
                 {fmtMinor(incomeMinor, base)}
               </div>
             </div>
@@ -133,21 +133,21 @@ export default async function MovimientosPage({
         )}
 
         {missingRates.size > 0 && (
-          <p className="text-[11.5px] text-muted">
+          <p className="text-xs text-muted">
             Los montos en {[...missingRates].join(", ")} no se incluyen en los
             totales por falta de tasa.
           </p>
         )}
 
         {base && topCategories.length > 0 && (
-          <section className="rounded-[18px] border border-line bg-white p-4">
-            <h2 className="mb-3 text-[13.5px] font-bold text-navy">
+          <section className="rounded-2xl border border-line bg-white p-4">
+            <h2 className="mb-3 text-sm font-bold text-navy">
               Gastos por categoría
             </h2>
             <div className="flex flex-col gap-2.5">
               {topCategories.map(([name, total]) => (
                 <div key={name}>
-                  <div className="flex items-baseline justify-between text-[12px]">
+                  <div className="flex items-baseline justify-between text-xs">
                     <span className="font-semibold text-ink-soft">{name}</span>
                     <span className="font-bold text-navy">
                       {fmtMinor(total, base)}

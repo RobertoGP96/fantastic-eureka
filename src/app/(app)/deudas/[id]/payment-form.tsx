@@ -45,7 +45,7 @@ export function PaymentForm({
 
   if (accounts.length === 0) {
     return (
-      <p className="rounded-[13px] border border-line bg-white px-3.5 py-3 text-[12.5px] text-muted">
+      <p className="rounded-xl border border-line bg-white px-3.5 py-3 text-sm text-muted">
         Crea una cuenta en {currencyCode} para poder registrar abonos.
       </p>
     );
@@ -73,7 +73,7 @@ export function PaymentForm({
 
   return (
     <form
-      className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4"
+      className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -81,7 +81,7 @@ export function PaymentForm({
     >
       <div className="flex gap-2.5">
         <Select value={accountId} onValueChange={setAccountId}>
-          <SelectTrigger className="h-10 min-w-0 flex-1 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue placeholder="Cuenta" />
           </SelectTrigger>
           <SelectContent>
@@ -108,7 +108,7 @@ export function PaymentForm({
         placeholder="Nota (opcional)"
       />
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

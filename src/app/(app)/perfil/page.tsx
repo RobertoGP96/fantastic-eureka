@@ -11,7 +11,7 @@ export default async function PerfilPage() {
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Mi perfil" backHref="/mas">
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           Edita tus datos y tu contraseña
         </p>
       </ScreenHeader>
@@ -19,18 +19,18 @@ export default async function PerfilPage() {
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-md md:px-0">
         {user && (
           <>
-            <section className="rounded-[18px] border border-line bg-white p-4">
-              <h2 className="mb-3 text-[13.5px] font-bold text-navy">
+            <section className="rounded-2xl border border-line bg-white p-4">
+              <h2 className="mb-3 text-sm font-bold text-navy">
                 Datos personales
               </h2>
               <ProfileForm initialName={user.name} initialEmail={user.email} />
             </section>
 
-            <section className="rounded-[18px] border border-line bg-white p-4">
-              <h2 className="mb-1 text-[13.5px] font-bold text-navy">
+            <section className="rounded-2xl border border-line bg-white p-4">
+              <h2 className="mb-1 text-sm font-bold text-navy">
                 Cambiar contraseña
               </h2>
-              <p className="mb-3 text-[11.5px] text-muted">
+              <p className="mb-3 text-xs text-muted">
                 Al cambiarla se cerrarán tus sesiones en otros dispositivos.
               </p>
               <PasswordForm />

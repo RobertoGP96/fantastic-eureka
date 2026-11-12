@@ -84,16 +84,16 @@ export function DenominationBreakdownField({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-app/60 p-3">
+    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-app/60 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           {title}
         </span>
         <button
           type="button"
           onClick={suggest}
           disabled={targetMinor === null || targetMinor <= 0}
-          className="flex items-center gap-1.5 rounded-[10px] border border-line bg-white px-2.5 py-1.5 text-[11.5px] font-semibold text-brand-mid transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-mid transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
         >
           <Wand2 className="h-3.5 w-3.5" />
           Sugerir distribución
@@ -113,7 +113,7 @@ export function DenominationBreakdownField({
       <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
         <div className="flex flex-col">
           <span className="text-[11px] text-muted">Total del desglose</span>
-          <span className="text-[17px] font-bold tabular-nums text-navy">
+          <span className="text-lg font-bold tabular-nums text-navy">
             {fmtMinor(totalMinor, currency)}
           </span>
           {targetMinor !== null && !matches && (
@@ -138,14 +138,14 @@ export function DenominationBreakdownField({
       </div>
 
       {drivesAmount && (
-        <span className="text-[11.5px] text-muted">
+        <span className="text-xs text-muted">
           El monto se rellena solo con lo que cuentes aquí. También puedes
           escribir el monto y usar «Sugerir distribución».
         </span>
       )}
 
       {suggestError && (
-        <div className="rounded-[10px] bg-danger-bg px-3 py-2 text-[11.5px] font-medium text-danger">
+        <div className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-medium text-danger">
           {suggestError}
         </div>
       )}

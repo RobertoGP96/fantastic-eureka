@@ -43,7 +43,7 @@ export default async function MonedaDetallePage({
         title={`${currency.code} · ${currency.name}`}
         backHref="/monedas"
       >
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           {currency.decimalPlaces} decimales
           {currency.isBase ? " · Moneda base" : ""}
           {currency.kind === "DIGITAL"
@@ -56,7 +56,7 @@ export default async function MonedaDetallePage({
       <div className="anim-fade-up flex flex-col gap-4 px-5 pt-5 md:max-w-xl md:px-0">
         <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
         {currency.kind === "DIGITAL" ? (
-          <p className="rounded-[16px] border border-line bg-white px-4 py-5 text-center text-[12.5px] text-muted">
+          <p className="rounded-2xl border border-line bg-white px-4 py-5 text-center text-sm text-muted">
             Esta moneda es digital: no existe en efectivo, así que no lleva
             billetes ni monedas. Conviértela a efectivo si necesitas
             denominaciones.

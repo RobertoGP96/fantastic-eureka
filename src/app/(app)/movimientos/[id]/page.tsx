@@ -46,10 +46,10 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-3 py-2.5">
-      <span className="flex-none text-[12px] font-medium text-muted">
+      <span className="flex-none text-xs font-medium text-muted">
         {label}
       </span>
-      <span className="min-w-0 text-right text-[13px] font-semibold text-navy">
+      <span className="min-w-0 text-right text-sm font-semibold text-navy">
         {children}
       </span>
     </div>
@@ -137,10 +137,10 @@ export default async function MovimientoDetallePage({
       <ScreenHeader title="Detalle del movimiento" backHref="/movimientos">
         <div className="mt-3 flex items-end justify-between">
           <div>
-            <div className="text-[11.5px] font-medium tracking-wide text-white/60 uppercase">
+            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
               {kindLabel}
             </div>
-            <div className="mt-0.5 text-[26px] font-bold tracking-[-0.5px]">
+            <div className="mt-0.5 text-[28px] font-bold tracking-[-0.5px]">
               {fmtSignedMinor(signedMinor, tx.currency)}
             </div>
           </div>
@@ -152,7 +152,7 @@ export default async function MovimientoDetallePage({
       </ScreenHeader>
 
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <section className="divide-y divide-line rounded-[18px] border border-line bg-white px-4 py-1">
+        <section className="divide-y divide-line rounded-2xl border border-line bg-white px-4 py-1">
           <DetailRow label="Fecha">
             {DATE_TIME_FMT.format(tx.occurredAt)}
           </DetailRow>
@@ -207,7 +207,7 @@ export default async function MovimientoDetallePage({
 
         {breakdownSides.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Desglose de denominaciones
             </h2>
             <div className="flex flex-col gap-2.5">
@@ -220,9 +220,9 @@ export default async function MovimientoDetallePage({
                 return (
                   <div
                     key={side.account.id}
-                    className="rounded-[16px] border border-line bg-white px-4 py-2"
+                    className="rounded-2xl border border-line bg-white px-4 py-2"
                   >
-                    <div className="border-b border-line-2 py-2 text-[11.5px] font-semibold text-muted">
+                    <div className="border-b border-line-2 py-2 text-xs font-semibold text-muted">
                       {enters ? "Entra en" : "Sale de"} «{side.account.name}»
                     </div>
                     {side.lines.map((line) => (
@@ -230,14 +230,14 @@ export default async function MovimientoDetallePage({
                         key={line.id}
                         className="flex items-baseline justify-between gap-3 border-b border-line-2 py-2 last:border-b-0"
                       >
-                        <span className="text-[12.5px] font-semibold text-navy">
+                        <span className="text-sm font-semibold text-navy">
                           {fmtMinor(line.denomination.valueMinor, sideCurrency)}
                           <span className="font-normal text-muted">
                             {" "}
                             × {line.quantity}
                           </span>
                         </span>
-                        <span className="text-[12.5px] font-semibold text-ink-soft tabular-nums">
+                        <span className="text-sm font-semibold text-ink-soft tabular-nums">
                           {fmtMinor(
                             line.denomination.valueMinor * line.quantity,
                             sideCurrency
@@ -254,7 +254,7 @@ export default async function MovimientoDetallePage({
 
         {(linkedDebt || linkedPlan) && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Vinculado a
             </h2>
             <Link
@@ -263,18 +263,18 @@ export default async function MovimientoDetallePage({
                   ? `/deudas/${linkedDebt.id}`
                   : `/mensualidades/${linkedPlan!.id}`
               }
-              className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
+              className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
             >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[12px] bg-chip text-brand">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-chip text-brand">
                 <HandCoins className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold text-navy">
+                <div className="truncate text-sm font-semibold text-navy">
                   {linkedDebt
                     ? `Deuda con ${linkedDebt.contact.name}`
                     : linkedPlan!.description}
                 </div>
-                <div className="truncate text-[11.5px] text-muted">
+                <div className="truncate text-xs text-muted">
                   {linkedDebt ? linkedDebt.description : "Plan de cuotas"}
                   {linkedPlan?.contact ? ` · ${linkedPlan.contact.name}` : ""}
                 </div>
@@ -290,7 +290,7 @@ export default async function MovimientoDetallePage({
             {tx.kind !== "ADJUSTMENT" ? (
               <Link
                 href={`/movimientos/${tx.id}/editar`}
-                className="flex items-center gap-1.5 rounded-[12px] border border-line bg-white px-3.5 py-2 text-[12.5px] font-semibold text-brand transition-colors hover:border-brand-soft"
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-semibold text-brand transition-colors hover:border-brand-soft"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Editar movimiento

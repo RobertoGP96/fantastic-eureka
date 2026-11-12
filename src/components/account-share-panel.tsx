@@ -120,13 +120,13 @@ export function AccountSharePanel({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] border border-line bg-white px-4 py-3">
+    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Compartir cuenta
         </span>
         {share && now && (
-          <span className="rounded-md bg-gold/15 px-2 py-[3px] text-[10.5px] font-semibold text-navy">
+          <span className="rounded-md bg-gold/15 px-2 py-[3px] text-[11px] font-semibold text-navy">
             Vence en {shareRemainingLabel(new Date(share.expiresAt), now)}
           </span>
         )}
@@ -134,15 +134,15 @@ export function AccountSharePanel({
 
       {share ? (
         <>
-          <div className="flex items-center gap-2 rounded-[12px] bg-chip/60 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl bg-chip/60 px-3 py-2">
             <Link2 className="h-4 w-4 flex-none text-brand" />
-            <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-navy">
+            <span className="min-w-0 flex-1 truncate font-mono text-xs text-navy">
               {url ?? sharePath(share.token)}
             </span>
           </div>
           {confirmRevoke ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 flex-1 text-[12px] text-muted">
+              <span className="min-w-0 flex-1 text-xs text-muted">
                 ¿Revocar el código? Quien tenga el enlace dejará de ver la
                 cuenta al instante.
               </span>
@@ -211,7 +211,7 @@ export function AccountSharePanel({
         </>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-[12px] text-muted">
+          <span className="min-w-0 flex-1 text-xs text-muted">
             Sin código vigente.
           </span>
           <Button

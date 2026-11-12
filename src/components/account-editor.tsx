@@ -80,7 +80,7 @@ export function AccountEditor({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] border border-line bg-white px-4 py-3">
+    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white px-4 py-3">
       {editing ? (
         <form
           className="flex items-center gap-2"
@@ -111,7 +111,7 @@ export function AccountEditor({
         </form>
       ) : confirmDelete ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-[12px] text-muted">
+          <span className="min-w-0 flex-1 text-xs text-muted">
             {hasUsage
               ? `¿Eliminar “${name}”? Se borrarán también TODOS sus movimientos y arqueos (incluidas transferencias con otras cuentas y abonos vinculados). No se puede deshacer.`
               : `¿Eliminar “${name}”? No se puede deshacer.`}
@@ -135,7 +135,7 @@ export function AccountEditor({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-ink-soft">
+          <span className="min-w-0 flex-1 text-sm font-semibold text-ink-soft">
             Gestionar cuenta
           </span>
           <Button

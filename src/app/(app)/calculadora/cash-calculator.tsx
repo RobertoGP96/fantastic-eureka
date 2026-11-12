@@ -61,7 +61,7 @@ export function CashCalculator({
               key={option.id}
               type="button"
               onClick={() => setCurrencyId(option.id)}
-              className={`flex-none rounded-full border px-4 py-2 text-[12.5px] font-semibold transition-colors ${
+              className={`flex-none rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                 option.id === currency.id
                   ? "border-brand bg-chip text-brand"
                   : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -73,16 +73,16 @@ export function CashCalculator({
         </div>
       )}
 
-      <div className="rounded-[18px] border border-line bg-white p-4">
+      <div className="rounded-2xl border border-line bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
               Total contado
             </div>
-            <div className="mt-0.5 text-[24px] font-bold tracking-[-0.5px] text-navy">
+            <div className="mt-0.5 text-2xl font-bold tracking-[-0.5px] text-navy">
               {fmtMinor(totalMinor, currency)}
             </div>
-            <div className="text-[11.5px] text-muted">
+            <div className="text-xs text-muted">
               {pieces === 1 ? "1 pieza" : `${pieces} piezas`}
             </div>
           </div>
@@ -96,7 +96,7 @@ export function CashCalculator({
               type="button"
               onClick={clear}
               disabled={pieces === 0}
-              className="flex flex-none items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-2 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+              className="flex flex-none items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
             >
               <Eraser className="h-4 w-4" />
               Limpiar

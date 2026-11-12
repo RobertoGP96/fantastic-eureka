@@ -84,7 +84,7 @@ export default async function CuentaCompartidaPage({
       <ScreenHeader
         title={account.name}
         actions={
-          <span className="flex items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-[10.5px] font-semibold">
+          <span className="flex items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-[11px] font-semibold">
             <Eye className="h-3.5 w-3.5" />
             Solo lectura
           </span>
@@ -92,11 +92,11 @@ export default async function CuentaCompartidaPage({
       >
         <div className="mt-3 flex items-end justify-between">
           <div>
-            <div className="text-[11.5px] font-medium tracking-wide text-white/60 uppercase">
+            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
               Saldo actual
             </div>
             <div
-              className={`mt-0.5 text-[26px] font-bold tracking-[-0.5px] ${
+              className={`mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
                 balanceMinor < 0 ? "text-red-300" : ""
               }`}
             >
@@ -110,13 +110,13 @@ export default async function CuentaCompartidaPage({
       </ScreenHeader>
 
       <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:px-0">
-        <div className="flex flex-wrap gap-2 text-[11.5px] text-muted">
-          <span className="flex items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-1.5">
+        <div className="flex flex-wrap gap-2 text-xs text-muted">
+          <span className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5">
             <UserRound className="h-3.5 w-3.5 text-brand" />
             Compartida por{" "}
             <span className="font-semibold text-navy">{share.user.name}</span>
           </span>
-          <span className="flex items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-1.5">
+          <span className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5">
             <Clock className="h-3.5 w-3.5 text-gold" />
             Válido hasta{" "}
             <span className="font-semibold text-navy">
@@ -136,16 +136,16 @@ export default async function CuentaCompartidaPage({
         )}
 
         <section>
-          <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+          <h2 className="mb-2.5 text-base font-bold text-navy">
             Movimientos
             {transactions.length >= MAX_ROWS && (
-              <span className="ml-2 text-[11.5px] font-medium text-muted">
+              <span className="ml-2 text-xs font-medium text-muted">
                 últimos {MAX_ROWS}
               </span>
             )}
           </h2>
           {rows.length === 0 ? (
-            <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[12.5px] text-muted">
+            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
               Sin movimientos todavía.
             </div>
           ) : (

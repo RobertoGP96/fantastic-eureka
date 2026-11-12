@@ -105,7 +105,7 @@ export function AccountForm({
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Nombre
         </span>
         <Input
@@ -118,14 +118,14 @@ export function AccountForm({
       </label>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">Tipo</span>
+        <span className="text-sm font-semibold text-ink-soft">Tipo</span>
         <div className="grid grid-cols-2 gap-2">
           {ACCOUNT_TYPES.map((accountType) => (
             <button
               key={accountType}
               type="button"
               onClick={() => pickType(accountType)}
-              className={`rounded-[13px] border px-3 py-2.5 text-[12.5px] font-semibold transition-colors ${
+              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
                 type === accountType
                   ? "border-brand bg-chip text-brand"
                   : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -138,18 +138,18 @@ export function AccountForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Icono (opcional; si no eliges, se usa el del tipo)
         </span>
         <IconPicker value={icon} onChange={setIcon} />
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Moneda
         </span>
         <Select value={currencyId} onValueChange={setCurrencyId}>
-          <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue placeholder="Elige moneda" />
           </SelectTrigger>
           <SelectContent>
@@ -161,7 +161,7 @@ export function AccountForm({
           </SelectContent>
         </Select>
         {cashLike && hiddenDigitalCount > 0 && (
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             Las monedas digitales no aparecen: no existen en efectivo.
           </span>
         )}
@@ -169,11 +169,11 @@ export function AccountForm({
 
       {groups.length > 0 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Grupo (opcional)
           </span>
           <Select value={groupId} onValueChange={setGroupId}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -189,7 +189,7 @@ export function AccountForm({
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Saldo inicial (opcional)
         </span>
         <Input
@@ -201,7 +201,7 @@ export function AccountForm({
       </label>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

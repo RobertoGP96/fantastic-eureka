@@ -11,16 +11,16 @@ interface QtyStepperProps {
 
 export function QtyStepper({ qty, onInc, onDec, size = "sm" }: QtyStepperProps) {
   const isLg = size === "lg";
-  const iconSize = isLg ? "h-[17px] w-[17px]" : "h-[15px] w-[15px]";
-  const btnClass = `flex items-center justify-center rounded-md text-brand-mid transition-[color,transform] hover:text-brand active:scale-90 ${
-    isLg ? "h-6 w-6" : "h-5 w-5"
+  const iconSize = isLg ? "h-5 w-5" : "h-[18px] w-[18px]";
+  const btnClass = `flex flex-none items-center justify-center rounded-lg bg-chip text-brand-ink transition-[box-shadow,transform] hover:ring-1 hover:ring-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-90 ${
+    isLg ? "h-11 w-11" : "h-9 w-9"
   }`;
   return (
     <div
-      className={`flex items-center bg-app ${
+      className={`flex items-center gap-1 rounded-xl bg-app p-1 ${
         isLg
-          ? "gap-3.5 rounded-xl px-3.5 py-2"
-          : "gap-2.5 rounded-[10px] px-2.5 py-[5px]"
+          ? ""
+          : ""
       }`}
     >
       <button
@@ -32,8 +32,8 @@ export function QtyStepper({ qty, onInc, onDec, size = "sm" }: QtyStepperProps) 
         <Minus className={iconSize} />
       </button>
       <div
-        className={`text-center font-semibold text-navy ${
-          isLg ? "min-w-[22px] text-[15px]" : "min-w-4 text-[13.5px]"
+        className={`money text-center text-base font-semibold text-heading ${
+          isLg ? "min-w-10" : "min-w-8"
         }`}
       >
         {qty}

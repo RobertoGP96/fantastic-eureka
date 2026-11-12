@@ -38,13 +38,13 @@ export default async function ConteoCajaPage({
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title={`Arqueo · ${account.name}`} backHref="/conteo">
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           Saldo teórico: {fmtMinor(expectedMinor, account.currency)}
         </p>
       </ScreenHeader>
       <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
         {denominations.length === 0 ? (
-          <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[13px] text-muted">
+          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
             La moneda {account.currency.code} no tiene denominaciones
             configuradas (es saldo digital), así que no admite arqueo físico.
           </div>

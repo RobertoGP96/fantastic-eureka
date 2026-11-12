@@ -34,7 +34,7 @@ export function MonthlyBars({
                 title={`Gastos ${m.label}: ${fmtMinor(m.expenseMinor, currency)}`}
               />
             </div>
-            <span className="text-[10px] font-medium text-muted capitalize">
+            <span className="text-[11px] font-medium text-muted capitalize">
               {m.label}
             </span>
           </div>

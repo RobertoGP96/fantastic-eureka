@@ -370,7 +370,7 @@ export function RegisterForm({
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[13px] text-muted">
+      <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
         Primero crea una cuenta para poder registrar movimientos.
       </div>
     );
@@ -421,7 +421,7 @@ export function RegisterForm({
             key={m.key}
             type="button"
             onClick={() => switchMode(m.key)}
-            className={`rounded-[13px] border px-2 py-2.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-xl border px-2 py-2.5 text-sm font-semibold transition-colors ${
               mode === m.key
                 ? "border-brand bg-chip text-brand"
                 : "border-line bg-white text-ink-soft hover:border-brand-soft"
@@ -433,7 +433,7 @@ export function RegisterForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           {mode === "transferencia" ? "Cuenta de origen" : "Cuenta"}
         </span>
         <Select
@@ -443,7 +443,7 @@ export function RegisterForm({
             setOriginLines({});
           }}
         >
-          <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
             <SelectValue placeholder="Elige cuenta" />
           </SelectTrigger>
           <SelectContent>
@@ -458,7 +458,7 @@ export function RegisterForm({
 
       {mode === "transferencia" && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Cuenta de destino
           </span>
           <Select
@@ -468,7 +468,7 @@ export function RegisterForm({
               setDestLines({});
             }}
           >
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue placeholder="Elige cuenta" />
             </SelectTrigger>
             <SelectContent>
@@ -488,7 +488,7 @@ export function RegisterForm({
       {!crossCurrency && destBreakdown}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Monto
           {mode === "transferencia" && from
             ? ` (${from.currency.code})`
@@ -512,7 +512,7 @@ export function RegisterForm({
             >
               <SelectTrigger
                 aria-label="Moneda del monto"
-                className="h-10 w-28 flex-none rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink"
+                className="h-10 w-28 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink"
               >
                 <SelectValue placeholder="Moneda" />
               </SelectTrigger>
@@ -527,7 +527,7 @@ export function RegisterForm({
           )}
         </div>
         {mode !== "transferencia" && !crossCurrencyOp && currencies.length > 1 && (
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             Puedes anotar el monto en otra moneda y se convertirá a la de la
             cuenta.
           </span>
@@ -536,7 +536,7 @@ export function RegisterForm({
 
       {crossCurrencyOp && opCurrency && accountCurrency && from && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Tasa (1{" "}
             {rateDirection === "AMOUNT_TO_ACCOUNT"
               ? `${opCurrency.code} = ? ${accountCurrency.code}`
@@ -556,12 +556,12 @@ export function RegisterForm({
               type="button"
               onClick={flipRateDirection}
               aria-label="Invertir la dirección de la tasa"
-              className="flex h-10 w-10 flex-none items-center justify-center rounded-[13px] border border-line bg-white text-ink-soft transition-colors hover:border-brand-soft"
+              className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-line bg-white text-ink-soft transition-colors hover:border-brand-soft"
             >
               <ArrowRightLeft className="h-4 w-4" />
             </button>
           </div>
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             {convertedPreview
               ? `Se registrará ${convertedPreview} en «${from.name}».`
               : `La cuenta es en ${accountCurrency.code}: el monto se convertirá con esta tasa.`}
@@ -575,7 +575,7 @@ export function RegisterForm({
         <>
           {destBreakdown}
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12.5px] font-semibold text-ink-soft">
+            <span className="text-sm font-semibold text-ink-soft">
               Monto recibido ({to?.currency.code})
             </span>
             <Input
@@ -585,7 +585,7 @@ export function RegisterForm({
               placeholder="0"
               required
             />
-            <span className="text-[11.5px] text-muted">
+            <span className="text-xs text-muted">
               Las cuentas usan monedas distintas: indica cuánto entra en
               destino.
             </span>
@@ -595,11 +595,11 @@ export function RegisterForm({
 
       {mode !== "transferencia" && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Categoría (opcional)
           </span>
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue placeholder="Sin categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -615,7 +615,7 @@ export function RegisterForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Fecha
           </span>
           <Input
@@ -627,7 +627,7 @@ export function RegisterForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Nota (opcional)
           </span>
           <Input
@@ -640,7 +640,7 @@ export function RegisterForm({
       </div>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

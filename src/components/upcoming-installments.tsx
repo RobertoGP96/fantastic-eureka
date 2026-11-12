@@ -13,12 +13,12 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
   return (
     <section>
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-[14.5px] font-bold text-navy">
+        <h2 className="text-base font-bold text-navy">
           Próximos vencimientos
         </h2>
         <Link
           href="/mensualidades"
-          className="text-[12px] font-semibold text-brand-mid hover:text-brand"
+          className="text-xs font-semibold text-brand-mid hover:text-brand"
         >
           Ver mensualidades
         </Link>
@@ -37,26 +37,26 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
                   ? `/deudas/${row.plan.debtId}`
                   : `/mensualidades/${row.plan.id}`
               }
-              className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
+              className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
             >
               <span
-                className={`flex h-9 w-9 flex-none items-center justify-center rounded-[12px] ${
+                className={`flex h-9 w-9 flex-none items-center justify-center rounded-xl ${
                   overdue ? "bg-danger-bg text-danger" : "bg-chip text-brand"
                 }`}
               >
                 <HandCoins className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold text-navy">
+                <div className="truncate text-sm font-semibold text-navy">
                   {row.plan.description}
                 </div>
-                <div className="truncate text-[11.5px] text-muted">
+                <div className="truncate text-xs text-muted">
                   {PLAN_KIND_LABELS[row.plan.kind as PlanKind] ?? row.plan.kind}
                   {contactName ? ` · ${contactName}` : ""}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className="text-[13px] font-bold text-navy">
+                <span className="text-sm font-bold text-navy">
                   {fmtMinor(row.amountMinor, row.plan.currency)}
                 </span>
                 <Badge

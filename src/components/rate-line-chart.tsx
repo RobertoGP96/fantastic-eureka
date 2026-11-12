@@ -266,16 +266,16 @@ export function RateLineChart({
       {/* Tooltip HTML anclado al punto activo */}
       {active && activeCoord && geometry && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-[10px] border border-line bg-white px-2.5 py-1.5 shadow-sm"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 shadow-sm"
           style={{
             left: Math.min(Math.max(activeCoord.x, 70), width - 70),
             top: Math.max(activeCoord.y - 54, 0),
           }}
         >
-          <div className="text-[10px] whitespace-nowrap text-muted">
+          <div className="text-[11px] whitespace-nowrap text-muted">
             {FULL_DATE.format(new Date(active.t))}
           </div>
-          <div className="money text-[12.5px] font-bold whitespace-nowrap text-navy">
+          <div className="money text-sm font-bold whitespace-nowrap text-navy">
             1 {fromCode} = {fmtRate(active.rateScaled)} {toCode}
           </div>
         </div>

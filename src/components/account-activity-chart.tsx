@@ -223,9 +223,9 @@ export function AccountActivityChart({
   };
 
   return (
-    <section className="rounded-[16px] border border-line bg-white p-4">
+    <section className="rounded-2xl border border-line bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 className="text-[14.5px] font-bold text-navy">Actividad</h2>
+        <h2 className="text-base font-bold text-navy">Actividad</h2>
         <div className="flex flex-wrap gap-1.5">
           {PERIODS.map((p) => (
             <button
@@ -236,7 +236,7 @@ export function AccountActivityChart({
                 setPeriod(p.key);
                 setHoverIndex(null);
               }}
-              className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold transition-colors ${
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 period === p.key
                   ? "bg-brand text-white"
                   : "bg-chip text-brand hover:bg-brand-soft/30"
@@ -361,26 +361,26 @@ export function AccountActivityChart({
         {/* Tooltip HTML anclado a la columna activa */}
         {view && active && activeBar && (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-[10px] border border-line bg-white px-2.5 py-1.5 shadow-sm"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 shadow-sm"
             style={{
               left: Math.min(Math.max(activeBar.centerX, 90), width - 90),
               top: 2,
             }}
           >
-            <div className="text-[10px] whitespace-nowrap text-muted">
+            <div className="text-[11px] whitespace-nowrap text-muted">
               {bucketFullLabel(active.startT, active.endT, view.granularity)}
             </div>
             <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="money text-[12px] font-bold text-ok">
+              <span className="money text-xs font-bold text-ok">
                 {fmtSignedMinor(active.inMinor, currency)}
               </span>
-              <span className="text-[10px] text-muted">entradas</span>
+              <span className="text-[11px] text-muted">entradas</span>
             </div>
             <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="money text-[12px] font-bold text-danger">
+              <span className="money text-xs font-bold text-danger">
                 {fmtMinor(-active.outMinor, currency)}
               </span>
-              <span className="text-[10px] text-muted">salidas</span>
+              <span className="text-[11px] text-muted">salidas</span>
             </div>
           </div>
         )}
@@ -389,27 +389,27 @@ export function AccountActivityChart({
       {/* Totales del período (hacen también de leyenda de color) */}
       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line-2 pt-3">
         <div>
-          <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-muted">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
             <span className="h-2 w-2 rounded-full bg-ok" />
             Entradas
           </div>
-          <div className="money mt-0.5 text-[12.5px] font-bold text-ok">
+          <div className="money mt-0.5 text-sm font-bold text-ok">
             {view ? fmtSignedMinor(view.totalIn, currency) : " "}
           </div>
         </div>
         <div>
-          <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-muted">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
             <span className="h-2 w-2 rounded-full bg-danger" />
             Salidas
           </div>
-          <div className="money mt-0.5 text-[12.5px] font-bold text-danger">
+          <div className="money mt-0.5 text-sm font-bold text-danger">
             {view ? fmtMinor(-view.totalOut, currency) : " "}
           </div>
         </div>
         <div>
-          <div className="text-[10.5px] font-medium text-muted">Neto</div>
+          <div className="text-[11px] font-medium text-muted">Neto</div>
           <div
-            className={`money mt-0.5 text-[12.5px] font-bold ${
+            className={`money mt-0.5 text-sm font-bold ${
               view && view.totalIn - view.totalOut < 0
                 ? "text-danger"
                 : "text-navy"

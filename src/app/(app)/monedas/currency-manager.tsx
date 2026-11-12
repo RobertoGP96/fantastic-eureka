@@ -106,13 +106,13 @@ export function CurrencyManager({
   return (
     <div className="flex flex-col gap-4">
       <form
-        className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4"
+        className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
         onSubmit={(e) => {
           e.preventDefault();
           void add();
         }}
       >
-        <div className="text-[13px] font-bold text-navy">Nueva moneda</div>
+        <div className="text-sm font-bold text-navy">Nueva moneda</div>
         <div className="flex gap-2.5">
           <Input
             value={code}
@@ -147,20 +147,20 @@ export function CurrencyManager({
               key={option.key}
               type="button"
               onClick={() => setKind(option.key)}
-              className={`rounded-[13px] border px-3 py-2 text-left transition-colors ${
+              className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                 kind === option.key
                   ? "border-brand bg-chip"
                   : "border-line bg-white hover:border-brand-soft"
               }`}
             >
               <span
-                className={`block text-[12.5px] font-semibold ${
+                className={`block text-sm font-semibold ${
                   kind === option.key ? "text-brand" : "text-ink-soft"
                 }`}
               >
                 {option.label}
               </span>
-              <span className="block text-[10.5px] text-muted">
+              <span className="block text-[11px] text-muted">
                 {option.hint}
               </span>
             </button>
@@ -168,7 +168,7 @@ export function CurrencyManager({
         </div>
         <div className="flex items-center gap-2.5">
           <Select value={decimals} onValueChange={setDecimals}>
-            <SelectTrigger className="h-10 rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -189,7 +189,7 @@ export function CurrencyManager({
           </Button>
         </div>
         {error && (
-          <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
             {error}
           </div>
         )}
@@ -199,7 +199,7 @@ export function CurrencyManager({
         {currencies.map((currency) => (
           <div
             key={currency.id}
-            className={`rounded-[18px] border border-line bg-white p-4 ${
+            className={`rounded-2xl border border-line bg-white p-4 ${
               currency.active ? "" : "opacity-55"
             }`}
           >
@@ -208,12 +208,12 @@ export function CurrencyManager({
                 href={`/monedas/${currency.id}`}
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-[15px] font-bold text-brand">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-base font-bold text-brand">
                   {currency.symbol}
                 </span>
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
-                    <span className="text-[14px] font-bold text-navy">
+                    <span className="text-sm font-bold text-navy">
                       {currency.code}
                     </span>
                     {currency.isBase && <Badge variant="featured">Base</Badge>}
@@ -224,7 +224,7 @@ export function CurrencyManager({
                       <Badge variant="neutral">Oculta</Badge>
                     )}
                   </span>
-                  <span className="block truncate text-[11.5px] text-muted">
+                  <span className="block truncate text-xs text-muted">
                     {currency.name} · {currency.decimalPlaces} dec ·{" "}
                     {currency.kind === "DIGITAL"
                       ? "sin efectivo"
@@ -233,7 +233,7 @@ export function CurrencyManager({
                       ` · ${currency.accountCount} cuentas`}
                   </span>
                 </span>
-                <ChevronRight className="h-4 w-4 flex-none text-muted-2" />
+                <ChevronRight className="h-4 w-4 flex-none text-muted" />
               </Link>
             </div>
 
@@ -279,7 +279,7 @@ export function CurrencyManager({
         ))}
       </div>
 
-      <p className="text-[11.5px] text-muted">
+      <p className="text-xs text-muted">
         Las tasas de cambio se cotizan contra la moneda base. Si cambias la
         base, registra tasas nuevas en{" "}
         <Link href="/tasas" className="font-semibold text-brand-mid">

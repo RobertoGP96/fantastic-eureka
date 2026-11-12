@@ -37,7 +37,7 @@ export default async function CategoriasPage({
         <div className="flex gap-2">
           <Link
             href="/categorias"
-            className={`rounded-lg px-[11px] py-1.5 text-[11.5px] font-semibold transition-colors ${
+            className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
               kind === "EXPENSE"
                 ? "bg-brand text-white"
                 : "bg-chip text-brand hover:bg-brand-soft/30"
@@ -47,7 +47,7 @@ export default async function CategoriasPage({
           </Link>
           <Link
             href="/categorias?tipo=ingresos"
-            className={`rounded-lg px-[11px] py-1.5 text-[11.5px] font-semibold transition-colors ${
+            className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
               kind === "INCOME"
                 ? "bg-brand text-white"
                 : "bg-chip text-brand hover:bg-brand-soft/30"

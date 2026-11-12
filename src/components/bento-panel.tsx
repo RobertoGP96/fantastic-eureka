@@ -100,8 +100,8 @@ export function BentoPanel({
   return (
     <section>
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-[14.5px] font-bold text-navy">Panel</h2>
-        <span className="hidden text-[11.5px] text-muted md:block">
+        <h2 className="text-base font-bold text-navy">Panel</h2>
+        <span className="hidden text-xs text-muted md:block">
           Arrastra el asa para reordenar
         </span>
       </div>
@@ -132,7 +132,7 @@ export function BentoPanel({
                 aria-label="Arrastrar para reordenar"
                 onPointerDown={() => setArmedId(id)}
                 onPointerUp={() => setArmedId(null)}
-                className="absolute top-1 left-1/2 z-10 hidden -translate-x-1/2 cursor-grab rounded-md px-2 py-0.5 text-muted-2 opacity-0 transition-opacity group-hover:opacity-100 hover:text-brand active:cursor-grabbing md:block"
+                className="absolute top-1 left-1/2 z-10 hidden -translate-x-1/2 cursor-grab rounded-md px-2 py-0.5 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-brand active:cursor-grabbing md:block"
               >
                 <GripHorizontal className="h-4 w-4" />
               </button>

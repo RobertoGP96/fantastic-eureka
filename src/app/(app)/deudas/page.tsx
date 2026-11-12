@@ -110,7 +110,7 @@ export default async function DeudasPage({
         actions={
           <Link
             href="/deudas/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-white/25"
+            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva
@@ -121,27 +121,27 @@ export default async function DeudasPage({
           <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
             {receivableText && (
               <div>
-                <div className="text-[11px] tracking-wide text-white/60 uppercase">
+                <div className="text-[11px] tracking-wide text-white/80 uppercase">
                   Me deben
                 </div>
-                <div className="text-[21px] font-bold tracking-[-0.4px]">
+                <div className="text-[22px] font-bold tracking-[-0.4px]">
                   {receivableText}
                 </div>
               </div>
             )}
             {payableText && (
               <div>
-                <div className="text-[11px] tracking-wide text-white/60 uppercase">
+                <div className="text-[11px] tracking-wide text-white/80 uppercase">
                   Debo
                 </div>
-                <div className="text-[21px] font-bold tracking-[-0.4px]">
+                <div className="text-[22px] font-bold tracking-[-0.4px]">
                   {payableText}
                 </div>
               </div>
             )}
           </div>
         )}
-        <div className="mt-3 text-[11.5px]">
+        <div className="mt-3 text-xs">
           <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
             {open.length} abierta{open.length === 1 ? "" : "s"}
           </span>
@@ -157,7 +157,7 @@ export default async function DeudasPage({
                 <Link
                   key={filter.label}
                   href={filter.value ? `/deudas?dir=${filter.value}` : "/deudas"}
-                  className={`rounded-lg px-[11px] py-1.5 text-[11.5px] font-semibold transition-colors ${
+                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
                     selected
                       ? "bg-brand text-white"
                       : "bg-chip text-brand hover:bg-brand-soft/30"
@@ -170,7 +170,7 @@ export default async function DeudasPage({
           </div>
           <Link
             href="/mensualidades"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
           >
             <Repeat className="h-3.5 w-3.5" />
             Mensualidades
@@ -194,11 +194,11 @@ export default async function DeudasPage({
                 <Link
                   key={debt.id}
                   href={`/deudas/${debt.id}`}
-                  className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+                  className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
                 >
                   <div className="flex items-start gap-3.5">
                     <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-[12.5px] font-bold ${
+                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-sm font-bold ${
                         receivable
                           ? "bg-ok-bg text-ok"
                           : "bg-warn-bg text-warn"
@@ -208,23 +208,23 @@ export default async function DeudasPage({
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-[14px] font-semibold text-navy">
+                        <span className="truncate text-sm font-semibold text-navy">
                           {debt.contact.name}
                         </span>
-                        <span className="text-[15px] font-bold whitespace-nowrap text-navy">
+                        <span className="text-base font-bold whitespace-nowrap text-navy">
                           {fmtMinor(remaining, debt.currency)}
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-[11.5px] text-muted">
+                        <span className="truncate text-xs text-muted">
                           {debt.description}
                         </span>
-                        <span className="text-[10.5px] whitespace-nowrap text-muted">
+                        <span className="text-[11px] whitespace-nowrap text-muted">
                           {receivable ? "por cobrar" : "por pagar"}
                         </span>
                       </div>
                     </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted-2" />
+                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
                   </div>
 
                   {paid > 0 && (
@@ -235,7 +235,7 @@ export default async function DeudasPage({
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <div className="mt-1 text-[10.5px] text-muted-2">
+                      <div className="mt-1 text-[11px] text-muted">
                         Abonado {fmtMinor(paid, debt.currency)} de{" "}
                         {fmtMinor(debt.totalMinor, debt.currency)} ({pct}%)
                       </div>
@@ -258,7 +258,7 @@ export default async function DeudasPage({
 
         {closed.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Historial
             </h2>
             <div className="flex flex-col gap-2">
@@ -266,18 +266,18 @@ export default async function DeudasPage({
                 <Link
                   key={debt.id}
                   href={`/deudas/${debt.id}`}
-                  className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-semibold text-navy">
+                    <div className="truncate text-sm font-semibold text-navy">
                       {debt.contact.name}
                     </div>
-                    <div className="truncate text-[11.5px] text-muted">
+                    <div className="truncate text-xs text-muted">
                       {debt.description}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[13px] font-bold whitespace-nowrap text-navy">
+                    <span className="text-sm font-bold whitespace-nowrap text-navy">
                       {fmtMinor(debt.totalMinor, debt.currency)}
                     </span>
                     <Badge variant={debt.status === "PAID" ? "ok" : "neutral"}>
@@ -285,7 +285,7 @@ export default async function DeudasPage({
                         debt.status}
                     </Badge>
                   </div>
-                  <ChevronRight className="h-4 w-4 flex-none text-muted-2" />
+                  <ChevronRight className="h-4 w-4 flex-none text-muted" />
                 </Link>
               ))}
             </div>

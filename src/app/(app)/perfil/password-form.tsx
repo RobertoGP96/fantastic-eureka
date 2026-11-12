@@ -38,7 +38,7 @@ export function PasswordForm() {
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           Contraseña actual
         </span>
         <Input
@@ -52,7 +52,7 @@ export function PasswordForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Nueva
           </span>
           <Input
@@ -65,7 +65,7 @@ export function PasswordForm() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Repetir
           </span>
           <Input
@@ -79,7 +79,7 @@ export function PasswordForm() {
       </div>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

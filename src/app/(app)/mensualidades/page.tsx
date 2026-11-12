@@ -119,7 +119,7 @@ export default async function MensualidadesPage({
         actions={
           <Link
             href="/mensualidades/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-white/25"
+            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
           >
             <Plus className="h-3.5 w-3.5" />
             Nueva
@@ -130,27 +130,27 @@ export default async function MensualidadesPage({
           <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
             {payText && (
               <div>
-                <div className="text-[11px] tracking-wide text-white/60 uppercase">
+                <div className="text-[11px] tracking-wide text-white/80 uppercase">
                   Pago al mes
                 </div>
-                <div className="text-[21px] font-bold tracking-[-0.4px]">
+                <div className="text-[22px] font-bold tracking-[-0.4px]">
                   {payText}
                 </div>
               </div>
             )}
             {collectText && (
               <div>
-                <div className="text-[11px] tracking-wide text-white/60 uppercase">
+                <div className="text-[11px] tracking-wide text-white/80 uppercase">
                   Cobro al mes
                 </div>
-                <div className="text-[21px] font-bold tracking-[-0.4px]">
+                <div className="text-[22px] font-bold tracking-[-0.4px]">
                   {collectText}
                 </div>
               </div>
             )}
           </div>
         )}
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
             {active.length} activa{active.length === 1 ? "" : "s"}
           </span>
@@ -175,7 +175,7 @@ export default async function MensualidadesPage({
                       ? `/mensualidades?tipo=${filter.value}`
                       : "/mensualidades"
                   }
-                  className={`rounded-lg px-[11px] py-1.5 text-[11.5px] font-semibold transition-colors ${
+                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
                     selected
                       ? "bg-brand text-white"
                       : "bg-chip text-brand hover:bg-brand-soft/30"
@@ -188,7 +188,7 @@ export default async function MensualidadesPage({
           </div>
           <Link
             href="/deudas"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-[11.5px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
           >
             <HandCoins className="h-3.5 w-3.5" />
             Deudas
@@ -220,7 +220,7 @@ export default async function MensualidadesPage({
               return (
                 <article
                   key={plan.id}
-                  className={`overflow-hidden rounded-[18px] border bg-white ${
+                  className={`overflow-hidden rounded-2xl border bg-white ${
                     row.overdue ? "border-danger/35" : "border-line"
                   }`}
                 >
@@ -229,7 +229,7 @@ export default async function MensualidadesPage({
                     className="flex items-start gap-3.5 p-4 transition-colors hover:bg-chip/30"
                   >
                     <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-[13px] ${
+                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${
                         row.overdue
                           ? "bg-danger-bg text-danger"
                           : collect
@@ -241,14 +241,14 @@ export default async function MensualidadesPage({
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-[14px] font-semibold text-navy">
+                        <span className="truncate text-sm font-semibold text-navy">
                           {plan.description}
                         </span>
-                        <span className="text-[15px] font-bold whitespace-nowrap text-navy">
+                        <span className="text-base font-bold whitespace-nowrap text-navy">
                           {fmtMinor(plan.amountMinor, plan.currency)}
                         </span>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-[11.5px] text-muted">
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted">
                         <UserRound className="h-3 w-3 flex-none" />
                         <span className="truncate">
                           {contactName ?? "Sin contacto"}
@@ -265,14 +265,14 @@ export default async function MensualidadesPage({
                           </Badge>
                         )}
                         {row.paidCount > 0 && (
-                          <span className="text-[11px] text-muted-2">
+                          <span className="text-[11px] text-muted">
                             {row.paidCount} saldada
                             {row.paidCount === 1 ? "" : "s"}
                           </span>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted-2" />
+                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
                   </Link>
 
                   {canSettle && next && (
@@ -300,7 +300,7 @@ export default async function MensualidadesPage({
 
         {ended.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+            <h2 className="mb-2.5 text-base font-bold text-navy">
               Finalizadas
             </h2>
             <div className="flex flex-col gap-2">
@@ -311,22 +311,22 @@ export default async function MensualidadesPage({
                   <Link
                     key={plan.id}
                     href={`/mensualidades/${plan.id}`}
-                    className="flex items-center gap-3 rounded-[16px] border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
+                    className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold text-navy">
+                      <div className="truncate text-sm font-semibold text-navy">
                         {plan.description}
                       </div>
-                      <div className="truncate text-[11.5px] text-muted">
+                      <div className="truncate text-xs text-muted">
                         {PLAN_KIND_LABELS[plan.kind as PlanKind]}
                         {contactName ? ` · ${contactName}` : ""} · {paidCount}{" "}
                         saldada{paidCount === 1 ? "" : "s"}
                       </div>
                     </div>
-                    <span className="text-[13px] font-bold whitespace-nowrap text-navy">
+                    <span className="text-sm font-bold whitespace-nowrap text-navy">
                       {fmtMinor(plan.amountMinor, plan.currency)}
                     </span>
-                    <ChevronRight className="h-4 w-4 flex-none text-muted-2" />
+                    <ChevronRight className="h-4 w-4 flex-none text-muted" />
                   </Link>
                 );
               })}

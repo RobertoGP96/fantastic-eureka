@@ -200,18 +200,18 @@ export function EditTransactionForm({
         void submit();
       }}
     >
-      <div className="rounded-[16px] border border-line bg-white px-4 py-3 text-[12.5px] text-ink-soft">
+      <div className="rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
         <span className="font-semibold text-navy">{kindLabel}</span>
         {" · "}
         {isTransfer && tx.counterAccountName
           ? `${tx.accountName} → ${tx.counterAccountName}`
           : tx.accountName}
-        <div className="mt-1 text-[11.5px] text-muted">
+        <div className="mt-1 text-xs text-muted">
           El tipo y las cuentas no se cambian: si te equivocaste de cuenta,
           elimina el movimiento y regístralo de nuevo.
         </div>
         {tx.isLinked && (
-          <div className="mt-1 text-[11.5px] text-muted">
+          <div className="mt-1 text-xs text-muted">
             Este movimiento nació de un abono o cuota: al cambiar el monto se
             actualiza también el pendiente de la deuda.
           </div>
@@ -250,7 +250,7 @@ export function EditTransactionForm({
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] font-semibold text-ink-soft">
+        <span className="text-sm font-semibold text-ink-soft">
           {isTransfer ? `Monto enviado (${tx.currency.code})` : `Monto (${tx.currency.code})`}
         </span>
         <Input
@@ -277,7 +277,7 @@ export function EditTransactionForm({
 
       {cross && tx.counterCurrency && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             {isTransfer
               ? `Monto recibido (${tx.counterCurrency.code})`
               : `Monto original (${tx.counterCurrency.code})`}
@@ -289,7 +289,7 @@ export function EditTransactionForm({
             placeholder="0"
             required
           />
-          <span className="text-[11.5px] text-muted">
+          <span className="text-xs text-muted">
             {isTransfer
               ? "Lo que entra en la cuenta de destino; la tasa implícita se recalcula."
               : `La operación se anotó en ${tx.counterCurrency.code}; la tasa implícita se recalcula.`}
@@ -299,11 +299,11 @@ export function EditTransactionForm({
 
       {!isTransfer && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Categoría (opcional)
           </span>
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="h-10 w-full rounded-[13px] border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
               <SelectValue placeholder="Sin categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -320,7 +320,7 @@ export function EditTransactionForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Fecha
           </span>
           <Input
@@ -332,7 +332,7 @@ export function EditTransactionForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Nota (opcional)
           </span>
           <Input
@@ -345,7 +345,7 @@ export function EditTransactionForm({
       </div>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

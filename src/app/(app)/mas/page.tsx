@@ -82,42 +82,42 @@ export default async function MasPage() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-4 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+              className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
             >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-brand">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
                 <Icon className="h-5 w-5" />
               </span>
               <span className="flex-1">
-                <span className="block text-[14px] font-semibold text-navy">
+                <span className="block text-sm font-semibold text-navy">
                   {item.title}
                 </span>
-                <span className="block text-[12px] text-muted">
+                <span className="block text-xs text-muted">
                   {item.description}
                 </span>
               </span>
-              <ChevronRight className="h-4 w-4 text-muted-2" />
+              <ChevronRight className="h-4 w-4 text-muted" />
             </Link>
           );
         })}
 
         {user && (
-          <div className="mt-2 rounded-[18px] border border-line bg-white p-4">
+          <div className="mt-2 rounded-2xl border border-line bg-white p-4">
             <Link
               href="/perfil"
               className="mb-3 flex items-center gap-3 transition-opacity hover:opacity-80"
             >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-brand">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
                 <UserRound className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-semibold text-navy">
+                <div className="truncate text-sm font-semibold text-navy">
                   {user.name}
                 </div>
-                <div className="truncate text-[12px] text-muted">
+                <div className="truncate text-xs text-muted">
                   Editar perfil · {user.email}
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 flex-none text-muted-2" />
+              <ChevronRight className="h-4 w-4 flex-none text-muted" />
             </Link>
             <LogoutButton />
           </div>

@@ -53,7 +53,7 @@ export function GroupSelect({
       onValueChange={(value) => void assign(value)}
       disabled={saving}
     >
-      <SelectTrigger className="h-9 rounded-[10px] border border-line bg-white px-3 text-[12.5px] text-ink">
+      <SelectTrigger className="h-9 rounded-lg border border-line bg-white px-3 text-sm text-ink">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

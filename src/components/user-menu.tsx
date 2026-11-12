@@ -53,7 +53,7 @@ export function UserMenu({
           )}
         >
           <Avatar size="lg">
-            <AvatarFallback className="bg-white/15 text-[13px] font-bold text-white">
+            <AvatarFallback className="bg-white/15 text-sm font-bold text-white">
               {initials(userName)}
             </AvatarFallback>
           </Avatar>
@@ -66,10 +66,10 @@ export function UserMenu({
       >
         <DropdownMenuLabel>
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-[13px] font-semibold text-navy">
+            <span className="truncate text-sm font-semibold text-navy">
               {userName}
             </span>
-            <span className="truncate text-[11.5px] font-normal text-muted">
+            <span className="truncate text-xs font-normal text-muted">
               {userEmail}
             </span>
           </div>

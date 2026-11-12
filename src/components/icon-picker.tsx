@@ -22,7 +22,7 @@ export function IconPicker({
             onClick={() => onChange(selected ? null : name)}
             aria-label={`Icono ${name}`}
             aria-pressed={selected}
-            className={`flex h-10 items-center justify-center rounded-[12px] border transition-colors ${
+            className={`flex h-10 items-center justify-center rounded-xl border transition-colors ${
               selected
                 ? "border-brand bg-chip text-brand"
                 : "border-line bg-white text-ink-soft hover:border-brand-soft hover:text-brand"

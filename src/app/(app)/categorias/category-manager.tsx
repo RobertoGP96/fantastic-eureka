@@ -134,7 +134,7 @@ export function CategoryManager({
       </form>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}
@@ -143,7 +143,7 @@ export function CategoryManager({
         {categories.map((category) => (
           <div
             key={category.id}
-            className={`rounded-[13px] border border-line bg-white px-3.5 py-2 ${
+            className={`rounded-xl border border-line bg-white px-3.5 py-2 ${
               category.active ? "" : "opacity-55"
             }`}
           >
@@ -181,7 +181,7 @@ export function CategoryManager({
               </form>
             ) : confirmDeleteId === category.id ? (
               <div className="flex items-center gap-2 py-0.5">
-                <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
+                <span className="min-w-0 flex-1 truncate text-xs text-muted">
                   ¿Eliminar “{category.name}”? No se puede deshacer.
                 </span>
                 <Button
@@ -204,7 +204,7 @@ export function CategoryManager({
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="min-w-0 truncate text-[13px] font-semibold text-navy">
+                  <span className="min-w-0 truncate text-sm font-semibold text-navy">
                     {category.name}
                   </span>
                   {category.usageCount > 0 && (
@@ -252,13 +252,13 @@ export function CategoryManager({
           </div>
         ))}
         {categories.length === 0 && (
-          <div className="rounded-[13px] border border-line bg-white px-3.5 py-4 text-center text-[12.5px] text-muted">
+          <div className="rounded-xl border border-line bg-white px-3.5 py-4 text-center text-sm text-muted">
             Sin categorías de este tipo.
           </div>
         )}
       </div>
 
-      <p className="text-[11.5px] text-muted">
+      <p className="text-xs text-muted">
         Las categorías con movimientos no se pueden eliminar para conservar el
         historial; ocúltalas y dejarán de aparecer al registrar.
       </p>

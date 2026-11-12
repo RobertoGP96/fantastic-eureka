@@ -75,11 +75,11 @@ export default async function TasaDetallePage({
           <div className="mt-2">
             <div className="money text-[30px] font-bold tracking-[-0.8px]">
               {fmtRate(latest.rateScaled)}{" "}
-              <span className="text-[15px] font-semibold text-white/80">
+              <span className="text-base font-semibold text-white/80">
                 {toCode}
               </span>
             </div>
-            <p className="mt-0.5 text-[12.5px] text-white/70">
+            <p className="mt-0.5 text-sm text-white/80">
               1 {fromCode} = {fmtRate(latest.rateScaled)} {toCode} ·{" "}
               {DATE_FMT.format(latest.effectiveAt)}
               {inverseScaled !== null && (
@@ -91,7 +91,7 @@ export default async function TasaDetallePage({
             </p>
           </div>
         ) : (
-          <p className="mt-1 text-[12.5px] text-white/70">
+          <p className="mt-1 text-sm text-white/80">
             Sin tasas registradas para este par.
           </p>
         )}
@@ -99,7 +99,7 @@ export default async function TasaDetallePage({
 
       <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:max-w-xl md:px-0">
         {history.length === 0 ? (
-          <div className="rounded-[16px] border border-line bg-white px-4 py-6 text-center text-[12.5px] text-muted">
+          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
             Este par no tiene tasas registradas todavía.{" "}
             <Link href="/tasas" className="font-semibold text-brand underline">
               Registra la primera en Tasas
@@ -110,10 +110,10 @@ export default async function TasaDetallePage({
           <>
             <section>
               <div className="mb-2.5 flex items-center justify-between">
-                <h2 className="text-[14.5px] font-bold text-navy">Evolución</h2>
+                <h2 className="text-base font-bold text-navy">Evolución</h2>
                 {deltaScaled !== null && deltaPct !== null && (
                   <span
-                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                       deltaScaled === 0
                         ? "bg-chip text-ink-soft"
                         : deltaScaled > 0
@@ -131,9 +131,9 @@ export default async function TasaDetallePage({
                   </span>
                 )}
               </div>
-              <div className="rounded-[18px] border border-line bg-white p-4">
+              <div className="rounded-2xl border border-line bg-white p-4">
                 {history.length === 1 ? (
-                  <p className="py-6 text-center text-[12.5px] text-muted">
+                  <p className="py-6 text-center text-sm text-muted">
                     Solo hay un registro — el gráfico aparecerá cuando el par
                     tenga al menos dos tasas.
                   </p>
@@ -153,18 +153,18 @@ export default async function TasaDetallePage({
             </section>
 
             <section>
-              <h2 className="mb-2.5 text-[14.5px] font-bold text-navy">
+              <h2 className="mb-2.5 text-base font-bold text-navy">
                 Histórico del par
               </h2>
               <div className="flex flex-col gap-1.5">
                 {[...history].reverse().map((rate) => (
                   <div
                     key={rate.id}
-                    className="flex items-center justify-between rounded-[13px] border border-line bg-white px-3.5 py-2.5 text-[12.5px]"
+                    className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
                   >
                     <span className="money flex items-center gap-1.5 font-semibold text-ink-soft">
                       {fromCode}
-                      <ArrowRight className="h-3 w-3 text-muted-2" />
+                      <ArrowRight className="h-3 w-3 text-muted" />
                       {fmtRate(rate.rateScaled)} {toCode}
                     </span>
                     <span className="text-muted">

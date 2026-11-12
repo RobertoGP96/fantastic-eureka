@@ -179,9 +179,9 @@ export default async function HomePage() {
             <Link
               key={action.href}
               href={action.href}
-              className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line bg-white py-3 text-[11px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+              className="flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-white py-3 text-[11px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-chip text-brand">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-chip text-brand">
                 <Icon className="h-4 w-4" />
               </span>
               {action.label}
@@ -194,15 +194,15 @@ export default async function HomePage() {
       base && metrics ? (
         <section
           key="monthlyChart"
-          className="rounded-[18px] border border-line bg-white p-4"
+          className="rounded-2xl border border-line bg-white p-4"
         >
-          <h2 className="mb-3 text-[13.5px] font-bold text-navy">
+          <h2 className="mb-3 text-sm font-bold text-navy">
             Ingresos vs gastos · últimos 6 meses
           </h2>
           {hasSeriesData ? (
             <MonthlyBars series={metrics.series} currency={base} />
           ) : (
-            <p className="py-6 text-center text-[12.5px] text-muted">
+            <p className="py-6 text-center text-sm text-muted">
               Registra movimientos para ver la evolución mensual.
             </p>
           )}
@@ -212,15 +212,15 @@ export default async function HomePage() {
       base && metrics && metrics.topCategories.length > 0 ? (
         <section
           key="topCategories"
-          className="rounded-[18px] border border-line bg-white p-4"
+          className="rounded-2xl border border-line bg-white p-4"
         >
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[13.5px] font-bold text-navy">
+            <h2 className="text-sm font-bold text-navy">
               Top gastos del mes
             </h2>
             <Link
               href="/movimientos"
-              className="text-[12px] font-semibold text-brand-mid hover:text-brand"
+              className="text-xs font-semibold text-brand-mid hover:text-brand"
             >
               Ver todo
             </Link>
@@ -228,7 +228,7 @@ export default async function HomePage() {
           <div className="flex flex-col gap-2.5">
             {metrics.topCategories.map((category) => (
               <div key={category.name}>
-                <div className="flex items-baseline justify-between text-[12px]">
+                <div className="flex items-baseline justify-between text-xs">
                   <span className="font-semibold text-ink-soft">
                     {category.name}
                   </span>
@@ -260,10 +260,10 @@ export default async function HomePage() {
     accounts: (
       <section key="accounts">
         <div className="mb-2.5 flex items-center justify-between">
-          <h2 className="text-[14.5px] font-bold text-navy">Cuentas</h2>
+          <h2 className="text-base font-bold text-navy">Cuentas</h2>
           <Link
             href="/cuentas/nueva"
-            className="text-[12px] font-semibold text-brand-mid hover:text-brand"
+            className="text-xs font-semibold text-brand-mid hover:text-brand"
           >
             + Nueva cuenta
           </Link>
@@ -278,7 +278,7 @@ export default async function HomePage() {
             ctaHref="/cuentas/nueva"
           />
         ) : visibleAccounts.length === 0 ? (
-          <p className="rounded-[16px] border border-line bg-white px-4 py-5 text-center text-[12.5px] text-muted">
+          <p className="rounded-2xl border border-line bg-white px-4 py-5 text-center text-sm text-muted">
             Todas las cuentas están ocultas. Elige cuáles mostrar en
             «Personalizar Inicio».
           </p>
@@ -291,21 +291,21 @@ export default async function HomePage() {
                 <Link
                   key={account.id}
                   href={`/cuentas/${account.id}`}
-                  className="flex items-center gap-3.5 rounded-[18px] border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+                  className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
                 >
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-chip text-brand">
+                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
                     <Icon className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-semibold text-navy">
+                    <div className="truncate text-sm font-semibold text-navy">
                       {account.name}
                     </div>
-                    <div className="text-[11.5px] text-muted">
+                    <div className="text-xs text-muted">
                       {account.currency.code}
                     </div>
                   </div>
                   <div
-                    className={`text-[15px] font-bold whitespace-nowrap ${
+                    className={`text-base font-bold whitespace-nowrap ${
                       negative ? "text-danger" : "text-navy"
                     }`}
                   >
@@ -378,7 +378,7 @@ export default async function HomePage() {
       >
         <div className="mt-3">
           {missingRates.size > 0 && (
-            <div className="mt-1 text-[11.5px] text-white/60">
+            <div className="mt-1 text-xs text-white/80">
               Sin tasa para {[...missingRates].join(", ")} ·{" "}
               <Link href="/tasas" className="underline">
                 registrar tasa
@@ -432,16 +432,16 @@ export default async function HomePage() {
               ].map((chip) => (
                 <div
                   key={chip.label}
-                  className="rounded-[12px] bg-white/10 px-3 py-1.5 backdrop-blur-sm"
+                  className="rounded-xl bg-white/10 px-3 py-1.5 backdrop-blur-sm"
                 >
-                  <div className="text-[10px] font-medium tracking-wide text-white/60 uppercase">
+                  <div className="text-[11px] font-medium tracking-wide text-white/80 uppercase">
                     {chip.label}
                   </div>
-                  <div className="text-[13px] font-bold whitespace-nowrap">
+                  <div className="text-sm font-bold whitespace-nowrap">
                     {chip.value}
                     {chip.delta !== null && (
                       <span
-                        className={`ml-1.5 text-[10.5px] font-semibold ${
+                        className={`ml-1.5 text-[11px] font-semibold ${
                           chip.deltaGood ? "text-brand-soft" : "text-[#f2a9b4]"
                         }`}
                       >

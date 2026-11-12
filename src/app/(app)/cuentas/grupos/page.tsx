@@ -22,7 +22,7 @@ export default async function GruposPage() {
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Grupos de cuentas" backHref="/cuentas">
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           Organiza tus cuentas: negocio, personal, cajas…
         </p>
       </ScreenHeader>

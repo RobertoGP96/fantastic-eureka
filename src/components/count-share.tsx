@@ -85,7 +85,7 @@ export function CountShareButton({
       type="button"
       onClick={() => void share()}
       disabled={pieces === 0}
-      className="flex flex-none items-center gap-1.5 rounded-[12px] border border-line bg-white px-3 py-2 text-[12px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+      className="flex flex-none items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
     >
       {copied ? (
         <Check className="h-4 w-4 text-ok" />

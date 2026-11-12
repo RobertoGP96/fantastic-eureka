@@ -58,7 +58,7 @@ const LINE_COLORS: Record<
   dark: {
     income: "var(--color-brand-soft)",
     expense: "#e79aa7",
-    net: "#e6bd66",
+    net: "#eec06b",
   },
 };
 
@@ -150,7 +150,7 @@ export function IncomeCard({
     config.showExpense && {
       label: "Gastos",
       value: totalExpense,
-      cls: dark ? "text-[#e79aa7]" : "text-danger",
+      cls: dark ? "text-danger-soft" : "text-danger",
     },
     config.showNet && {
       label: "Neto",
@@ -158,7 +158,7 @@ export function IncomeCard({
       cls:
         totals.net < 0
           ? dark
-            ? "text-[#e79aa7]"
+            ? "text-danger-soft"
             : "text-danger"
           : dark
             ? "text-white"
@@ -166,22 +166,22 @@ export function IncomeCard({
     },
   ].filter((s): s is { label: string; value: number; cls: string } => Boolean(s));
 
-  const mutedCls = dark ? "text-white/55" : "text-muted";
+  const mutedCls = dark ? "text-white/80" : "text-muted";
   const strongCls = dark ? "text-white" : "text-navy";
   const dividerCls = dark ? "border-white/10" : "border-line-2";
 
   return (
     <section
-      className={`h-full overflow-hidden rounded-[20px] ${
+      className={`h-full overflow-hidden rounded-2xl ${
         dark ? "bg-navy" : "border border-line bg-white"
       }`}
     >
       <div className="px-5 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <h2 className={`text-[14.5px] font-bold ${strongCls}`}>{heading}</h2>
+          <h2 className={`text-base font-bold ${strongCls}`}>{heading}</h2>
           {config.showTabs && (
             <div
-              className={`flex items-center gap-1 rounded-[12px] p-1 ${
+              className={`flex items-center gap-1 rounded-xl p-1 ${
                 dark ? "bg-white/10" : "bg-app"
               }`}
             >
@@ -192,13 +192,13 @@ export function IncomeCard({
                     key={tab.key}
                     type="button"
                     onClick={() => setPeriod(tab.key)}
-                    className={`rounded-[9px] px-3 py-1.5 text-[12px] font-bold transition-colors ${
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                       active
                         ? dark
                           ? "bg-white/20 text-white"
                           : "bg-white text-navy shadow-sm"
                         : dark
-                          ? "text-white/50 hover:text-white/80"
+                          ? "text-white/80 hover:text-white"
                           : "text-muted hover:text-ink-soft"
                     }`}
                   >
@@ -211,7 +211,7 @@ export function IncomeCard({
         </div>
         <div className="mt-3 flex items-center gap-2.5">
           <div
-            className={`text-[26px] font-bold tracking-[-0.5px] ${
+            className={`text-[28px] font-bold tracking-[-0.5px] ${
               totals[config.metric] < 0 && !dark ? "text-danger" : strongCls
             }`}
           >
@@ -219,13 +219,13 @@ export function IncomeCard({
           </div>
           {config.showDelta && delta !== null && (
             <span
-              className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                 deltaGood
                   ? dark
                     ? "bg-brand-soft/20 text-brand-soft"
                     : "bg-ok-bg text-ok"
                   : dark
-                    ? "bg-[#e79aa7]/20 text-[#e79aa7]"
+                    ? "bg-danger-soft/20 text-danger-soft"
                     : "bg-danger-bg text-danger"
               }`}
             >
@@ -234,14 +234,14 @@ export function IncomeCard({
             </span>
           )}
         </div>
-        <div className={`mt-0.5 text-[12px] font-medium ${mutedCls}`}>
+        <div className={`mt-0.5 text-xs font-medium ${mutedCls}`}>
           {METRIC_LABELS[config.metric]} · {WINDOW_LABELS[period]}
         </div>
       </div>
 
       <div className="relative mt-3" style={{ height: CHART_H }}>
         {empty ? (
-          <p className={`flex h-full items-center justify-center text-[12.5px] ${mutedCls}`}>
+          <p className={`flex h-full items-center justify-center text-sm ${mutedCls}`}>
             Sin movimientos en este periodo.
           </p>
         ) : (
@@ -291,20 +291,20 @@ export function IncomeCard({
               }}
             />
             <div
-              className={`absolute min-w-[100px] rounded-[12px] px-3.5 py-2.5 transition-all duration-300 ${
+              className={`absolute min-w-[100px] rounded-xl px-3.5 py-2.5 transition-all duration-300 ${
                 dark
                   ? "bg-white/10 backdrop-blur-sm"
-                  : "bg-white shadow-[0_12px_28px_rgba(7,39,46,0.16)]"
+                  : "bg-white shadow-popover"
               }`}
               style={{
                 left: `${tipLeftPct.toFixed(2)}%`,
                 top: `${Math.max(dot[1] - 64, 8).toFixed(1)}px`,
               }}
             >
-              <div className={`text-[11.5px] font-medium ${mutedCls}`}>
+              <div className={`text-xs font-medium ${mutedCls}`}>
                 {lastBucket.label}
               </div>
-              <div className={`mt-0.5 text-[14px] font-bold ${strongCls}`}>
+              <div className={`mt-0.5 text-sm font-bold ${strongCls}`}>
                 {fmtMinor(last, currency)}
               </div>
             </div>
@@ -324,10 +324,10 @@ export function IncomeCard({
                 i > 0 ? `border-l ${dividerCls}` : ""
               }`}
             >
-              <div className={`text-[14.5px] font-bold ${stat.cls}`}>
+              <div className={`text-base font-bold ${stat.cls}`}>
                 {fmtMinor(stat.value, currency)}
               </div>
-              <div className={`mt-0.5 text-[11.5px] ${mutedCls}`}>
+              <div className={`mt-0.5 text-xs ${mutedCls}`}>
                 {stat.label}
               </div>
             </div>

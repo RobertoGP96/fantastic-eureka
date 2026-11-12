@@ -35,7 +35,7 @@ export default async function CalculadoraPage() {
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Calculadora de efectivo" backHref="/">
-        <p className="mt-1 text-[12.5px] text-white/70">
+        <p className="mt-1 text-sm text-white/80">
           Cuenta billetes y monedas sin elegir cuenta; no se guarda nada.
         </p>
       </ScreenHeader>

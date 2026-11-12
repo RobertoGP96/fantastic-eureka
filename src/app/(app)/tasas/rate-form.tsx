@@ -54,7 +54,7 @@ export function RateForm({ currencies }: { currencies: CurrencyOption[] }) {
 
   return (
     <form
-      className="rounded-[18px] border border-line bg-white p-4"
+      className="rounded-2xl border border-line bg-white p-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -65,7 +65,7 @@ export function RateForm({ currencies }: { currencies: CurrencyOption[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-none items-center gap-2">
           <Select value={fromCurrencyId} onValueChange={setFromCurrencyId}>
-            <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
+            <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3 text-sm text-ink">
               <SelectValue placeholder="De" />
             </SelectTrigger>
             <SelectContent>
@@ -76,9 +76,9 @@ export function RateForm({ currencies }: { currencies: CurrencyOption[] }) {
               ))}
             </SelectContent>
           </Select>
-          <ArrowRight className="h-4 w-4 flex-none text-muted-2" />
+          <ArrowRight className="h-4 w-4 flex-none text-muted" />
           <Select value={toCurrencyId} onValueChange={setToCurrencyId}>
-            <SelectTrigger className="h-10 flex-none rounded-[13px] border border-line bg-white px-3 text-sm text-ink">
+            <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3 text-sm text-ink">
               <SelectValue placeholder="A" />
             </SelectTrigger>
             <SelectContent>
@@ -114,14 +114,14 @@ export function RateForm({ currencies }: { currencies: CurrencyOption[] }) {
         </div>
       </div>
       {from && to && (
-        <p className="mt-2 text-[11.5px] text-muted">
+        <p className="mt-2 text-xs text-muted">
           {from.id === to.id
             ? "Elige dos monedas distintas"
             : `Cuántos ${to.code} vale 1 ${from.code} (hasta 4 decimales). El par inverso ${to.code} → ${from.code} se calcula solo.`}
         </p>
       )}
       {error && (
-        <div className="mt-2.5 rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="mt-2.5 rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}

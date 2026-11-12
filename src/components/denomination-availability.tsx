@@ -35,27 +35,27 @@ export async function DenominationAvailability({
   const hasData = stock.countedAt !== null || stock.movements > 0;
 
   return (
-    <section className="rounded-[18px] border border-line bg-white p-4">
+    <section className="rounded-2xl border border-line bg-white p-4">
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h2 className="text-[13.5px] font-bold text-navy">
+        <h2 className="text-sm font-bold text-navy">
           Denominaciones en caja
         </h2>
         <Link
           href={`/conteo/${accountId}`}
-          className="text-[12px] font-semibold text-brand-mid hover:text-brand"
+          className="text-xs font-semibold text-brand-mid hover:text-brand"
         >
           Actualizar conteo
         </Link>
       </div>
 
       {!hasData ? (
-        <p className="py-4 text-center text-[12.5px] text-muted">
+        <p className="py-4 text-center text-sm text-muted">
           Todavía no hay arqueos ni movimientos con desglose. Haz el primer
           conteo para registrar qué billetes y monedas hay en la caja.
         </p>
       ) : (
         <>
-          <p className="mb-3 text-[11.5px] text-muted">
+          <p className="mb-3 text-xs text-muted">
             {stock.countedAt
               ? `Según el arqueo del ${DATE_FMT.format(stock.countedAt)}`
               : "Sin arqueo base"}
@@ -68,7 +68,7 @@ export async function DenominationAvailability({
               : ""}
           </p>
           {lines.length === 0 ? (
-            <p className="py-3 text-center text-[12.5px] text-muted">
+            <p className="py-3 text-center text-sm text-muted">
               La caja está vacía según el último conteo.
             </p>
           ) : (
@@ -81,7 +81,7 @@ export async function DenominationAvailability({
                     className="flex items-center gap-3 border-b border-line-2 py-2 last:border-b-0"
                   >
                     <span
-                      className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] ${
+                      className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg ${
                         negative
                           ? "bg-danger-bg text-danger"
                           : "bg-chip text-brand"
@@ -90,10 +90,10 @@ export async function DenominationAvailability({
                       <Banknote className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12.5px] font-semibold text-navy">
+                      <div className="truncate text-sm font-semibold text-navy">
                         {fmtMinor(line.valueMinor, currency)}
                       </div>
-                      <div className="text-[10.5px] text-muted">
+                      <div className="text-[11px] text-muted">
                         {DENOMINATION_KIND_LABELS[
                           line.kind as DenominationKind
                         ] ?? line.kind}
@@ -102,7 +102,7 @@ export async function DenominationAvailability({
                       </div>
                     </div>
                     <div
-                      className={`text-right text-[12.5px] font-semibold tabular-nums ${
+                      className={`text-right text-sm font-semibold tabular-nums ${
                         negative ? "text-danger" : "text-ink-soft"
                       }`}
                     >
@@ -112,10 +112,10 @@ export async function DenominationAvailability({
                 );
               })}
               <div className="mt-2 flex items-center justify-between border-t border-line pt-2.5">
-                <span className="text-[12px] font-semibold text-ink-soft">
+                <span className="text-xs font-semibold text-ink-soft">
                   Total en denominaciones
                 </span>
-                <span className="text-[14px] font-bold text-navy tabular-nums">
+                <span className="text-sm font-bold text-navy tabular-nums">
                   {fmtMinor(totalMinor, currency)}
                 </span>
               </div>

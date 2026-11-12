@@ -92,7 +92,7 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
       </form>
 
       {error && (
-        <div className="rounded-[13px] bg-danger-bg px-3.5 py-2.5 text-[12.5px] font-medium text-danger">
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
           {error}
         </div>
       )}
@@ -101,7 +101,7 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
         {groups.map((group) => (
           <div
             key={group.id}
-            className="rounded-[13px] border border-line bg-white px-3.5 py-2.5"
+            className="rounded-xl border border-line bg-white px-3.5 py-2.5"
           >
             {editingId === group.id ? (
               <form
@@ -133,7 +133,7 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
               </form>
             ) : confirmDeleteId === group.id ? (
               <div className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
+                <span className="min-w-0 flex-1 truncate text-xs text-muted">
                   ¿Eliminar “{group.name}”? Sus cuentas pasan a “Sin grupo”.
                 </span>
                 <Button
@@ -155,10 +155,10 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
               </div>
             ) : (
               <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-chip text-brand">
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-chip text-brand">
                   <FolderOpen className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-navy">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-navy">
                   {group.name}
                 </span>
                 {group.accountCount > 0 && (
@@ -186,7 +186,7 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
           </div>
         ))}
         {groups.length === 0 && (
-          <div className="rounded-[13px] border border-line bg-white px-3.5 py-4 text-center text-[12.5px] text-muted">
+          <div className="rounded-xl border border-line bg-white px-3.5 py-4 text-center text-sm text-muted">
             Sin grupos todavía. Crea el primero para organizar tus cuentas.
           </div>
         )}
