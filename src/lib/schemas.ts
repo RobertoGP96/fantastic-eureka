@@ -201,11 +201,26 @@ export const renameCategorySchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(40),
 });
 
+// Texto opcional de contacto: "" y null cuentan como «sin dato» (se guarda
+// null). En una edición, `undefined` = no tocar ese campo.
+const optionalContactText = (max: number) =>
+  z.string().trim().max(max).nullish();
+
 export const contactSchema = z.object({
-  name: z.string().trim().min(1).max(60),
-  phone: z.string().trim().max(30).optional(),
-  note: z.string().trim().max(200).optional(),
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
+  phone: optionalContactText(30),
+  note: optionalContactText(200),
 });
+
+export const updateContactSchema = contactSchema.extend({ id: idSchema });
+
+// Fusionar: las deudas y mensualidades de `sourceId` pasan a `targetId` y
+// el contacto origen se elimina.
+export const mergeContactsSchema = z
+  .object({ sourceId: idSchema, targetId: idSchema })
+  .refine((data) => data.sourceId !== data.targetId, {
+    message: "Elige dos contactos distintos",
+  });
 
 export const createDebtSchema = z.object({
   contactId: idSchema.optional(),
@@ -225,6 +240,9 @@ export const createDebtSchema = z.object({
 export const createPlanSchema = z.object({
   debtId: idSchema.optional(),
   contactId: idSchema.optional(),
+  // Contacto NUEVO por nombre (como en createDebtSchema): se crea dentro de
+  // la misma transacción que el plan. Si viene `contactId`, gana ese.
+  contactName: z.string().trim().min(1).max(60).optional(),
   kind: z.enum(PLAN_KINDS),
   description: z.string().trim().min(1).max(120),
   currencyId: idSchema,
