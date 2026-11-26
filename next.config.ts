@@ -28,6 +28,16 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: "/cuentas/nueva",
+        destination: "/cuentas#panel=nueva-cuenta",
+        permanent: false,
+      },
+      {
+        source: "/cuentas/grupos",
+        destination: "/cuentas#panel=grupos",
+        permanent: false,
+      },
+      {
         source: "/deudas/plan/nuevo",
         destination: "/mensualidades#panel=nueva-mensualidad",
         permanent: false,

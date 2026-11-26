@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { FolderOpen, Plus } from "lucide-react";
+import { FormDrawerBody } from "@/components/form-drawer";
+import { FormError } from "@/components/form-field";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   createAccountGroup,
   deleteAccountGroup,
   renameAccountGroup,
 } from "@/app/actions/group-actions";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
 export interface GroupItem {
@@ -19,8 +21,13 @@ export interface GroupItem {
   accountCount: number;
 }
 
+/**
+ * Gestión de los grupos de cuentas (vive en el drawer «grupos» de /cuentas).
+ * No es un formulario de un solo envío: se crea, renombra y elimina sin
+ * cerrar el drawer, y la lista llega fresca por props tras cada action.
+ * Las confirmaciones son inline porque ya estamos dentro de un drawer.
+ */
 export function GroupManager({ groups }: { groups: GroupItem[] }) {
-  const router = useRouter();
   const { showToast } = useUI();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +39,11 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
   const add = async () => {
     setSaving(true);
     setError(null);
-    const result = await createAccountGroup({ name });
+    const result = await runAction(() => createAccountGroup({ name }));
     setSaving(false);
     if (result.success) {
       showToast("Grupo creado");
       setName("");
-      router.refresh();
     } else {
       setError(result.error);
     }
@@ -45,12 +51,13 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
 
   const rename = async (id: string) => {
     setSaving(true);
-    const result = await renameAccountGroup({ id, name: editName });
+    const result = await runAction(() =>
+      renameAccountGroup({ id, name: editName })
+    );
     setSaving(false);
     if (result.success) {
       showToast("Grupo renombrado");
       setEditingId(null);
-      router.refresh();
     } else {
       showToast(result.error);
     }
@@ -58,19 +65,14 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
 
   const remove = async (id: string) => {
     setSaving(true);
-    const result = await deleteAccountGroup(id);
+    const result = await runAction(() => deleteAccountGroup(id));
     setSaving(false);
     setConfirmDeleteId(null);
-    if (result.success) {
-      showToast("Grupo eliminado");
-      router.refresh();
-    } else {
-      showToast(result.error);
-    }
+    showToast(result.success ? "Grupo eliminado" : result.error);
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <FormDrawerBody>
       <form
         className="flex gap-2.5"
         onSubmit={(e) => {
@@ -82,26 +84,23 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nuevo grupo (ej. Negocio)"
+          aria-label="Nombre del grupo nuevo"
           maxLength={40}
           required
         />
         <Button type="submit" disabled={saving || !name.trim()}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
           Crear
         </Button>
       </form>
 
-      {error && (
-        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
-        </div>
-      )}
+      <FormError>{error}</FormError>
 
       <div className="flex flex-col gap-1.5">
         {groups.map((group) => (
           <div
             key={group.id}
-            className="rounded-xl border border-line bg-white px-3.5 py-2.5"
+            className="rounded-xl border border-line bg-card px-3.5 py-2.5"
           >
             {editingId === group.id ? (
               <form
@@ -114,12 +113,16 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  aria-label="Nombre del grupo"
                   maxLength={40}
-                  className="h-9"
                   autoFocus
                   required
                 />
-                <Button type="submit" size="sm" disabled={saving || !editName.trim()}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={saving || !editName.trim()}
+                >
                   Guardar
                 </Button>
                 <Button
@@ -132,9 +135,9 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
                 </Button>
               </form>
             ) : confirmDeleteId === group.id ? (
-              <div className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                  ¿Eliminar “{group.name}”? Sus cuentas pasan a “Sin grupo”.
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 text-xs text-muted">
+                  ¿Eliminar «{group.name}»? Sus cuentas pasan a «Sin grupo».
                 </span>
                 <Button
                   size="sm"
@@ -154,43 +157,45 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-chip text-brand">
-                  <FolderOpen className="h-4 w-4" />
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="flex size-8 flex-none items-center justify-center rounded-lg bg-chip text-brand-ink">
+                  <FolderOpen className="size-4" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-navy">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-heading">
                   {group.name}
                 </span>
                 {group.accountCount > 0 && (
                   <Badge variant="neutral">{group.accountCount} cuentas</Badge>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditingId(group.id);
-                    setEditName(group.name);
-                  }}
-                >
-                  Renombrar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setConfirmDeleteId(group.id)}
-                >
-                  Eliminar
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingId(group.id);
+                      setEditName(group.name);
+                    }}
+                  >
+                    Renombrar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmDeleteId(group.id)}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         ))}
         {groups.length === 0 && (
-          <div className="rounded-xl border border-line bg-white px-3.5 py-4 text-center text-sm text-muted">
+          <div className="rounded-xl border border-line bg-card px-3.5 py-4 text-center text-sm text-muted">
             Sin grupos todavía. Crea el primero para organizar tus cuentas.
           </div>
         )}
       </div>
-    </div>
+    </FormDrawerBody>
   );
 }

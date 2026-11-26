@@ -1,29 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Banknote, Plus } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
-import { Badge } from "@/components/ui/badge";
-import { TxList } from "@/components/tx-list";
-import { GroupSelect } from "@/components/group-select";
-import { AccountIconEditor } from "@/components/account-icon-editor";
-import { AccountEditor } from "@/components/account-editor";
+import { Banknote, FolderOpen, Plus } from "lucide-react";
+import { AccountActivityChart } from "@/components/account-activity-chart";
+import { AccountEditForm } from "@/components/account-edit-form";
+import { AccountManage } from "@/components/account-manage";
 import { AccountSharePanel } from "@/components/account-share-panel";
+import { DenominationAvailability } from "@/components/denomination-availability";
+import { PanelDrawer } from "@/components/form-drawer";
+import { PageBody, SplitLayout } from "@/components/page-body";
+import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
+import { TxList } from "@/components/tx-list";
+import { Badge } from "@/components/ui/badge";
 import { requireSessionUser } from "@/lib/auth";
 import { activeShareForAccount } from "@/lib/shares";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
+import { getAccountIcon } from "@/lib/account-icons";
 import { fmtMinor } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
-import { AccountActivityChart } from "@/components/account-activity-chart";
 import {
   ACCOUNT_TYPE_LABELS,
   isCashLikeType,
   type AccountType,
 } from "@/lib/domain";
-import { DenominationAvailability } from "@/components/denomination-availability";
 
 export const dynamic = "force-dynamic";
+
+/** Drawer de edición (`/cuentas/[id]#panel=editar-cuenta`). */
+const EDIT_ACCOUNT_PANEL = "editar-cuenta";
 
 export default async function CuentaDetallePage({
   params,
@@ -35,7 +41,7 @@ export default async function CuentaDetallePage({
 
   const account = await prisma.account.findFirst({
     where: { id, userId: user.id },
-    include: { currency: true },
+    include: { currency: true, group: { select: { name: true } } },
   });
   if (!account) notFound();
 
@@ -92,6 +98,8 @@ export default async function CuentaDetallePage({
     .map((tx) => toTxRow(tx, account.id, account.currency))
     .reverse();
 
+  const Icon = getAccountIcon(account.icon, account.type);
+
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title={account.name} backHref="/cuentas">
@@ -101,8 +109,8 @@ export default async function CuentaDetallePage({
               Saldo actual
             </div>
             <div
-              className={`mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
-                balanceMinor < 0 ? "text-red-300" : ""
+              className={`money mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
+                balanceMinor < 0 ? "text-danger-soft" : ""
               }`}
             >
               {fmtMinor(balanceMinor, account.currency)}
@@ -115,99 +123,115 @@ export default async function CuentaDetallePage({
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
+      <PageBody>
         {/* Archivada: /registrar y /conteo solo admiten cuentas activas; el
             enlace acababa preseleccionando en silencio otra cuenta. */}
         {!account.archived && (
-        <div className="flex gap-2.5">
-          <Link
-            href={`/registrar?cuenta=${account.id}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-mid"
-          >
-            <Plus className="h-4 w-4" />
-            Registrar
-          </Link>
-          {isCashLikeType(account.type) && (
+          <div className="flex gap-2.5 md:max-w-md">
             <Link
-              href={`/conteo/${account.id}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-white py-3 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+              href={`/registrar?cuenta=${account.id}`}
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
             >
-              <Banknote className="h-4 w-4" />
-              Arqueo
+              <Plus className="size-4" />
+              Registrar
             </Link>
-          )}
-        </div>
-        )}
-
-        {activity.length > 0 && (
-          <AccountActivityChart
-            deltas={activity}
-            currency={{
-              code: account.currency.code,
-              decimalPlaces: account.currency.decimalPlaces,
-            }}
-          />
-        )}
-
-        <div className="rounded-2xl border border-line bg-white px-4 py-3">
-          <AccountIconEditor
-            accountId={account.id}
-            icon={account.icon}
-            type={account.type}
-          />
-        </div>
-
-        {groups.length > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-2.5">
-            <span className="text-sm font-semibold text-ink-soft">
-              Grupo
-            </span>
-            <GroupSelect
-              accountId={account.id}
-              groups={groups}
-              currentGroupId={account.groupId}
-            />
+            {isCashLikeType(account.type) && (
+              <Link
+                href={`/conteo/${account.id}`}
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-ink hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <Banknote className="size-4" />
+                Arqueo
+              </Link>
+            )}
           </div>
         )}
 
-        <AccountEditor
-          accountId={account.id}
-          name={account.name}
-          archived={account.archived}
-          hasUsage={ledger.length + countCount > 0}
-        />
+        <SplitLayout
+          main={
+            <>
+              {activity.length > 0 && (
+                <AccountActivityChart
+                  deltas={activity}
+                  currency={{
+                    code: account.currency.code,
+                    decimalPlaces: account.currency.decimalPlaces,
+                  }}
+                />
+              )}
 
-        <AccountSharePanel
-          accountId={account.id}
-          accountName={account.name}
-          share={
-            share
-              ? { token: share.token, expiresAt: share.expiresAt.toISOString() }
-              : null
+              {account.type === "CASH_BOX" && (
+                <DenominationAvailability
+                  userId={user.id}
+                  accountId={account.id}
+                  currency={account.currency}
+                />
+              )}
+
+              <Section title="Movimientos recientes">
+                {rows.length === 0 ? (
+                  <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted">
+                    Sin movimientos todavía.
+                  </div>
+                ) : (
+                  <TxList rows={rows} />
+                )}
+              </Section>
+            </>
+          }
+          aside={
+            <>
+              <div className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
+                <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                  <Icon className="size-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-heading">
+                    {account.currency.code} · {account.currency.name}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted">
+                    <FolderOpen className="size-3 flex-none" />
+                    <span className="truncate">
+                      {account.group?.name ?? "Sin grupo"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <AccountManage
+                accountId={account.id}
+                name={account.name}
+                archived={account.archived}
+                hasUsage={ledger.length + countCount > 0}
+                editPanel={EDIT_ACCOUNT_PANEL}
+              />
+
+              <AccountSharePanel
+                accountId={account.id}
+                accountName={account.name}
+                share={
+                  share
+                    ? {
+                        token: share.token,
+                        expiresAt: share.expiresAt.toISOString(),
+                      }
+                    : null
+                }
+              />
+            </>
           }
         />
+      </PageBody>
 
-        {account.type === "CASH_BOX" && (
-          <DenominationAvailability
-            userId={user.id}
-            accountId={account.id}
-            currency={account.currency}
-          />
-        )}
-
-        <section>
-          <h2 className="mb-2.5 text-base font-bold text-navy">
-            Movimientos recientes
-          </h2>
-          {rows.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
-              Sin movimientos todavía.
-            </div>
-          ) : (
-            <TxList rows={rows} />
-          )}
-        </section>
-      </div>
+      <PanelDrawer panel={EDIT_ACCOUNT_PANEL} title="Editar cuenta">
+        <AccountEditForm
+          accountId={account.id}
+          name={account.name}
+          icon={account.icon}
+          groupId={account.groupId}
+          groups={groups}
+        />
+      </PanelDrawer>
     </main>
   );
 }

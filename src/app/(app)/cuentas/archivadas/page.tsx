@@ -1,6 +1,7 @@
 import { Archive } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { CardGrid, PageBody } from "@/components/page-body";
+import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { AccountCard } from "../account-card";
@@ -17,7 +18,7 @@ export default async function CuentasArchivadasPage() {
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Cuentas archivadas" backHref="/cuentas" />
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:px-0">
+      <PageBody>
         {accounts.length === 0 ? (
           <EmptyState
             icon={Archive}
@@ -30,14 +31,14 @@ export default async function CuentasArchivadasPage() {
               Las cuentas archivadas conservan su historial y no aparecen al
               registrar movimientos. Entra al detalle para activarlas de nuevo.
             </p>
-            <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
+            <CardGrid>
               {accounts.map((account) => (
                 <AccountCard key={account.id} account={account} />
               ))}
-            </div>
+            </CardGrid>
           </>
         )}
-      </div>
+      </PageBody>
     </main>
   );
 }

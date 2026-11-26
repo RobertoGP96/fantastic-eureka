@@ -1,6 +1,7 @@
 import { History } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { PageBody, SplitLayout } from "@/components/page-body";
+import { ScreenHeader } from "@/components/screen-header";
 import { TxList } from "@/components/tx-list";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -133,90 +134,100 @@ export default async function MovimientosPage({
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Movimientos" backHref="/mas" />
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-4 px-5 pt-5 md:max-w-2xl md:px-0">
-        <FilterBar
-          filters={filters}
-          accounts={accounts}
-          categories={categories}
-        />
+      <PageBody>
+        <SplitLayout
+          asideFirst
+          aside={
+            <>
+              <FilterBar
+                filters={filters}
+                accounts={accounts}
+                categories={categories}
+              />
 
-        {base && (expenseMinor > 0 || incomeMinor > 0) && (
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-2xl border border-line bg-white p-3.5">
-              <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-                Gastos
-              </div>
-              <div className="mt-0.5 text-lg font-bold text-danger">
-                {fmtMinor(expenseMinor, base)}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-line bg-white p-3.5">
-              <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-                Ingresos
-              </div>
-              <div className="mt-0.5 text-lg font-bold text-ok">
-                {fmtMinor(incomeMinor, base)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {missingRates.size > 0 && (
-          <p className="text-xs text-muted">
-            Los montos en {[...missingRates].join(", ")} no se incluyen en los
-            totales por falta de tasa.
-          </p>
-        )}
-
-        {base && topCategories.length > 0 && (
-          <section className="rounded-2xl border border-line bg-white p-4">
-            <h2 className="mb-3 text-sm font-bold text-navy">
-              Gastos por categoría
-            </h2>
-            <div className="flex flex-col gap-2.5">
-              {topCategories.map(([name, total]) => (
-                <div key={name}>
-                  <div className="flex items-baseline justify-between text-xs">
-                    <span className="font-semibold text-ink-soft">{name}</span>
-                    <span className="font-bold text-navy">
-                      {fmtMinor(total, base)}
-                    </span>
+              {base && (expenseMinor > 0 || incomeMinor > 0) && (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-2xl border border-line bg-card p-3.5">
+                    <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
+                      Gastos
+                    </div>
+                    <div className="money mt-0.5 text-base font-bold text-danger">
+                      {fmtMinor(expenseMinor, base)}
+                    </div>
                   </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-app">
-                    <div
-                      className="grad-progress h-2 rounded-full"
-                      style={{
-                        width: `${Math.max(4, Math.round((total / Math.max(1, maxCategory)) * 100))}%`,
-                      }}
-                    />
+                  <div className="rounded-2xl border border-line bg-card p-3.5">
+                    <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
+                      Ingresos
+                    </div>
+                    <div className="money mt-0.5 text-base font-bold text-ok">
+                      {fmtMinor(incomeMinor, base)}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              )}
 
-        {rows.length === 0 ? (
-          <EmptyState
-            icon={History}
-            title="Sin movimientos"
-            description="No hay movimientos con estos filtros. Prueba otro mes o registra uno nuevo."
-            ctaLabel="Registrar"
-            ctaHref="/registrar"
-          />
-        ) : (
-          <>
-            {hiddenCount > 0 && (
-              <p className="text-xs text-muted">
-                Se muestran los {transactions.length} movimientos más recientes
-                de {totalCount}. Los totales incluyen todos; para verlos uno a
-                uno acota el filtro o exporta el CSV.
-              </p>
-            )}
-            <TxList rows={rows} />
-          </>
-        )}
-      </div>
+              {missingRates.size > 0 && (
+                <p className="text-xs text-muted">
+                  Los montos en {[...missingRates].join(", ")} no se incluyen
+                  en los totales por falta de tasa.
+                </p>
+              )}
+
+              {base && topCategories.length > 0 && (
+                <section className="rounded-2xl border border-line bg-card p-4">
+                  <h2 className="mb-3 text-sm font-bold text-heading">
+                    Gastos por categoría
+                  </h2>
+                  <div className="flex flex-col gap-2.5">
+                    {topCategories.map(([name, total]) => (
+                      <div key={name}>
+                        <div className="flex items-baseline justify-between gap-3 text-xs">
+                          <span className="min-w-0 truncate font-semibold text-ink-soft">
+                            {name}
+                          </span>
+                          <span className="money font-bold whitespace-nowrap text-heading">
+                            {fmtMinor(total, base)}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-2 overflow-hidden rounded-full bg-app">
+                          <div
+                            className="grad-progress anim-grow-x h-2 rounded-full"
+                            style={{
+                              width: `${Math.max(4, Math.round((total / Math.max(1, maxCategory)) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          }
+          main={
+            rows.length === 0 ? (
+              <EmptyState
+                icon={History}
+                title="Sin movimientos"
+                description="No hay movimientos con estos filtros. Prueba otro mes o registra uno nuevo."
+                ctaLabel="Registrar"
+                ctaHref="/registrar"
+              />
+            ) : (
+              <>
+                {hiddenCount > 0 && (
+                  <p className="text-xs text-muted">
+                    Se muestran los {transactions.length} movimientos más
+                    recientes de {totalCount}. Los totales incluyen todos; para
+                    verlos uno a uno acota el filtro o exporta el CSV.
+                  </p>
+                )}
+                <TxList rows={rows} />
+              </>
+            )
+          }
+        />
+      </PageBody>
     </main>
   );
 }

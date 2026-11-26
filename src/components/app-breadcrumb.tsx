@@ -15,8 +15,6 @@ import {
 // Etiquetas de segmentos estáticos conocidos (ruta completa → label).
 const STATIC_LABELS: Record<string, string> = {
   "/cuentas": "Cuentas",
-  "/cuentas/nueva": "Nueva cuenta",
-  "/cuentas/grupos": "Grupos",
   "/cuentas/archivadas": "Archivadas",
   "/movimientos": "Movimientos",
   "/deudas": "Deudas",

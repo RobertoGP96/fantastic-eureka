@@ -10,18 +10,18 @@ export function AccountCard({ account }: { account: AccountWithBalance }) {
   return (
     <Link
       href={`/cuentas/${account.id}`}
-      className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+      className="press flex items-center gap-3.5 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >
       <span
-        className={`flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip ${
-          account.archived ? "text-muted" : "text-brand"
+        className={`flex size-11 flex-none items-center justify-center rounded-xl bg-chip ${
+          account.archived ? "text-muted" : "text-brand-ink"
         }`}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-navy">
+          <span className="truncate text-sm font-semibold text-heading">
             {account.name}
           </span>
           {account.archived && (
@@ -36,8 +36,8 @@ export function AccountCard({ account }: { account: AccountWithBalance }) {
         </div>
       </div>
       <div
-        className={`text-base font-bold whitespace-nowrap ${
-          negative ? "text-danger" : "text-navy"
+        className={`money text-base font-bold whitespace-nowrap ${
+          negative ? "text-danger" : "text-heading"
         }`}
       >
         {fmtMinor(account.balanceMinor, account.currency)}

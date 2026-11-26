@@ -10,12 +10,13 @@ import * as groupService from "@/lib/services/group-service";
 // La lógica vive en src/lib/services/group-service.ts (la comparte la API
 // móvil); aquí solo sesión por cookie + revalidación de la UI web.
 
+// Los grupos se gestionan y se eligen en drawers de /cuentas (alta de cuenta
+// y «Grupos») y del detalle de cada cuenta («Editar cuenta»).
 function revalidateGroupPaths(accountId?: string) {
   revalidatePath("/");
   revalidatePath("/cuentas");
-  revalidatePath("/cuentas/grupos");
-  revalidatePath("/cuentas/nueva");
   if (accountId) revalidatePath(`/cuentas/${accountId}`);
+  else revalidatePath("/(app)/cuentas/[id]", "page");
 }
 
 export async function createAccountGroup(

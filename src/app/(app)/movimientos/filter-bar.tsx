@@ -1,7 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import {
+  FormDrawer,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from "@/components/form-drawer";
+import { Field, FIELD_SELECT } from "@/components/form-field";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -12,6 +26,7 @@ import {
 import {
   TRANSACTION_KINDS,
   TRANSACTION_KIND_LABELS,
+  type TransactionKind,
 } from "@/lib/domain";
 
 const ALL = "__all__";
@@ -48,6 +63,15 @@ function monthLabel(mes: string): string {
   return MONTH_FMT.format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
 }
 
+const MONTH_ARROW =
+  "flex size-9 items-center justify-center rounded-lg text-brand-ink transition-colors hover:bg-chip focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40";
+
+/**
+ * Filtros de /movimientos. El mes siempre está a la vista; cuenta, categoría
+ * y tipo se muestran en línea cuando la página va a dos columnas (lateral
+ * ancho) y, en una columna, dentro de un drawer que abre «Filtros». Los
+ * filtros activos se resumen en chips que se quitan de un toque.
+ */
 export function FilterBar({
   filters,
   accounts,
@@ -58,63 +82,55 @@ export function FilterBar({
   categories: Option[];
 }) {
   const router = useRouter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const isAllTime = filters.mes === "todos";
 
-  const apply = (next: Partial<Filters>) => {
-    const merged = { ...filters, ...next };
+  const query = (source: Filters) => {
     const params = new URLSearchParams();
-    if (merged.mes) params.set("mes", merged.mes);
-    if (merged.cuenta) params.set("cuenta", merged.cuenta);
-    if (merged.categoria) params.set("categoria", merged.categoria);
-    if (merged.tipo) params.set("tipo", merged.tipo);
-    router.replace(`/movimientos?${params.toString()}`);
+    if (source.mes) params.set("mes", source.mes);
+    if (source.cuenta) params.set("cuenta", source.cuenta);
+    if (source.categoria) params.set("categoria", source.categoria);
+    if (source.tipo) params.set("tipo", source.tipo);
+    return params.toString();
   };
 
-  const exportParams = new URLSearchParams();
-  if (filters.mes) exportParams.set("mes", filters.mes);
-  if (filters.cuenta) exportParams.set("cuenta", filters.cuenta);
-  if (filters.categoria) exportParams.set("categoria", filters.categoria);
-  if (filters.tipo) exportParams.set("tipo", filters.tipo);
+  const apply = (next: Partial<Filters>) => {
+    router.replace(`/movimientos?${query({ ...filters, ...next })}`);
+  };
 
-  return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between rounded-2xl border border-line bg-white px-2 py-1.5">
-        <button
-          type="button"
-          onClick={() => apply({ mes: shiftMonth(filters.mes, -1) })}
-          disabled={isAllTime}
-          aria-label="Mes anterior"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            apply({ mes: isAllTime ? shiftMonth("", 0) : "todos" })
-          }
-          className="text-sm font-semibold text-navy capitalize transition-colors hover:text-brand"
-          title="Alternar entre mes y todo el historial"
-        >
-          {monthLabel(filters.mes)}
-        </button>
-        <button
-          type="button"
-          onClick={() => apply({ mes: shiftMonth(filters.mes, 1) })}
-          disabled={isAllTime}
-          aria-label="Mes siguiente"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+  // Chips de lo que está filtrando ahora mismo (sin contar el mes).
+  const active = [
+    filters.cuenta && {
+      key: "cuenta" as const,
+      label:
+        accounts.find((a) => a.id === filters.cuenta)?.name ?? "Cuenta",
+    },
+    filters.categoria && {
+      key: "categoria" as const,
+      label:
+        categories.find((c) => c.id === filters.categoria)?.name ??
+        "Categoría",
+    },
+    filters.tipo && {
+      key: "tipo" as const,
+      label:
+        TRANSACTION_KIND_LABELS[filters.tipo as TransactionKind] ??
+        filters.tipo,
+    },
+  ].filter((chip): chip is { key: "cuenta" | "categoria" | "tipo"; label: string } =>
+    Boolean(chip)
+  );
 
-      <div className="flex flex-wrap items-center gap-2">
+  const selects = (
+    <>
+      <Field label="Cuenta">
         <Select
           value={filters.cuenta || ALL}
-          onValueChange={(value) => apply({ cuenta: value === ALL ? "" : value })}
+          onValueChange={(value) =>
+            apply({ cuenta: value === ALL ? "" : value })
+          }
         >
-          <SelectTrigger>
+          <SelectTrigger className={FIELD_SELECT}>
             <SelectValue placeholder="Cuenta" />
           </SelectTrigger>
           <SelectContent>
@@ -126,14 +142,16 @@ export function FilterBar({
             ))}
           </SelectContent>
         </Select>
+      </Field>
 
+      <Field label="Categoría">
         <Select
           value={filters.categoria || ALL}
           onValueChange={(value) =>
             apply({ categoria: value === ALL ? "" : value })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className={FIELD_SELECT}>
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
@@ -145,12 +163,14 @@ export function FilterBar({
             ))}
           </SelectContent>
         </Select>
+      </Field>
 
+      <Field label="Tipo">
         <Select
           value={filters.tipo || ALL}
           onValueChange={(value) => apply({ tipo: value === ALL ? "" : value })}
         >
-          <SelectTrigger>
+          <SelectTrigger className={FIELD_SELECT}>
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
@@ -162,15 +182,108 @@ export function FilterBar({
             ))}
           </SelectContent>
         </Select>
+      </Field>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between rounded-2xl border border-line bg-card px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => apply({ mes: shiftMonth(filters.mes, -1) })}
+          disabled={isAllTime}
+          aria-label="Mes anterior"
+          className={MONTH_ARROW}
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            apply({ mes: isAllTime ? shiftMonth("", 0) : "todos" })
+          }
+          className="min-h-9 rounded-lg px-2 text-sm font-semibold text-heading capitalize transition-colors hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          title="Alternar entre mes y todo el historial"
+        >
+          {monthLabel(filters.mes)}
+        </button>
+        <button
+          type="button"
+          onClick={() => apply({ mes: shiftMonth(filters.mes, 1) })}
+          disabled={isAllTime}
+          aria-label="Mes siguiente"
+          className={MONTH_ARROW}
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+
+      {/* Dos columnas: los selectores caben en el lateral. */}
+      <div className="hidden flex-col gap-3 rounded-2xl border border-line bg-card p-4 @4xl:flex">
+        {selects}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Una columna: los selectores van en un drawer. */}
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-chip px-3 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-soft/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none @4xl:hidden"
+        >
+          <SlidersHorizontal className="size-3.5" />
+          Filtros
+          {active.length > 0 && (
+            <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground">
+              {active.length}
+            </span>
+          )}
+        </button>
+
+        {active.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={() => apply({ [chip.key]: "" })}
+            aria-label={`Quitar filtro ${chip.label}`}
+            className="inline-flex min-h-9 max-w-full items-center gap-1 rounded-lg border border-line bg-card pr-2 pl-3 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <span className="truncate">{chip.label}</span>
+            <X className="size-3.5 flex-none" />
+          </button>
+        ))}
 
         <a
-          href={`/api/export?${exportParams.toString()}`}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-chip px-[11px] py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft/30"
+          href={`/api/export?${query(filters)}`}
+          className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-chip px-3 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-soft/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="size-3.5" />
           CSV
         </a>
       </div>
+
+      <FormDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Filtros"
+        description="Se aplican al momento."
+        side="bottom"
+      >
+        <FormDrawerBody>{selects}</FormDrawerBody>
+        <FormDrawerFooter>
+          <Button
+            variant="ghost"
+            className="flex-none"
+            disabled={active.length === 0}
+            onClick={() => apply({ cuenta: "", categoria: "", tipo: "" })}
+          >
+            Limpiar
+          </Button>
+          <Button className="flex-1" onClick={() => setDrawerOpen(false)}>
+            Listo
+          </Button>
+        </FormDrawerFooter>
+      </FormDrawer>
     </div>
   );
 }

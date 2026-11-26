@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { PageBody } from "@/components/page-body";
 import { ScreenHeader } from "@/components/screen-header";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
@@ -120,7 +121,9 @@ export default async function EditarMovimientoPage({
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Editar movimiento" backHref={`/movimientos/${id}`} />
-      <div className="anim-fade-up px-5 pt-5 md:max-w-md md:px-0">
+      {/* Sigue siendo página (no drawer): el desglose de billetes necesita
+          sitio. `default` le da algo más de ancho que el viejo max-w-md. */}
+      <PageBody width="default">
         <EditTransactionForm
           tx={{
             id: tx.id,
@@ -153,7 +156,7 @@ export default async function EditarMovimientoPage({
           initialOriginLines={originOldLines}
           initialDestLines={destOldLines}
         />
-      </div>
+      </PageBody>
     </main>
   );
 }

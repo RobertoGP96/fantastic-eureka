@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { Archive, FolderOpen, Plus, Wallet } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
-import { EmptyState } from "@/components/empty-state";
+import { AccountForm } from "@/components/account-form";
+import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
+import { PanelDrawer } from "@/components/form-drawer";
+import { GroupManager } from "@/components/group-manager";
+import { CardGrid, PageBody } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
+import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
@@ -16,7 +21,14 @@ import { AccountCard } from "./account-card";
 
 export const dynamic = "force-dynamic";
 
-interface Section {
+/** Drawers de la página (`/cuentas#panel=…`). */
+const NEW_ACCOUNT_PANEL = "nueva-cuenta";
+const GROUPS_PANEL = "grupos";
+
+const TOOLBAR_BUTTON =
+  "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
+interface AccountSection {
   key: string;
   name: string | null;
   accounts: AccountWithBalance[];
@@ -25,19 +37,42 @@ interface Section {
 
 export default async function CuentasPage() {
   const user = await requireSessionUser();
-  const [accounts, groups, base, rates, archivedCount] = await Promise.all([
-    listAccountsWithBalances(user.id),
-    prisma.accountGroup.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
-    latestRatesByCurrency(user.id),
-    prisma.account.count({ where: { userId: user.id, archived: true } }),
-  ]);
+  const [accounts, groups, currencies, rates, archivedCount] =
+    await Promise.all([
+      listAccountsWithBalances(user.id),
+      prisma.accountGroup.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { accounts: true } },
+        },
+      }),
+      // Monedas activas: alimentan el formulario de alta (drawer).
+      prisma.currency.findMany({
+        where: { active: true, userId: user.id },
+        orderBy: [{ isBase: "desc" }, { code: "asc" }],
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          kind: true,
+          isBase: true,
+          decimalPlaces: true,
+        },
+      }),
+      latestRatesByCurrency(user.id),
+      prisma.account.count({ where: { userId: user.id, archived: true } }),
+    ]);
+  // La base puede estar oculta (inactiva): se busca aparte si no vino.
+  const base =
+    currencies.find((currency) => currency.isBase) ??
+    (await prisma.currency.findFirst({
+      where: { isBase: true, userId: user.id },
+    }));
 
-  const sections: Section[] =
+  const sections: AccountSection[] =
     groups.length > 0
       ? [
           ...groups.map((group) => ({
@@ -86,33 +121,28 @@ export default async function CuentasPage() {
 
   return (
     <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Cuentas" />
+      <ScreenHeader
+        title="Cuentas"
+        actions={
+          <PanelButton panel={NEW_ACCOUNT_PANEL} className={HEADER_ACTION}>
+            <Plus className="size-3.5" />
+            Nueva cuenta
+          </PanelButton>
+        }
+      />
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:px-0">
-        <div className="flex justify-end gap-2">
+      <PageBody>
+        <div className="flex flex-wrap justify-end gap-2">
           {archivedCount > 0 && (
-            <Link
-              href="/cuentas/archivadas"
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-            >
-              <Archive className="h-3.5 w-3.5" />
+            <Link href="/cuentas/archivadas" className={TOOLBAR_BUTTON}>
+              <Archive className="size-3.5" />
               Archivadas ({archivedCount})
             </Link>
           )}
-          <Link
-            href="/cuentas/grupos"
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
+          <PanelButton panel={GROUPS_PANEL} className={TOOLBAR_BUTTON}>
+            <FolderOpen className="size-3.5" />
             Grupos
-          </Link>
-          <Link
-            href="/cuentas/nueva"
-            className="flex items-center gap-1.5 rounded-lg bg-brand px-[11px] py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-mid"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva cuenta
-          </Link>
+          </PanelButton>
         </div>
 
         {accounts.length === 0 ? (
@@ -120,8 +150,14 @@ export default async function CuentasPage() {
             icon={Wallet}
             title="Sin cuentas todavía"
             description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
-            ctaLabel="Crear cuenta"
-            ctaHref="/cuentas/nueva"
+            cta={
+              <PanelButton
+                panel={NEW_ACCOUNT_PANEL}
+                className={EMPTY_STATE_CTA}
+              >
+                Crear cuenta
+              </PanelButton>
+            }
           />
         ) : (
           visible.map((section) => {
@@ -134,51 +170,76 @@ export default async function CuentasPage() {
               currencyTotals.length === 1 &&
               currencyTotals[0].currency.id === base?.id;
             return (
-            <section key={section.key}>
-              {section.name && (
-                <div className="mb-2 flex flex-col gap-1">
-                  <div className="flex items-baseline justify-between">
-                    <h2 className="text-sm font-bold text-navy">
-                      {section.name}
-                    </h2>
-                    {base && section.subtotalMinor !== null && (
-                      <span
-                        className="text-xs font-semibold text-muted"
-                        title={`Consolidado en ${base.code}`}
-                      >
-                        {onlyBase ? "" : "≈ "}
-                        {fmtMinor(section.subtotalMinor, base)}
-                      </span>
+              <section key={section.key}>
+                {section.name && (
+                  <div className="mb-2 flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between">
+                      <h2 className="text-sm font-bold text-heading">
+                        {section.name}
+                      </h2>
+                      {base && section.subtotalMinor !== null && (
+                        <span
+                          className="money text-xs font-semibold text-muted"
+                          title={`Consolidado en ${base.code}`}
+                        >
+                          {onlyBase ? "" : "≈ "}
+                          {fmtMinor(section.subtotalMinor, base)}
+                        </span>
+                      )}
+                    </div>
+                    {!onlyBase && currencyTotals.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {currencyTotals.map((total) => (
+                          <span
+                            key={total.currency.id}
+                            className={`money rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold ${
+                              total.totalMinor < 0
+                                ? "text-danger"
+                                : "text-brand-ink"
+                            }`}
+                          >
+                            {fmtMinor(total.totalMinor, total.currency)}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {!onlyBase && currencyTotals.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {currencyTotals.map((total) => (
-                        <span
-                          key={total.currency.id}
-                          className={`rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold ${
-                            total.totalMinor < 0
-                              ? "text-danger"
-                              : "text-brand"
-                          }`}
-                        >
-                          {fmtMinor(total.totalMinor, total.currency)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
-                {section.accounts.map((account) => (
-                  <AccountCard key={account.id} account={account} />
-                ))}
-              </div>
-            </section>
+                )}
+                <CardGrid>
+                  {section.accounts.map((account) => (
+                    <AccountCard key={account.id} account={account} />
+                  ))}
+                </CardGrid>
+              </section>
             );
           })
         )}
-      </div>
+      </PageBody>
+
+      <PanelDrawer panel={NEW_ACCOUNT_PANEL} title="Nueva cuenta">
+        <AccountForm
+          currencies={currencies.map(({ id, code, name, kind }) => ({
+            id,
+            code,
+            name,
+            kind,
+          }))}
+          groups={groups.map(({ id, name }) => ({ id, name }))}
+        />
+      </PanelDrawer>
+      <PanelDrawer
+        panel={GROUPS_PANEL}
+        title="Grupos de cuentas"
+        description="Organiza tus cuentas. Al eliminar un grupo, sus cuentas pasan a «Sin grupo»."
+      >
+        <GroupManager
+          groups={groups.map((group) => ({
+            id: group.id,
+            name: group.name,
+            accountCount: group._count.accounts,
+          }))}
+        />
+      </PanelDrawer>
     </main>
   );
 }

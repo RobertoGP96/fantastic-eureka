@@ -45,14 +45,14 @@ export function TxList({
 }) {
   if (rows.length === 0) return null;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="anim-stagger flex flex-col gap-2">
       {rows.map((row) => {
         const Icon = KIND_ICONS[row.kind] ?? ArrowRightLeft;
         const positive = row.amountMinor > 0;
         // Mover dinero (transferencia/ajuste) no es perderlo: tinte neutro.
         const neutral = row.kind === "TRANSFER" || row.kind === "ADJUSTMENT";
         const className =
-          "flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 transition-colors hover:border-brand-soft";
+          "flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3";
         const content = (
           <>
             <span
@@ -92,7 +92,7 @@ export function TxList({
           <Link
             key={row.id}
             href={`/movimientos/${row.id}`}
-            className={className}
+            className={`press ${className} hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`}
           >
             {content}
           </Link>
