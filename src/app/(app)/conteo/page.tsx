@@ -1,14 +1,18 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Banknote, Calculator, ChevronRight } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
-import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { CardGrid, PageBody, SplitLayout } from "@/components/page-body";
+import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { fmtMinor, fmtSignedMinor } from "@/lib/format";
 import { isCashLikeType } from "@/lib/domain";
+import { panelHref } from "@/lib/panel-core";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +22,9 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+const ROW_LINK =
+  "press flex items-center gap-3.5 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none";
 
 export default async function ConteoPage() {
   const user = await requireSessionUser();
@@ -34,56 +41,50 @@ export default async function ConteoPage() {
     isCashLikeType(account.type)
   );
 
-  return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Conteo de efectivo" backHref="/mas" />
-
-      <div className="anim-fade-up flex flex-1 flex-col gap-6 px-5 pt-5 md:max-w-2xl md:px-0">
-        <Link
-          href="/calculadora"
-          className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-        >
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-            <Calculator className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-navy">
-              Calculadora de efectivo
-            </div>
-            <div className="text-xs text-muted">
-              Cuenta billetes y monedas sin elegir cuenta
-            </div>
+  // Calculadora + cajas: la columna principal.
+  const boxes: ReactNode = (
+    <>
+      {/* Un solo atajo: con ancho de sobra no se estira a toda la columna. */}
+      <Link href="/calculadora" className={`${ROW_LINK} @2xl:max-w-md`}>
+        <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+          <Calculator className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-heading">
+            Calculadora de efectivo
           </div>
-          <ChevronRight className="h-4 w-4 text-muted" />
-        </Link>
+          <div className="text-xs text-muted">
+            Cuenta billetes y monedas sin elegir cuenta
+          </div>
+        </div>
+        <ChevronRight className="size-4 flex-none text-muted" />
+      </Link>
 
-        {cashAccounts.length === 0 ? (
-          <EmptyState
-            icon={Banknote}
-            title="Sin cajas de efectivo"
-            description="Crea una cuenta de tipo Efectivo o Caja (denominaciones) para poder hacer arqueos."
-            ctaLabel="Crear cuenta"
-            ctaHref="/cuentas/nueva"
-          />
-        ) : (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Elige la caja a contar
-            </h2>
-            <div className="flex flex-col gap-2.5">
-              {cashAccounts.map((account) => {
-                const Icon = getAccountIcon(account.icon, account.type);
-                return (
+      {cashAccounts.length === 0 ? (
+        <EmptyState
+          icon={Banknote}
+          title="Sin cajas de efectivo"
+          description="Crea una cuenta de tipo Efectivo o Caja (denominaciones) para poder hacer arqueos."
+          ctaLabel="Crear cuenta"
+          // El alta de cuenta es un drawer de /cuentas.
+          ctaHref={panelHref("/cuentas", "nueva-cuenta")}
+        />
+      ) : (
+        <Section title="Elige la caja a contar">
+          <CardGrid>
+            {cashAccounts.map((account) => {
+              const Icon = getAccountIcon(account.icon, account.type);
+              return (
                 <Link
                   key={account.id}
                   href={`/conteo/${account.id}`}
-                  className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+                  className={ROW_LINK}
                 >
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                    <Icon className="h-5 w-5" />
+                  <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <Icon className="size-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
+                    <div className="truncate text-sm font-semibold text-heading">
                       {account.name}
                     </div>
                     <div className="text-xs text-muted">
@@ -91,52 +92,68 @@ export default async function ConteoPage() {
                       {fmtMinor(account.balanceMinor, account.currency)}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted" />
+                  <ChevronRight className="size-4 flex-none text-muted" />
                 </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
+              );
+            })}
+          </CardGrid>
+        </Section>
+      )}
+    </>
+  );
 
-        {counts.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Arqueos recientes
-            </h2>
-            <div className="flex flex-col gap-2">
-              {counts.map((count) => (
-                <div
-                  key={count.id}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
-                      {count.account.name} ·{" "}
-                      {fmtMinor(count.totalMinor, count.account.currency)}
-                    </div>
-                    <div className="text-xs text-muted">
-                      {DATE_FMT.format(count.countedAt)}
-                    </div>
-                  </div>
-                  {count.differenceMinor === 0 ? (
-                    <Badge variant="ok">Cuadra</Badge>
-                  ) : (
-                    <Badge
-                      variant={count.differenceMinor > 0 ? "warn" : "danger"}
+  return (
+    <main className="flex flex-1 flex-col pb-8">
+      <ScreenHeader title="Conteo de efectivo" backHref="/mas" />
+
+      <PageBody>
+        {counts.length === 0 ? (
+          // Sin historial no hay lateral: las cajas usan todo el ancho.
+          boxes
+        ) : (
+          // Escritorio: cajas a la izquierda y los últimos arqueos fijos a
+          // la derecha. En móvil, uno debajo del otro como siempre.
+          <SplitLayout
+            main={boxes}
+            aside={
+              <Section title="Arqueos recientes">
+                <div className="anim-stagger flex flex-col gap-2">
+                  {counts.map((count) => (
+                    <div
+                      key={count.id}
+                      className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3"
                     >
-                      {fmtSignedMinor(
-                        count.differenceMinor,
-                        count.account.currency
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-heading">
+                          {count.account.name} ·{" "}
+                          {fmtMinor(count.totalMinor, count.account.currency)}
+                        </div>
+                        <div className="text-xs text-muted">
+                          {DATE_FMT.format(count.countedAt)}
+                        </div>
+                      </div>
+                      {count.differenceMinor === 0 ? (
+                        <Badge variant="ok">Cuadra</Badge>
+                      ) : (
+                        <Badge
+                          variant={
+                            count.differenceMinor > 0 ? "warn" : "danger"
+                          }
+                        >
+                          {fmtSignedMinor(
+                            count.differenceMinor,
+                            count.account.currency
+                          )}
+                        </Badge>
                       )}
-                    </Badge>
-                  )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
+              </Section>
+            }
+          />
         )}
-      </div>
+      </PageBody>
     </main>
   );
 }

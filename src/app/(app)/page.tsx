@@ -9,7 +9,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
+import { CardGrid, PageBody } from "@/components/page-body";
 import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
 import { UpcomingInstallments } from "@/components/upcoming-installments";
 import { InstallmentNotifications } from "@/components/installment-notifications";
@@ -35,10 +37,14 @@ import { dashboardMetrics } from "@/lib/metrics";
 import { deltaPct } from "@/lib/metrics-core";
 import { fmtMinor } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
+import { panelHref } from "@/lib/panel-core";
 import { pairRateSeries } from "@/lib/rates";
 import { pairKey } from "@/lib/rate-resolve";
 
 export const dynamic = "force-dynamic";
+
+// El alta de cuenta ya no tiene página propia: es un drawer de /cuentas.
+const NEW_ACCOUNT_HREF = panelHref("/cuentas", "nueva-cuenta");
 
 const QUICK_ACTIONS = [
   { href: "/registrar?tipo=gasto", icon: ArrowUpRight, label: "Gasto" },
@@ -163,7 +169,7 @@ export default async function HomePage() {
       return (
         <div
           key={`widget-${widget.id}`}
-          className="rounded-2xl border border-dashed border-line bg-white p-4 text-xs text-muted"
+          className="rounded-2xl border border-dashed border-line bg-card p-4 text-xs text-muted"
         >
           Este gadget de tasa usa una moneda oculta o eliminada. Edítalo o
           quítalo desde «Personalizar».
@@ -190,17 +196,19 @@ export default async function HomePage() {
         </BentoPanel>
       ) : null,
     quickActions: (
-      <div key="quickActions" className="grid grid-cols-5 gap-2 md:max-w-lg">
+      // A todo el ancho. En móvil, icono sobre etiqueta; con sitio de sobra
+      // (@4xl) cada acción se tumba: icono a la izquierda y texto mayor.
+      <div key="quickActions" className="grid grid-cols-5 gap-2 @4xl:gap-3">
         {QUICK_ACTIONS.map((action) => {
           const Icon = action.icon;
           return (
             <Link
               key={action.href}
               href={action.href}
-              className="flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-white py-3 text-[11px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
+              className="press flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-card py-3 text-[11px] font-semibold text-ink-soft hover:border-brand-soft hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none @4xl:flex-row @4xl:justify-center @4xl:gap-2.5 @4xl:px-3 @4xl:py-3.5 @4xl:text-sm"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-chip text-brand">
-                <Icon className="h-4 w-4" />
+              <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                <Icon className="size-4" />
               </span>
               {action.label}
             </Link>
@@ -212,9 +220,9 @@ export default async function HomePage() {
       base && metrics ? (
         <section
           key="monthlyChart"
-          className="rounded-2xl border border-line bg-white p-4"
+          className="rounded-2xl border border-line bg-card p-4"
         >
-          <h2 className="mb-3 text-sm font-bold text-navy">
+          <h2 className="mb-3 text-sm font-bold text-heading">
             Ingresos vs gastos · últimos 6 meses
           </h2>
           {hasSeriesData ? (
@@ -230,15 +238,15 @@ export default async function HomePage() {
       base && metrics && metrics.topCategories.length > 0 ? (
         <section
           key="topCategories"
-          className="rounded-2xl border border-line bg-white p-4"
+          className="rounded-2xl border border-line bg-card p-4"
         >
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-navy">
+            <h2 className="text-sm font-bold text-heading">
               Top gastos del mes
             </h2>
             <Link
               href="/movimientos"
-              className="text-xs font-semibold text-brand-mid hover:text-brand"
+              className="text-xs font-semibold text-brand-ink hover:underline"
             >
               Ver todo
             </Link>
@@ -250,13 +258,13 @@ export default async function HomePage() {
                   <span className="font-semibold text-ink-soft">
                     {category.name}
                   </span>
-                  <span className="font-bold text-navy">
+                  <span className="money font-bold text-heading">
                     {fmtMinor(category.totalMinor, base)}
                   </span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-app">
                   <div
-                    className="grad-progress h-2 rounded-full"
+                    className="grad-progress anim-grow-x h-2 rounded-full"
                     style={{
                       width: `${Math.max(
                         4,
@@ -276,32 +284,33 @@ export default async function HomePage() {
       <UpcomingInstallments key="upcomingInstallments" userId={user.id} />
     ),
     accounts: (
-      <section key="accounts">
-        <div className="mb-2.5 flex items-center justify-between">
-          <h2 className="text-base font-bold text-navy">Cuentas</h2>
+      <Section
+        key="accounts"
+        title="Cuentas"
+        action={
           <Link
-            href="/cuentas/nueva"
-            className="text-xs font-semibold text-brand-mid hover:text-brand"
+            href={NEW_ACCOUNT_HREF}
+            className="text-xs font-semibold text-brand-ink hover:underline"
           >
             + Nueva cuenta
           </Link>
-        </div>
-
+        }
+      >
         {accounts.length === 0 ? (
           <EmptyState
             icon={Wallet}
             title="Sin cuentas todavía"
             description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
             ctaLabel="Crear cuenta"
-            ctaHref="/cuentas/nueva"
+            ctaHref={NEW_ACCOUNT_HREF}
           />
         ) : visibleAccounts.length === 0 ? (
-          <p className="rounded-2xl border border-line bg-white px-4 py-5 text-center text-sm text-muted">
+          <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">
             Todas las cuentas están ocultas. Elige cuáles mostrar en
             «Personalizar Inicio».
           </p>
         ) : (
-          <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
+          <CardGrid>
             {visibleAccounts.map((account) => {
               const Icon = getAccountIcon(account.icon, account.type);
               const negative = account.balanceMinor < 0;
@@ -309,13 +318,13 @@ export default async function HomePage() {
                 <Link
                   key={account.id}
                   href={`/cuentas/${account.id}`}
-                  className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
+                  className="press flex items-center gap-3.5 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                 >
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                    <Icon className="h-5 w-5" />
+                  <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <Icon className="size-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
+                    <div className="truncate text-sm font-semibold text-heading">
                       {account.name}
                     </div>
                     <div className="text-xs text-muted">
@@ -323,8 +332,8 @@ export default async function HomePage() {
                     </div>
                   </div>
                   <div
-                    className={`text-base font-bold whitespace-nowrap ${
-                      negative ? "text-danger" : "text-navy"
+                    className={`money text-base font-bold whitespace-nowrap ${
+                      negative ? "text-danger" : "text-heading"
                     }`}
                   >
                     {fmtMinor(account.balanceMinor, account.currency)}
@@ -332,9 +341,9 @@ export default async function HomePage() {
                 </Link>
               );
             })}
-          </div>
+          </CardGrid>
         )}
-      </section>
+      </Section>
     ),
   };
 
@@ -349,7 +358,9 @@ export default async function HomePage() {
       halfRun.length === 1 ? (
         halfRun[0]
       ) : (
-        <div key={`half-${halfRunKey}`} className="grid gap-6 lg:grid-cols-2">
+        // Por container query: con el sidebar abierto el ancho real del
+        // contenido es bastante menor que el del viewport.
+        <div key={`half-${halfRunKey}`} className="grid gap-6 @3xl:grid-cols-2">
           {halfRun}
         </div>
       )
@@ -475,9 +486,7 @@ export default async function HomePage() {
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:px-0">
-        {blocks}
-      </div>
+      <PageBody className="gap-6">{blocks}</PageBody>
     </main>
   );
 }

@@ -12,7 +12,9 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import { CardGrid, PageBody } from "@/components/page-body";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/section";
 import { LogoutButton } from "@/components/logout-button";
 import { requireSessionUser } from "@/lib/auth";
 
@@ -82,54 +84,57 @@ export default async function MasPage() {
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Más opciones" />
-      <div className="anim-fade-up flex flex-col gap-3 px-5 pt-5 md:max-w-xl md:px-0">
-        {ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-            >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="flex-1">
-                <span className="block text-sm font-semibold text-navy">
-                  {item.title}
+      <PageBody>
+        {/* gap-3 en móvil como la lista de siempre; CardGrid la reparte en
+            2 y 3 columnas cuando hay ancho. */}
+        <CardGrid className="gap-3">
+          {ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="press flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                  <Icon className="size-5" />
                 </span>
-                <span className="block text-xs text-muted">
-                  {item.description}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-heading">
+                    {item.title}
+                  </span>
+                  <span className="block text-xs text-muted">
+                    {item.description}
+                  </span>
                 </span>
-              </span>
-              <ChevronRight className="h-4 w-4 text-muted" />
-            </Link>
-          );
-        })}
+                <ChevronRight className="size-4 flex-none text-muted" />
+              </Link>
+            );
+          })}
+        </CardGrid>
 
-        {user && (
-          <div className="mt-2 rounded-2xl border border-line bg-white p-4">
-            <Link
-              href="/perfil"
-              className="mb-3 flex items-center gap-3 transition-opacity hover:opacity-80"
-            >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                <UserRound className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-navy">
-                  {user.name}
-                </div>
-                <div className="truncate text-xs text-muted">
-                  Editar perfil · {user.email}
-                </div>
+        {/* El bloque de usuario no crece con el panel: es una sola tarjeta. */}
+        <Card className="@2xl:max-w-md">
+          <Link
+            href="/perfil"
+            className="mb-3 flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none"
+          >
+            <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+              <UserRound className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-heading">
+                {user.name}
               </div>
-              <ChevronRight className="h-4 w-4 flex-none text-muted" />
-            </Link>
-            <LogoutButton />
-          </div>
-        )}
-      </div>
+              <div className="truncate text-xs text-muted">
+                Editar perfil · {user.email}
+              </div>
+            </div>
+            <ChevronRight className="size-4 flex-none text-muted" />
+          </Link>
+          <LogoutButton />
+        </Card>
+      </PageBody>
     </main>
   );
 }

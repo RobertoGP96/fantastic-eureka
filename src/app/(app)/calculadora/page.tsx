@@ -1,6 +1,7 @@
 import { Coins } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { PageBody } from "@/components/page-body";
+import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CashCalculator, type CalculatorCurrency } from "./cash-calculator";
@@ -39,7 +40,9 @@ export default async function CalculadoraPage() {
           Cuenta billetes y monedas sin elegir cuenta; no se guarda nada.
         </p>
       </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+      {/* Ancho completo: la calculadora reparte contadores y total en dos
+          columnas (SplitLayout) cuando hay sitio. */}
+      <PageBody>
         {options.length === 0 ? (
           <EmptyState
             icon={Coins}
@@ -51,7 +54,7 @@ export default async function CalculadoraPage() {
         ) : (
           <CashCalculator currencies={options} />
         )}
-      </div>
+      </PageBody>
     </main>
   );
 }

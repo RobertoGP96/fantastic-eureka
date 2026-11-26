@@ -1,3 +1,4 @@
+import { PageBody } from "@/components/page-body";
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -70,7 +71,9 @@ export default async function RegistrarPage({
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title="Registrar" backHref="/" />
-      <div className="anim-fade-up px-5 pt-5 md:max-w-md md:px-0">
+      {/* Ancho completo: el formulario reparte campos y resumen en dos
+          columnas (SplitLayout) cuando hay sitio. */}
+      <PageBody>
         <RegisterForm
           accounts={accounts.map((account) => ({
             id: account.id,
@@ -89,7 +92,7 @@ export default async function RegistrarPage({
               : undefined
           }
         />
-      </div>
+      </PageBody>
     </main>
   );
 }

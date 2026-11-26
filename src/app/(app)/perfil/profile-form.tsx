@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Field, FormError } from "@/components/form-field";
 import { updateProfile } from "@/app/actions/profile-actions";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
+/** Datos personales: formulario inline (no navega ni cierra nada al guardar). */
 export function ProfileForm({
   initialName,
   initialEmail,
@@ -14,7 +16,6 @@ export function ProfileForm({
   initialName: string;
   initialEmail: string;
 }) {
-  const router = useRouter();
   const { showToast } = useUI();
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
@@ -26,11 +27,14 @@ export function ProfileForm({
   const submit = async () => {
     setSaving(true);
     setError(null);
-    const result = await updateProfile({ name, email });
+    const result = await runAction(() => updateProfile({ name, email }));
+    // Aquí `saving` SÍ vuelve a false tras el éxito: el formulario se queda
+    // en pantalla y debe poder guardar otro cambio. Sin riesgo de duplicar:
+    // la action revalida la página, llegan los datos nuevos como iniciales
+    // y `dirty` deja el botón deshabilitado hasta que se edite de nuevo.
     setSaving(false);
     if (result.success) {
       showToast("Perfil actualizado");
-      router.refresh();
     } else {
       setError(result.error);
     }
@@ -44,10 +48,7 @@ export function ProfileForm({
         void submit();
       }}
     >
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
-          Nombre
-        </span>
+      <Field label="Nombre">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -55,12 +56,9 @@ export function ProfileForm({
           autoComplete="name"
           required
         />
-      </label>
+      </Field>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
-          Correo
-        </span>
+      <Field label="Correo">
         <Input
           type="email"
           value={email}
@@ -68,13 +66,9 @@ export function ProfileForm({
           autoComplete="email"
           required
         />
-      </label>
+      </Field>
 
-      {error && (
-        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
-        </div>
-      )}
+      <FormError>{error}</FormError>
 
       <Button
         type="submit"

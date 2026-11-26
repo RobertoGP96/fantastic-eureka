@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PageBody } from "@/components/page-body";
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -42,9 +43,11 @@ export default async function ConteoCajaPage({
           Saldo teórico: {fmtMinor(expectedMinor, account.currency)}
         </p>
       </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+      {/* Ancho completo: el arqueo reparte contadores y resumen en dos
+          columnas (SplitLayout) cuando hay sitio. */}
+      <PageBody>
         {denominations.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
+          <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted md:max-w-xl">
             La moneda {account.currency.code} no tiene denominaciones
             configuradas (es saldo digital), así que no admite arqueo físico.
           </div>
@@ -63,7 +66,7 @@ export default async function ConteoCajaPage({
             expectedMinor={expectedMinor}
           />
         )}
-      </div>
+      </PageBody>
     </main>
   );
 }
