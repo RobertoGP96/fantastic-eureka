@@ -13,15 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logoutUser } from "@/app/actions/auth-actions";
+import { initials } from "@/lib/initials";
 import { cn } from "@/lib/utils";
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const second =
-    parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? "");
-  return (first + second).toUpperCase() || "U";
-}
 
 /** Avatar con menú de usuario (pensado para el header de Inicio en móvil). */
 export function UserMenu({
@@ -54,7 +47,7 @@ export function UserMenu({
         >
           <Avatar size="lg">
             <AvatarFallback className="bg-white/15 text-sm font-bold text-white">
-              {initials(userName)}
+              {initials(userName, "U")}
             </AvatarFallback>
           </Avatar>
         </button>

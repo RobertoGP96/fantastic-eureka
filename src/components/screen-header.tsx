@@ -17,7 +17,9 @@ export function ScreenHeader({
   children,
 }: ScreenHeaderProps) {
   return (
-    <div className="grad-header relative overflow-hidden rounded-b-3xl px-5 pt-5 pb-6 text-white md:mt-6 md:rounded-3xl md:px-7 md:py-7">
+    // overflow-clip (no hidden): una caja `hidden` se puede desplazar por
+    // programa (foco, scrollIntoView) y los acentos decorativos sobresalen.
+    <div className="grad-header relative overflow-clip rounded-b-3xl px-5 pt-5 pb-6 text-white md:mt-6 md:rounded-3xl md:px-7 md:py-7">
       {/* Acentos decorativos de la identidad Caja */}
       <div className="pointer-events-none absolute -top-12 -right-10 h-40 w-40 rounded-full bg-brand-light/25 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-16 right-20 h-32 w-32 rounded-full bg-gold/15 blur-2xl" />

@@ -135,14 +135,70 @@
   }
 }
 
+@keyframes growX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .anim-fade-up {
   animation: fadeUp 0.4s ease both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .anim-fade-up {
-    animation: none;
-  }
+/* Entrada escalonada de los hijos directos de una lista o rejilla. Con
+   `backwards` (no `both`) el hijo no conserva un transform al terminar, así
+   que no se convierte en bloque contenedor de nada. */
+.anim-stagger > * {
+  animation: fadeUp 0.35s ease backwards;
+}
+
+.anim-stagger > :nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.anim-stagger > :nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.anim-stagger > :nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.anim-stagger > :nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.anim-stagger > :nth-child(6) {
+  animation-delay: 200ms;
+}
+
+.anim-stagger > :nth-child(7) {
+  animation-delay: 240ms;
+}
+
+.anim-stagger > :nth-child(n + 8) {
+  animation-delay: 280ms;
+}
+
+/* Relleno de una barra de progreso: crece desde la izquierda al entrar. */
+.anim-grow-x {
+  transform-origin: left center;
+  animation: growX 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* Respuesta al toque en tarjetas y filas que navegan. */
+.press {
+  transition:
+    transform 0.12s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.press:active {
+  transform: scale(0.985);
 }
 
 .toast-pop {
@@ -153,9 +209,25 @@
   animation: toastIn 0.25s ease;
 }
 
+/* Con un drawer abierto el aviso sube arriba: abajo taparía el pie de la
+   hoja (el botón de guardar). */
+body:has([data-vaul-drawer]) .toast-pop {
+  top: max(env(safe-area-inset-top), 16px);
+  bottom: auto;
+}
+
+/* «Reducir movimiento»: un único apagado global. 1 ms y no `none` para que
+   `animationend`/`transitionend` sigan disparándose (vaul y tw-animate-css
+   dependen de ellos para desmontar). Cubre también las clases de arriba. */
 @media (prefers-reduced-motion: reduce) {
-  .toast-pop {
-    animation: none;
+  *,
+  ::before,
+  ::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

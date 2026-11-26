@@ -51,7 +51,7 @@ export default async function AppLayout({
           className="flex flex-1 justify-center md:min-h-0 md:overflow-y-auto"
         >
           <ScrollReset targetId="app-scroll" />
-          <div className="relative flex min-h-full w-full max-w-[430px] flex-col bg-app shadow-[0_0_40px_rgba(7,39,46,.16)] md:max-w-5xl md:bg-transparent md:px-6 md:pb-12 md:shadow-none">
+          <div className="relative flex min-h-full w-full max-w-[430px] flex-col bg-app shadow-[0_0_40px_rgba(7,39,46,.16)] md:max-w-6xl md:bg-transparent md:px-6 md:pb-12 md:shadow-none">
             {children}
             <BottomNav />
           </div>

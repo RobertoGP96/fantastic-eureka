@@ -15,14 +15,10 @@ import {
   Trash2,
 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  FormDrawer,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from "@/components/form-drawer";
 import {
   Select,
   SelectContent,
@@ -391,29 +387,24 @@ export function DashboardCustomizer({
   );
 
   return (
-    <Sheet open={open} onOpenChange={openSheet}>
-      <SheetTrigger asChild>
-        <button
-          type="button"
-          aria-label="Personalizar Inicio"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
-        >
-          <SlidersHorizontal className="h-[18px] w-[18px]" />
-        </button>
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="mx-auto max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border-line sm:max-w-md"
+    <>
+      <button
+        type="button"
+        aria-label="Personalizar Inicio"
+        onClick={() => openSheet(true)}
+        className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
       >
-        <SheetHeader className="pb-0">
-          <SheetTitle className="text-base text-navy">
-            Personalizar Inicio
-          </SheetTitle>
-          <SheetDescription className="text-sm text-muted">
-            Ordena y oculta secciones, y arma tu panel de gadgets.
-          </SheetDescription>
-        </SheetHeader>
-
+        <SlidersHorizontal className="h-[18px] w-[18px]" />
+      </button>
+      <FormDrawer
+        open={open}
+        onClose={() => openSheet(false)}
+        title="Personalizar Inicio"
+        description="Ordena y oculta secciones, y arma tu panel de gadgets."
+        busy={saving}
+      >
+        {/* Los bloques de dentro traen su propio margen lateral (mx-4/px-4). */}
+        <FormDrawerBody className="px-1">
         <div className="flex flex-col gap-2 px-4">
           {sections.map((item, index) => (
             <div
@@ -796,7 +787,8 @@ export function DashboardCustomizer({
           </div>
         )}
 
-        <SheetFooter className="flex-row gap-2 pt-2">
+        </FormDrawerBody>
+        <FormDrawerFooter>
           <Button
             type="button"
             variant="ghost"
@@ -821,8 +813,8 @@ export function DashboardCustomizer({
           >
             {saving ? "Guardando…" : "Guardar"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </FormDrawerFooter>
+      </FormDrawer>
+    </>
   );
 }
