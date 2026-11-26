@@ -14,6 +14,7 @@ import {
   LogOut,
   Tags,
   UserRound,
+  UsersRound,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -66,6 +67,12 @@ const MAIN: NavItem[] = [
     icon: CalendarClock,
     label: "Mensualidades",
     isActive: (p) => p.startsWith("/mensualidades"),
+  },
+  {
+    href: "/contactos",
+    icon: UsersRound,
+    label: "Contactos",
+    isActive: (p) => p.startsWith("/contactos"),
   },
 ];
 

@@ -21,6 +21,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { useDismissOnBack } from "@/hooks/use-dismiss-on-back";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePanel } from "@/hooks/use-panel";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,14 @@ export function FormDrawer({
     }
   }
 
+  // El botón Atrás cierra el drawer (salvo a mitad de un guardado).
+  useDismissOnBack(
+    visible,
+    useCallback(() => {
+      if (!busy) onClose();
+    }, [busy, onClose])
+  );
+
   const closeAndGo = useCallback(
     (href: string) => {
       if (onCloseAndGo) onCloseAndGo(href);
@@ -154,6 +163,9 @@ export function FormDrawer({
     >
       <DrawerContent
         ref={contentRef}
+        // Sin descripción visible no hay nada que anunciar (y así Radix no
+        // avisa de que falta).
+        {...(description ? {} : { "aria-describedby": undefined })}
         // El foco va al contenedor, no al primer campo: así no salta el
         // teclado nada más abrir.
         onOpenAutoFocus={(event) => {
@@ -170,11 +182,7 @@ export function FormDrawer({
         >
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <DrawerTitle>{title}</DrawerTitle>
-            {description ? (
-              <DrawerDescription>{description}</DrawerDescription>
-            ) : (
-              <DrawerDescription className="sr-only">{title}</DrawerDescription>
-            )}
+            {description && <DrawerDescription>{description}</DrawerDescription>}
           </div>
           <DrawerClose asChild>
             <button
@@ -195,7 +203,11 @@ export function FormDrawer({
   );
 }
 
-/** Drawer cuyo estado de apertura vive en la URL (`#panel=<panel>`). */
+/**
+ * Drawer con nombre: se abre desde cualquier sitio con
+ * `openPanel(panel)` / `PanelButton`, o al llegar por un enlace
+ * `…#panel=<panel>` (ver src/hooks/use-panel.ts).
+ */
 export function PanelDrawer({
   panel,
   ...props

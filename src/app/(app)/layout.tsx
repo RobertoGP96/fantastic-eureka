@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { PanelRouteReset } from "@/components/panel-route-reset";
 import { ScrollReset } from "@/components/scroll-reset";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -51,6 +52,7 @@ export default async function AppLayout({
           className="flex flex-1 justify-center md:min-h-0 md:overflow-y-auto"
         >
           <ScrollReset targetId="app-scroll" />
+          <PanelRouteReset />
           <div className="relative flex min-h-full w-full max-w-[430px] flex-col bg-app shadow-[0_0_40px_rgba(7,39,46,.16)] md:max-w-6xl md:bg-transparent md:px-6 md:pb-12 md:shadow-none">
             {children}
             <BottomNav />

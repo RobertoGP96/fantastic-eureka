@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronRight } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
-import { Badge } from "@/components/ui/badge";
+import { CalendarClock, ChevronRight, HandCoins } from "lucide-react";
+import { DebtPaymentForm } from "@/components/debt-payment-form";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { EntityAvatar } from "@/components/entity-avatar";
+import { PanelDrawer } from "@/components/form-drawer";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
+import { PageBody, SplitLayout } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
+import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { SettleInstallment } from "@/components/settle-installment";
+import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, minorToInput } from "@/lib/format";
@@ -15,9 +21,10 @@ import {
   DEBT_DIRECTION_LABELS,
   type DebtDirection,
 } from "@/lib/domain";
-import { PaymentForm } from "./payment-form";
 
 export const dynamic = "force-dynamic";
+
+const PAYMENT_PANEL = "abono";
 
 const DATE_FMT = new Intl.DateTimeFormat("es", {
   day: "2-digit",
@@ -77,25 +84,26 @@ export default async function DeudaDetallePage({
   });
 
   const isOpen = debt.status === "OPEN";
+  const receivable = debt.direction === "RECEIVABLE";
 
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader title={debt.contact.name} backHref="/deudas">
         <div className="mt-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-white/80">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-sm text-white/80">
               {debt.description}
             </span>
             <Badge variant="neutral" className="bg-white/15 text-white">
               {DEBT_DIRECTION_LABELS[debt.direction as DebtDirection]}
             </Badge>
           </div>
-          <div className="mt-2 text-[28px] font-bold tracking-[-0.5px]">
+          <div className="money mt-2 text-[28px] font-bold tracking-[-0.5px]">
             {isOpen ? fmtMinor(remaining, debt.currency) : "Saldada"}
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20 md:max-w-md">
             <div
-              className="h-2 rounded-full bg-white/90"
+              className="anim-grow-x h-2 rounded-full bg-white/90"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -106,117 +114,157 @@ export default async function DeudaDetallePage({
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        {isOpen && pendingInstallments.length > 0 && (
-          <section>
-            <div className="mb-2.5 flex items-center justify-between gap-3">
-              <h2 className="text-base font-bold text-navy">
-                Cuotas pendientes
-              </h2>
-              {planId && (
-                <Link
-                  href={`/mensualidades/${planId}`}
-                  className="flex items-center gap-0.5 text-xs font-semibold text-brand-mid hover:text-brand"
-                >
-                  Ver mensualidad
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              )}
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {pendingInstallments.map((inst) => {
-                const days = daysUntil(inst.dueAt);
-                return (
-                  <div
-                    key={inst.id}
-                    className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
+      <PageBody>
+        <SplitLayout
+          asideFirst
+          aside={
+            <>
+              {isOpen && (
+                <div className="flex flex-col gap-2">
+                  <PanelButton
+                    panel={PAYMENT_PANEL}
+                    className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-bold text-navy">
-                          {fmtMinor(inst.amountMinor, debt.currency)}
-                        </div>
-                        <div className="text-xs text-muted">
-                          {DATE_FMT.format(inst.dueAt)}
-                        </div>
-                      </div>
-                      <Badge variant={dueTone(days)}>
-                        <CalendarClock className="h-3 w-3" />
-                        {dueLabel(inst.dueAt)}
-                      </Badge>
-                    </div>
-                    {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
-                    <SettleInstallment
-                      key={inst.planAccountId ?? debt.accountId ?? "none"}
-                      installmentId={inst.id}
-                      accounts={accounts}
-                      defaultAmount={minorToInput(
-                        Math.min(inst.amountMinor, remaining),
-                        debt.currency.decimalPlaces
-                      )}
-                      currencyCode={debt.currency.code}
-                      kind={inst.planKind}
-                      defaultAccountId={inst.planAccountId ?? debt.accountId}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {isOpen && (
-          <section className="flex flex-col gap-2">
-            <h2 className="mb-0.5 text-base font-bold text-navy">
-              Registrar abono
-            </h2>
-            {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
-            <PaymentForm
-              key={debt.accountId ?? "none"}
-              debtId={debt.id}
-              accounts={accounts}
-              currencyCode={debt.currency.code}
-              defaultAccountId={debt.accountId}
-            />
-            {/* La cuenta habitual va aquí, junto al form que la usa, en vez
-                de en una sección propia. */}
-            <LinkedAccountEditor
-              kind="debt"
-              targetId={debt.id}
-              accounts={accounts}
-              currentAccountId={debt.accountId}
-              currencyCode={debt.currency.code}
-            />
-          </section>
-        )}
-
-        {debt.payments.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Historial de abonos
-            </h2>
-            <div className="flex flex-col gap-1.5">
-              {debt.payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
-                >
-                  <span className="text-muted">
-                    {DATE_FMT.format(payment.paidAt)}
-                  </span>
-                  <span className="font-semibold text-ok">
-                    +{fmtMinor(payment.amountMinor, debt.currency)}
-                  </span>
+                    <HandCoins className="size-[18px]" />
+                    Registrar abono
+                  </PanelButton>
+                  {/* La cuenta habitual va junto a la acción que la usa. */}
+                  <LinkedAccountEditor
+                    kind="debt"
+                    targetId={debt.id}
+                    accounts={accounts}
+                    currentAccountId={debt.accountId}
+                    currencyCode={debt.currency.code}
+                  />
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              )}
 
-        <div className="flex justify-end">
-          <DeleteEntityButton kind="debt" targetId={debt.id} />
-        </div>
-      </div>
+              <Link
+                href={`/contactos/${debt.contact.id}`}
+                className="press flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <EntityAvatar
+                  name={debt.contact.name}
+                  tone={receivable ? "ok" : "warn"}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted">Contacto</div>
+                  <div className="truncate text-sm font-semibold text-heading">
+                    {debt.contact.name}
+                  </div>
+                </div>
+                <ChevronRight className="size-4 flex-none text-muted" />
+              </Link>
+            </>
+          }
+          main={
+            <>
+              {isOpen && pendingInstallments.length > 0 && (
+                <Section
+                  title="Cuotas pendientes"
+                  action={
+                    planId && (
+                      <Link
+                        href={`/mensualidades/${planId}`}
+                        className="flex items-center gap-0.5 text-xs font-semibold text-brand-ink hover:underline"
+                      >
+                        Ver mensualidad
+                        <ChevronRight className="size-3.5" />
+                      </Link>
+                    )
+                  }
+                >
+                  <div className="flex flex-col gap-2.5">
+                    {pendingInstallments.map((inst) => {
+                      const days = daysUntil(inst.dueAt);
+                      return (
+                        <div
+                          key={inst.id}
+                          className="flex flex-col gap-2.5 rounded-2xl border border-line bg-card p-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="money text-sm font-bold text-heading">
+                                {fmtMinor(inst.amountMinor, debt.currency)}
+                              </div>
+                              <div className="text-xs text-muted">
+                                {DATE_FMT.format(inst.dueAt)}
+                              </div>
+                            </div>
+                            <Badge variant={dueTone(days)}>
+                              <CalendarClock className="size-3" />
+                              {dueLabel(inst.dueAt)}
+                            </Badge>
+                          </div>
+                          {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
+                          <SettleInstallment
+                            key={inst.planAccountId ?? debt.accountId ?? "none"}
+                            installmentId={inst.id}
+                            accounts={accounts}
+                            defaultAmount={minorToInput(
+                              Math.min(inst.amountMinor, remaining),
+                              debt.currency.decimalPlaces
+                            )}
+                            currencyCode={debt.currency.code}
+                            kind={inst.planKind}
+                            defaultAccountId={
+                              inst.planAccountId ?? debt.accountId
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              <Section title="Historial de abonos">
+                {debt.payments.length === 0 ? (
+                  <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">
+                    Todavía no hay abonos.
+                  </p>
+                ) : (
+                  <div className="anim-stagger flex flex-col gap-1.5">
+                    {debt.payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm"
+                      >
+                        <span className="text-muted">
+                          {DATE_FMT.format(payment.paidAt)}
+                        </span>
+                        <span className="money font-semibold text-ok">
+                          +{fmtMinor(payment.amountMinor, debt.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <div className="flex justify-end">
+                <DeleteEntityButton kind="debt" targetId={debt.id} />
+              </div>
+            </>
+          }
+        />
+      </PageBody>
+
+      {isOpen && (
+        <PanelDrawer
+          panel={PAYMENT_PANEL}
+          title="Registrar abono"
+          description={`${receivable ? "Cobro de" : "Pago a"} ${debt.contact.name}`}
+        >
+          <DebtPaymentForm
+            debtId={debt.id}
+            accounts={accounts}
+            currencyCode={debt.currency.code}
+            remainingLabel={fmtMinor(remaining, debt.currency)}
+            defaultAccountId={debt.accountId}
+          />
+        </PanelDrawer>
+      )}
     </main>
   );
 }

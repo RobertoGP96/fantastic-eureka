@@ -1,9 +1,11 @@
-// Estado de los drawers en el FRAGMENTO de la URL (`#panel=nueva-deuda`).
-// Lógica pura; el hook que la usa vive en src/hooks/use-panel.ts.
+// Enlaces de entrada a un drawer («panel»): `/deudas#panel=nueva-deuda`.
+// Lógica pura; el hook que los consume vive en src/hooks/use-panel.ts.
 //
-// Va en el `#` y no en la query a propósito: el fragmento nunca llega al
-// servidor, así que abrir o cerrar un drawer no cambia la clave de caché de
-// la página ni provoca una petición (la query sí lo haría).
+// El fragmento es SOLO la forma de llegar con un drawer ya abierto (desde
+// otra página o desde un redirect de las antiguas rutas `/x/nueva`): al
+// llegar, el panel se abre y el fragmento se quita de la URL. Mientras está
+// abierto la URL no cambia — un `#…` o `?…` permanente hace que el router de
+// Next vuelva a pedir la página tras cada server action.
 
 const PANEL_KEY = "panel";
 

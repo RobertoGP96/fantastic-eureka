@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { revalidateDebtFormHosts } from "@/lib/revalidate-paths";
 import type { ActionResult } from "@/lib/schemas";
 import { SESSION_EXPIRED } from "@/lib/services/context";
 import * as currencyService from "@/lib/services/currency-service";
@@ -19,8 +20,7 @@ function revalidateCurrencyPaths(currencyId?: string) {
   if (currencyId) revalidatePath(`/monedas/${currencyId}`);
   revalidatePath("/tasas");
   revalidatePath("/cuentas/nueva");
-  revalidatePath("/deudas/nueva");
-  revalidatePath("/mensualidades/nueva");
+  revalidateDebtFormHosts();
 }
 
 export async function createCurrency(

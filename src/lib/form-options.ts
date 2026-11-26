@@ -26,7 +26,9 @@ export async function loadDebtFormOptions(
     }),
     prisma.account.findMany({
       where: { userId, archived: false },
-      orderBy: { name: "asc" },
+      // Por antigüedad: la primera es la preselección cuando no hay cuenta
+      // vinculada (mismo orden que usaban las vistas antes del drawer).
+      orderBy: { createdAt: "asc" },
       select: { id: true, name: true, currencyId: true },
     }),
   ]);

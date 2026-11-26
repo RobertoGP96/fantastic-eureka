@@ -85,7 +85,9 @@ export function SplitLayout({
         className
       )}
     >
-      <div className="flex min-w-0 flex-col gap-5">{main}</div>
+      {/* @container: las rejillas de dentro se miden contra ESTA columna,
+          no contra la página entera. */}
+      <div className="@container flex min-w-0 flex-col gap-5">{main}</div>
       <aside
         className={cn(
           "flex min-w-0 flex-col gap-4 @4xl:sticky @4xl:top-6",

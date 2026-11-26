@@ -1,57 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmDrawer } from "@/components/confirm-drawer";
 import { deactivatePlan } from "@/app/actions/plan-actions";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
+/** «Finalizar mensualidad» con confirmación en drawer. */
 export function PlanButtons({ planId }: { planId: string }) {
-  const router = useRouter();
   const { showToast } = useUI();
   const [confirming, setConfirming] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const deactivate = async () => {
-    setSaving(true);
-    const result = await deactivatePlan(planId);
-    setSaving(false);
+    const result = await runAction(() => deactivatePlan(planId));
+    if (!result.success) return result.error;
+    showToast("Mensualidad finalizada");
     setConfirming(false);
-    if (result.success) {
-      showToast("Mensualidad finalizada");
-      router.refresh();
-    } else {
-      showToast(result.error);
-    }
+    return null;
   };
 
-  if (!confirming) {
-    return (
+  return (
+    <>
       <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
         Finalizar mensualidad
       </Button>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted">¿Finalizar? Las cuotas pendientes se omiten.</span>
-      <Button
-        variant="danger"
-        size="sm"
-        disabled={saving}
-        onClick={() => void deactivate()}
-      >
-        Sí, finalizar
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={saving}
-        onClick={() => setConfirming(false)}
-      >
-        Cancelar
-      </Button>
-    </div>
+      <ConfirmDrawer
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title="¿Finalizar la mensualidad?"
+        description="Deja de generar cuotas y las pendientes se marcan como omitidas. El historial se conserva."
+        confirmLabel="Sí, finalizar"
+        busyLabel="Finalizando…"
+        onConfirm={deactivate}
+      />
+    </>
   );
 }

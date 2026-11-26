@@ -1,38 +1,30 @@
-import Link from "next/link";
+import { HandCoins, Plus } from "lucide-react";
+import { DebtCard, ClosedDebtRow } from "@/components/debt-card";
+import { DebtForm } from "@/components/debt-form";
+import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
+import { FilterChips } from "@/components/filter-chips";
+import { PanelDrawer } from "@/components/form-drawer";
+import { CardGrid, PageBody } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
 import {
-  CalendarClock,
-  ChevronRight,
-  HandCoins,
-  Plus,
-  Repeat,
-} from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
-import { EmptyState } from "@/components/empty-state";
-import { Badge } from "@/components/ui/badge";
+  HEADER_ACTION,
+  HeaderPill,
+  HeaderStats,
+  ScreenHeader,
+} from "@/components/screen-header";
+import { Section } from "@/components/section";
+import { DebtsTabs } from "@/components/section-tabs";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
+import { DEBT_CARD_INCLUDE, toDebtCard } from "@/lib/debt-cards";
+import { type DebtDirection } from "@/lib/domain";
+import { loadDebtFormOptions } from "@/lib/form-options";
 import { fmtMinor } from "@/lib/format";
-import { daysUntil, dueLabel } from "@/lib/dates";
-import { dueTone, nextPending } from "@/lib/plans-core";
-import {
-  DEBT_STATUS_LABELS,
-  type DebtStatus,
-  type DebtDirection,
-} from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
-const FILTERS = [
-  { value: null, label: "Todas" },
-  { value: "cobrar", label: "Por cobrar" },
-  { value: "pagar", label: "Por pagar" },
-] as const;
-
-/** Iniciales del contacto para el avatar de la tarjeta. */
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
-}
+/** Nombre del drawer de alta (`/deudas#panel=nueva-deuda`). */
+const NEW_DEBT_PANEL = "nueva-deuda";
 
 export default async function DeudasPage({
   searchParams,
@@ -46,58 +38,37 @@ export default async function DeudasPage({
     dir === "pagar" ? "PAYABLE" : dir === "cobrar" ? "RECEIVABLE" : null;
 
   // Sin filtro de estado: las saldadas/canceladas se quedan en el historial.
-  const debts = await prisma.debt.findMany({
-    where: { userId: user.id, ...(direction ? { direction } : {}) },
-    include: {
-      contact: { select: { name: true } },
-      currency: true,
-      payments: { select: { amountMinor: true } },
-      plans: {
-        where: { active: true },
-        select: {
-          installments: {
-            where: { status: "PENDING" },
-            select: { dueAt: true, status: true },
-            orderBy: { dueAt: "asc" },
-            take: 1,
-          },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  // El filtro de dirección se aplica en memoria para que los totales de la
+  // cabecera («Me deben» / «Debo») no dependan del chip elegido.
+  const [debts, formOptions] = await Promise.all([
+    prisma.debt.findMany({
+      where: { userId: user.id },
+      include: DEBT_CARD_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    }),
+    loadDebtFormOptions(user.id),
+  ]);
 
-  const rows = debts.map((debt) => {
-    const paid = debt.payments.reduce((acc, p) => acc + p.amountMinor, 0);
-    const next = nextPending(debt.plans.flatMap((plan) => plan.installments));
-    return {
-      debt,
-      paid,
-      remaining: debt.totalMinor - paid,
-      pct: Math.min(100, Math.round((paid / Math.max(1, debt.totalMinor)) * 100)),
-      next,
-    };
-  });
+  const all = debts.map(toDebtCard);
+  const allOpen = all.filter((debt) => debt.status === "OPEN");
+  const visible = direction
+    ? all.filter((debt) => debt.direction === direction)
+    : all;
+  const open = visible.filter((debt) => debt.status === "OPEN");
+  const closed = visible.filter((debt) => debt.status !== "OPEN");
 
-  const open = rows.filter((row) => row.debt.status === "OPEN");
-  const closed = rows.filter((row) => row.debt.status !== "OPEN");
-
-  // Totales del pendiente por moneda, separados por dirección.
+  // Pendiente por moneda de TODAS las deudas abiertas, por dirección.
   const totalsText = (wanted: DebtDirection) => {
-    const totals = new Map<string, { amount: number; currency: typeof debts[number]["currency"] }>();
-    for (const row of open) {
-      if (row.debt.direction !== wanted) continue;
-      const entry = totals.get(row.debt.currencyId);
-      if (entry) entry.amount += row.remaining;
-      else
-        totals.set(row.debt.currencyId, {
-          amount: row.remaining,
-          currency: row.debt.currency,
-        });
+    const totals = new Map<string, { amount: number; debt: (typeof all)[number] }>();
+    for (const debt of allOpen) {
+      if (debt.direction !== wanted) continue;
+      const entry = totals.get(debt.currencyId);
+      if (entry) entry.amount += debt.remainingMinor;
+      else totals.set(debt.currencyId, { amount: debt.remainingMinor, debt });
     }
     return [...totals.values()]
       .sort((a, b) => b.amount - a.amount)
-      .map((total) => fmtMinor(total.amount, total.currency))
+      .map((total) => fmtMinor(total.amount, total.debt.currency))
       .join(" · ");
   };
   const receivableText = totalsText("RECEIVABLE");
@@ -108,190 +79,87 @@ export default async function DeudasPage({
       <ScreenHeader
         title="Deudas"
         actions={
-          <Link
-            href="/deudas/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
-          >
-            <Plus className="h-3.5 w-3.5" />
+          <PanelButton panel={NEW_DEBT_PANEL} className={HEADER_ACTION}>
+            <Plus className="size-3.5" />
             Nueva
-          </Link>
+          </PanelButton>
         }
       >
-        {(receivableText || payableText) && (
-          <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
-            {receivableText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Me deben
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {receivableText}
-                </div>
-              </div>
-            )}
-            {payableText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Debo
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {payableText}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="mt-3 text-xs">
-          <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
-            {open.length} abierta{open.length === 1 ? "" : "s"}
-          </span>
+        <HeaderStats
+          items={[
+            ...(receivableText
+              ? [{ label: "Me deben", value: receivableText }]
+              : []),
+            ...(payableText ? [{ label: "Debo", value: payableText }] : []),
+          ]}
+        />
+        <div className="mt-3">
+          <HeaderPill>
+            {allOpen.length} abierta{allOpen.length === 1 ? "" : "s"}
+          </HeaderPill>
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            {FILTERS.map((filter) => {
-              const selected = (dir ?? null) === filter.value;
-              return (
-                <Link
-                  key={filter.label}
-                  href={filter.value ? `/deudas?dir=${filter.value}` : "/deudas"}
-                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
-                    selected
-                      ? "bg-brand text-white"
-                      : "bg-chip text-brand hover:bg-brand-soft/30"
-                  }`}
-                >
-                  {filter.label}
-                </Link>
-              );
-            })}
-          </div>
-          <Link
-            href="/mensualidades"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            <Repeat className="h-3.5 w-3.5" />
-            Mensualidades
-          </Link>
-        </div>
+      <PageBody>
+        <DebtsTabs current="/deudas" />
 
-        {open.length === 0 && closed.length === 0 ? (
+        <FilterChips
+          items={[
+            { href: "/deudas", label: "Todas", active: direction === null },
+            {
+              href: "/deudas?dir=cobrar",
+              label: "Por cobrar",
+              active: direction === "RECEIVABLE",
+            },
+            {
+              href: "/deudas?dir=pagar",
+              label: "Por pagar",
+              active: direction === "PAYABLE",
+            },
+          ]}
+        />
+
+        {all.length === 0 ? (
           <EmptyState
             icon={HandCoins}
             title="Sin deudas registradas"
             description="Anota lo que te deben o lo que debes para llevar el control de abonos y vencimientos."
-            ctaLabel="Nueva deuda"
-            ctaHref="/deudas/nueva"
+            cta={
+              <PanelButton panel={NEW_DEBT_PANEL} className={EMPTY_STATE_CTA}>
+                Nueva deuda
+              </PanelButton>
+            }
           />
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {open.map(({ debt, paid, remaining, pct, next }) => {
-              const days = next ? daysUntil(next.dueAt) : null;
-              const receivable = debt.direction === "RECEIVABLE";
-              return (
-                <Link
-                  key={debt.id}
-                  href={`/deudas/${debt.id}`}
-                  className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-                >
-                  <div className="flex items-start gap-3.5">
-                    <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-sm font-bold ${
-                        receivable
-                          ? "bg-ok-bg text-ok"
-                          : "bg-warn-bg text-warn"
-                      }`}
-                    >
-                      {initials(debt.contact.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-sm font-semibold text-navy">
-                          {debt.contact.name}
-                        </span>
-                        <span className="text-base font-bold whitespace-nowrap text-navy">
-                          {fmtMinor(remaining, debt.currency)}
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-xs text-muted">
-                          {debt.description}
-                        </span>
-                        <span className="text-[11px] whitespace-nowrap text-muted">
-                          {receivable ? "por cobrar" : "por pagar"}
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
-                  </div>
-
-                  {paid > 0 && (
-                    <div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-line-2">
-                        <div
-                          className={`h-1.5 rounded-full ${receivable ? "bg-ok" : "bg-brand-mid"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="mt-1 text-[11px] text-muted">
-                        Abonado {fmtMinor(paid, debt.currency)} de{" "}
-                        {fmtMinor(debt.totalMinor, debt.currency)} ({pct}%)
-                      </div>
-                    </div>
-                  )}
-
-                  {next && days !== null && (
-                    <div>
-                      <Badge variant={dueTone(days)}>
-                        <CalendarClock className="h-3 w-3" />
-                        Próxima cuota · {dueLabel(next.dueAt)}
-                      </Badge>
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        ) : visible.length === 0 ? (
+          <p className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted">
+            No hay deudas {direction === "PAYABLE" ? "por pagar" : "por cobrar"}.
+          </p>
+        ) : open.length > 0 ? (
+          <CardGrid>
+            {open.map((debt) => (
+              <DebtCard key={debt.id} debt={debt} />
+            ))}
+          </CardGrid>
+        ) : null}
 
         {closed.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Historial
-            </h2>
-            <div className="flex flex-col gap-2">
-              {closed.map(({ debt }) => (
-                <Link
-                  key={debt.id}
-                  href={`/deudas/${debt.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
-                      {debt.contact.name}
-                    </div>
-                    <div className="truncate text-xs text-muted">
-                      {debt.description}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-sm font-bold whitespace-nowrap text-navy">
-                      {fmtMinor(debt.totalMinor, debt.currency)}
-                    </span>
-                    <Badge variant={debt.status === "PAID" ? "ok" : "neutral"}>
-                      {DEBT_STATUS_LABELS[debt.status as DebtStatus] ??
-                        debt.status}
-                    </Badge>
-                  </div>
-                  <ChevronRight className="h-4 w-4 flex-none text-muted" />
-                </Link>
+          <Section title="Historial">
+            <CardGrid className="gap-2 @2xl:gap-2.5">
+              {closed.map((debt) => (
+                <ClosedDebtRow key={debt.id} debt={debt} />
               ))}
-            </div>
-          </section>
+            </CardGrid>
+          </Section>
         )}
-      </div>
+      </PageBody>
+
+      <PanelDrawer
+        panel={NEW_DEBT_PANEL}
+        title="Nueva deuda"
+        description="Anota lo que te deben o lo que debes."
+      >
+        <DebtForm {...formOptions} />
+      </PanelDrawer>
     </main>
   );
 }

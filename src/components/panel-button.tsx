@@ -4,9 +4,8 @@ import type { ComponentProps } from "react";
 import { openPanel } from "@/hooks/use-panel";
 
 /**
- * Botón que abre un drawer de la página ACTUAL (`#panel=<panel>`). Se usa
- * en vez de `<Link href="#…">`: Next no notifica un cambio de fragmento
- * hecho con Link dentro de la misma página y además sube el scroll.
+ * Botón que abre un drawer con nombre (`PanelDrawer`) de la página ACTUAL.
+ * Desde OTRA página se enlaza con `<Link href={panelHref(ruta, panel)}>`.
  * Sin estilos propios: la clase la pone quien lo usa.
  */
 export function PanelButton({

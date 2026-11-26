@@ -1,45 +1,34 @@
-import Link from "next/link";
+import { CalendarClock, Plus } from "lucide-react";
+import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
+import { FilterChips } from "@/components/filter-chips";
+import { PanelDrawer } from "@/components/form-drawer";
+import { CardGrid, PageBody } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
+import { EndedPlanRow, PlanCard } from "@/components/plan-card";
+import { PlanForm } from "@/components/plan-form";
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  CalendarClock,
-  ChevronRight,
-  HandCoins,
-  Plus,
-  UserRound,
-} from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
-import { EmptyState } from "@/components/empty-state";
-import { Badge } from "@/components/ui/badge";
-import { SettleInstallment } from "@/components/settle-installment";
+  HEADER_ACTION,
+  HeaderPill,
+  HeaderStats,
+  ScreenHeader,
+} from "@/components/screen-header";
+import { Section } from "@/components/section";
+import { DebtsTabs } from "@/components/section-tabs";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
-import { fmtMinor, minorToInput } from "@/lib/format";
-import { daysUntil, dueLabel } from "@/lib/dates";
+import { PLAN_CARD_INCLUDE, toPlanCard } from "@/lib/debt-cards";
+import { type PlanKind } from "@/lib/domain";
+import { loadDebtFormOptions } from "@/lib/form-options";
+import { fmtMinor } from "@/lib/format";
 import {
   comparePlansByUrgency,
-  dueTone,
   monthlyCommitmentByCurrency,
-  nextPending,
 } from "@/lib/plans-core";
-import {
-  FREQUENCY_LABELS,
-  PLAN_KIND_LABELS,
-  type Frequency,
-  type PlanKind,
-} from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
-// Una cuota se salda desde la propia lista si ya venció o vence dentro de
-// esta ventana: es lo que permite despachar varias mensualidades de una vez.
-const SETTLE_WINDOW_DAYS = 7;
-
-const FILTERS = [
-  { value: null, label: "Todas" },
-  { value: "pagar", label: "Que pago" },
-  { value: "cobrar", label: "Que cobro" },
-] as const;
+/** Nombre del drawer de alta (`/mensualidades#panel=nueva-mensualidad`). */
+const NEW_PLAN_PANEL = "nueva-mensualidad";
 
 export default async function MensualidadesPage({
   searchParams,
@@ -48,68 +37,35 @@ export default async function MensualidadesPage({
 }) {
   const user = await requireSessionUser();
   const { tipo } = await searchParams;
-  const kindFilter =
+  const kindFilter: PlanKind | null =
     tipo === "pagar" ? "PAY" : tipo === "cobrar" ? "COLLECT" : null;
 
-  const [plans, accounts] = await Promise.all([
+  const [plans, formOptions] = await Promise.all([
     prisma.paymentPlan.findMany({
       where: { userId: user.id },
-      include: {
-        currency: true,
-        contact: { select: { name: true } },
-        debt: {
-          select: {
-            id: true,
-            totalMinor: true,
-            accountId: true,
-            contact: { select: { name: true } },
-            payments: { select: { amountMinor: true } },
-          },
-        },
-        installments: {
-          select: { id: true, dueAt: true, amountMinor: true, status: true },
-          orderBy: { dueAt: "asc" },
-        },
-      },
+      include: PLAN_CARD_INCLUDE,
       orderBy: { createdAt: "desc" },
     }),
-    prisma.account.findMany({
-      where: { userId: user.id, archived: false },
-      select: { id: true, name: true, currencyId: true },
-      orderBy: { createdAt: "asc" },
-    }),
+    // Sus cuentas sirven también para saldar cuotas desde las tarjetas.
+    loadDebtFormOptions(user.id),
   ]);
 
+  const all = plans.map(toPlanCard);
+  const allActive = all.filter((plan) => plan.active);
   const visible = kindFilter
-    ? plans.filter((plan) => plan.kind === kindFilter)
-    : plans;
-
-  const rows = visible.map((plan) => {
-    const next = nextPending(plan.installments);
-    return {
-      plan,
-      next,
-      nextDueAt: next?.dueAt ?? null,
-      description: plan.description,
-      paidCount: plan.installments.filter((inst) => inst.status === "PAID")
-        .length,
-      overdue: plan.installments.some(
-        (inst) => inst.status === "PENDING" && daysUntil(inst.dueAt) < 0
-      ),
-    };
-  });
-
-  const active = rows
-    .filter((row) => row.plan.active)
+    ? all.filter((plan) => plan.kind === kindFilter)
+    : all;
+  const active = visible
+    .filter((plan) => plan.active)
     .sort(comparePlansByUrgency);
-  const ended = rows.filter((row) => !row.plan.active);
+  const ended = visible.filter((plan) => !plan.active);
 
   // Compromiso mensual: el equivalente a un mes de cada plan activo,
   // separado por dirección porque uno sale de las cuentas y el otro entra.
-  const activePlans = active.map((row) => row.plan);
-  const currencyById = new Map(plans.map((p) => [p.currencyId, p.currency]));
+  // Sobre TODOS los activos: no depende del chip de filtro.
+  const currencyById = new Map(all.map((plan) => [plan.currencyId, plan.currency]));
   const totalsText = (kind: PlanKind) =>
-    monthlyCommitmentByCurrency(activePlans.filter((p) => p.kind === kind))
+    monthlyCommitmentByCurrency(allActive.filter((plan) => plan.kind === kind))
       .map((total) => {
         const currency = currencyById.get(total.currencyId);
         return currency ? fmtMinor(total.amountMinor, currency) : null;
@@ -118,241 +74,107 @@ export default async function MensualidadesPage({
       .join(" · ");
   const payText = totalsText("PAY");
   const collectText = totalsText("COLLECT");
-  const overdueCount = active.filter((row) => row.overdue).length;
+  const overdueCount = allActive.filter((plan) => plan.overdue).length;
 
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader
         title="Mensualidades"
         actions={
-          <Link
-            href="/mensualidades/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
-          >
-            <Plus className="h-3.5 w-3.5" />
+          <PanelButton panel={NEW_PLAN_PANEL} className={HEADER_ACTION}>
+            <Plus className="size-3.5" />
             Nueva
-          </Link>
+          </PanelButton>
         }
       >
-        {(payText || collectText) && (
-          <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
-            {payText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Pago al mes
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {payText}
-                </div>
-              </div>
-            )}
-            {collectText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Cobro al mes
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {collectText}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
-            {active.length} activa{active.length === 1 ? "" : "s"}
-          </span>
+        <HeaderStats
+          items={[
+            ...(payText ? [{ label: "Pago al mes", value: payText }] : []),
+            ...(collectText
+              ? [{ label: "Cobro al mes", value: collectText }]
+              : []),
+          ]}
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <HeaderPill>
+            {allActive.length} activa{allActive.length === 1 ? "" : "s"}
+          </HeaderPill>
           {overdueCount > 0 && (
-            <span className="rounded-md bg-danger-bg px-2 py-[3px] font-semibold text-danger">
+            <HeaderPill tone="danger">
               {overdueCount} con cuota vencida
-            </span>
+            </HeaderPill>
           )}
         </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            {FILTERS.map((filter) => {
-              const selected = (tipo ?? null) === filter.value;
-              return (
-                <Link
-                  key={filter.label}
-                  href={
-                    filter.value
-                      ? `/mensualidades?tipo=${filter.value}`
-                      : "/mensualidades"
-                  }
-                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
-                    selected
-                      ? "bg-brand text-white"
-                      : "bg-chip text-brand hover:bg-brand-soft/30"
-                  }`}
-                >
-                  {filter.label}
-                </Link>
-              );
-            })}
-          </div>
-          <Link
-            href="/deudas"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            <HandCoins className="h-3.5 w-3.5" />
-            Deudas
-          </Link>
-        </div>
+      <PageBody>
+        <DebtsTabs current="/mensualidades" />
 
-        {active.length === 0 && ended.length === 0 ? (
+        <FilterChips
+          items={[
+            {
+              href: "/mensualidades",
+              label: "Todas",
+              active: kindFilter === null,
+            },
+            {
+              href: "/mensualidades?tipo=pagar",
+              label: "Que pago",
+              active: kindFilter === "PAY",
+            },
+            {
+              href: "/mensualidades?tipo=cobrar",
+              label: "Que cobro",
+              active: kindFilter === "COLLECT",
+            },
+          ]}
+        />
+
+        {all.length === 0 ? (
           <EmptyState
             icon={CalendarClock}
             title="Sin mensualidades"
             description="Renta, suscripciones, cuotas fijas… crea una y te avisamos de cada vencimiento."
-            ctaLabel="Nueva mensualidad"
-            ctaHref="/mensualidades/nueva"
+            cta={
+              <PanelButton panel={NEW_PLAN_PANEL} className={EMPTY_STATE_CTA}>
+                Nueva mensualidad
+              </PanelButton>
+            }
           />
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {active.map((row) => {
-              const { plan, next } = row;
-              const days = next ? daysUntil(next.dueAt) : null;
-              const contactName =
-                plan.contact?.name ?? plan.debt?.contact.name ?? null;
-              const collect = plan.kind === "COLLECT";
-              const Icon = collect ? ArrowDownLeft : ArrowUpRight;
-              const canSettle =
-                next !== null && days !== null && days <= SETTLE_WINDOW_DAYS;
-              const planAccounts = accounts.filter(
-                (account) => account.currencyId === plan.currencyId
-              );
-              // En un plan de deuda no se puede cobrar más de lo pendiente:
-              // el monto propuesto se recorta igual que en /deudas/[id].
-              const debtRemaining = plan.debt
-                ? plan.debt.totalMinor -
-                  plan.debt.payments.reduce((sum, p) => sum + p.amountMinor, 0)
-                : null;
-              const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
-              return (
-                <article
-                  key={plan.id}
-                  className={`overflow-hidden rounded-2xl border bg-white ${
-                    row.overdue ? "border-danger/35" : "border-line"
-                  }`}
-                >
-                  <Link
-                    href={`/mensualidades/${plan.id}`}
-                    className="flex items-start gap-3.5 p-4 transition-colors hover:bg-chip/30"
-                  >
-                    <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${
-                        row.overdue
-                          ? "bg-danger-bg text-danger"
-                          : collect
-                            ? "bg-ok-bg text-ok"
-                            : "bg-chip text-brand"
-                      }`}
-                    >
-                      <Icon className="h-[18px] w-[18px]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-sm font-semibold text-navy">
-                          {plan.description}
-                        </span>
-                        <span className="text-base font-bold whitespace-nowrap text-navy">
-                          {fmtMinor(plan.amountMinor, plan.currency)}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted">
-                        <UserRound className="h-3 w-3 flex-none" />
-                        <span className="truncate">
-                          {contactName ?? "Sin contacto"}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <Badge variant="neutral">
-                          {FREQUENCY_LABELS[plan.frequency as Frequency]}
-                        </Badge>
-                        {next && days !== null && (
-                          <Badge variant={dueTone(days)}>
-                            <CalendarClock className="h-3 w-3" />
-                            {dueLabel(next.dueAt)}
-                          </Badge>
-                        )}
-                        {row.paidCount > 0 && (
-                          <span className="text-[11px] text-muted">
-                            {row.paidCount} saldada
-                            {row.paidCount === 1 ? "" : "s"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
-                  </Link>
-
-                  {canSettle && next && (
-                    <div className="border-t border-line-2 bg-app/60 px-4 py-3">
-                      {/* key por cuota y cuenta: al saldar llega la cuota
-                          siguiente y el formulario debe re-inicializarse (si
-                          no, heredaba el monto editado de la anterior). */}
-                      <SettleInstallment
-                        key={`${next.id}-${settleAccountId ?? "none"}`}
-                        installmentId={next.id}
-                        accounts={planAccounts}
-                        defaultAmount={minorToInput(
-                          debtRemaining === null
-                            ? next.amountMinor
-                            : Math.min(next.amountMinor, Math.max(debtRemaining, 0)),
-                          plan.currency.decimalPlaces
-                        )}
-                        currencyCode={plan.currency.code}
-                        kind={plan.kind}
-                        defaultAccountId={settleAccountId}
-                      />
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
+        ) : visible.length === 0 ? (
+          <p className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted">
+            No hay mensualidades {kindFilter === "PAY" ? "que pagues" : "que cobres"}.
+          </p>
+        ) : active.length > 0 ? (
+          <CardGrid>
+            {active.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                accounts={formOptions.accounts}
+              />
+            ))}
+          </CardGrid>
+        ) : null}
 
         {ended.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Finalizadas
-            </h2>
-            <div className="flex flex-col gap-2">
-              {ended.map(({ plan, paidCount }) => {
-                const contactName =
-                  plan.contact?.name ?? plan.debt?.contact.name ?? null;
-                return (
-                  <Link
-                    key={plan.id}
-                    href={`/mensualidades/${plan.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-navy">
-                        {plan.description}
-                      </div>
-                      <div className="truncate text-xs text-muted">
-                        {PLAN_KIND_LABELS[plan.kind as PlanKind]}
-                        {contactName ? ` · ${contactName}` : ""} · {paidCount}{" "}
-                        saldada{paidCount === 1 ? "" : "s"}
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold whitespace-nowrap text-navy">
-                      {fmtMinor(plan.amountMinor, plan.currency)}
-                    </span>
-                    <ChevronRight className="h-4 w-4 flex-none text-muted" />
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
+          <Section title="Finalizadas">
+            <CardGrid className="gap-2 @2xl:gap-2.5">
+              {ended.map((plan) => (
+                <EndedPlanRow key={plan.id} plan={plan} />
+              ))}
+            </CardGrid>
+          </Section>
         )}
-      </div>
+      </PageBody>
+
+      <PanelDrawer
+        panel={NEW_PLAN_PANEL}
+        title="Nueva mensualidad"
+        description="Un cobro o pago que se repite: renta, suscripción, cuota fija…"
+      >
+        <PlanForm {...formOptions} />
+      </PanelDrawer>
     </main>
   );
 }
