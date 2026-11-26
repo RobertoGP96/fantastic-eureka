@@ -13,12 +13,12 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
   return (
     <section>
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-base font-bold text-navy">
+        <h2 className="text-base font-bold text-heading">
           Próximos vencimientos
         </h2>
         <Link
           href="/mensualidades"
-          className="text-xs font-semibold text-brand-mid hover:text-brand"
+          className="text-xs font-semibold text-brand-mid hover:text-brand-ink"
         >
           Ver mensualidades
         </Link>
@@ -37,17 +37,17 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
                   ? `/deudas/${row.plan.debtId}`
                   : `/mensualidades/${row.plan.id}`
               }
-              className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
+              className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 transition-colors hover:border-brand-soft"
             >
               <span
                 className={`flex h-9 w-9 flex-none items-center justify-center rounded-xl ${
-                  overdue ? "bg-danger-bg text-danger" : "bg-chip text-brand"
+                  overdue ? "bg-danger-bg text-danger" : "bg-chip text-brand-ink"
                 }`}
               >
                 <HandCoins className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-navy">
+                <div className="truncate text-sm font-semibold text-heading">
                   {row.plan.description}
                 </div>
                 <div className="truncate text-xs text-muted">
@@ -56,7 +56,7 @@ export async function UpcomingInstallments({ userId }: { userId: string }) {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className="text-sm font-bold text-navy">
+                <span className="text-sm font-bold text-heading">
                   {fmtMinor(row.amountMinor, row.plan.currency)}
                 </span>
                 <Badge

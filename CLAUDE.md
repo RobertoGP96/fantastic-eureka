@@ -69,7 +69,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (`src/lib/run-action.ts`), que convierte un fallo de red en un
   `ActionResult` de error, y `saving` solo vuelve a false en la rama de
   error: tras un éxito el botón sigue deshabilitado mientras navega (si no,
-  un segundo toque duplicaba el registro).
+  un segundo toque duplicaba el registro). Los formularios que viven en un
+  drawer usan además `useFormDrawer()` (`setBusy` bloquea el cierre mientras
+  guarda; `close()` / `closeAndGo(href)` al terminar) y NO llaman a
+  `router.refresh()`: la action ya revalida y los datos llegan por props.
 - **Errores de servicio**: el `catch` genérico de un servicio devuelve
   `unexpectedFailure(scope, error, mensaje)` (`services/context.ts`), que
   marca `retryable` cuando el fallo es de infraestructura (conexión, pool,
@@ -125,8 +128,8 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   en «Me deben» / «Debo»; cada tarjeta lleva avatar de iniciales, barra de
   progreso del abonado y badge de la próxima cuota. Deudas y
   planes se pueden ELIMINAR desde su detalle
-  (`src/components/delete-entity-button.tsx`, confirmación inline →
-  `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
+  (`src/components/delete-entity-button.tsx`, confirmación en
+  `ConfirmDrawer` → `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
   vinculados y cuotas — DebtPayment es Restrict y se borra antes; las
   cuotas caen por Cascade) pero los movimientos de las cuentas se
   CONSERVAN (los saldos no cambian; el movimiento solo pierde el vínculo).
@@ -155,8 +158,9 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (`defaultAccountId`) y llevan `key` por cuenta para re-inicializarse al
   cambiarla.
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
-  onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
-  de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal
+  onDelete: SetNull). Gestión en el drawer «Grupos» de `/cuentas`
+  (`src/components/group-manager.tsx`), asignación al crear la cuenta y en
+  el drawer «Editar cuenta» de su detalle; el listado `/cuentas` agrupa con subtotal
   consolidado en base (prefijo «≈») MÁS chips con el total por cada divisa
   usada en el grupo (`totalsByCurrency` en `balances-core.ts`, con tests) —
   los chips se omiten solo si el grupo entero está en la base, y se muestran
@@ -196,8 +200,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   o que vencen en ≤7 días (`upcomingInstallments`, máx 8), badge dorado o
   rojo si hay vencidas.
 - **Editar/eliminar cuentas**: en el detalle,
-  `src/components/account-editor.tsx` (renombrar, archivar/activar y
-  eliminar con confirmación inline que avisa del borrado del historial).
+  `src/components/account-manage.tsx` (archivar/activar y eliminar con
+  `ConfirmDrawer` que avisa del borrado del historial) y el drawer «Editar
+  cuenta» (`account-edit-form.tsx`: nombre, icono y grupo en un solo
+  formulario que envía solo lo que cambió).
   `deleteAccount` borra en cascada TODO el historial: movimientos por ambos
   lados (incluidas transferencias con otras cuentas), arqueos y los
   DebtPayment de esos movimientos (FK Restrict — se borran antes y el
@@ -269,7 +275,9 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   exige moneda sin denominaciones y sin cuentas de efectivo/caja.
 - **Monedas**: gestionables en `/monedas` (crear con clasificación, ocultar,
   cambiar base, denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
-  (`/categorias`) se editan/renombran y eliminan desde un menú ⋮ por ítem;
+  (`/categorias`) se crean y editan en drawer (`denomination-form.tsx`,
+  `category-form.tsx`) y se eliminan con `ConfirmDrawer`, desde un menú ⋮
+  por ítem (con `modal={false}` para no disputarle el foco al drawer);
   eliminar (y editar denominaciones) solo si no tienen uso (arqueos/
   movimientos) — con uso, ocultar (validado en la action y avisado en el UI).
   `minorToAmountInput()` en `src/lib/money.ts` convierte menores → texto de
@@ -307,8 +315,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   fila en escritorio solo si quedan consecutivos (HALF_SECTIONS en
   `page.tsx`).
 - **Rendimiento de navegación**: skeleton global en
-  `src/app/(app)/loading.tsx` (todas las páginas son force-dynamic: sin él no
-  hay feedback al navegar) y `experimental.staleTimes.dynamic = 30` en
+  `src/app/(app)/loading.tsx` y uno por sección (el `loading.tsx` de cada
+  carpeta, con las siluetas de `src/components/page-skeleton.tsx`: lista en
+  rejilla o detalle en dos columnas). Todas las páginas son force-dynamic:
+  sin ellos no hay feedback al navegar. Además `experimental.staleTimes.dynamic = 30` en
   `next.config.ts` (el router del cliente reusa la página 30 s). Ese cache
   depende de que TODA server action que mute datos llame `revalidatePath` —
   regla existente, ahora obligatoria.
@@ -321,6 +331,65 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   la transparencia), rasterizados con sharp. El matcher de
   `src/middleware.ts` EXCLUYE manifest.webmanifest, apple-icon.png e
   `/icons/` — Safari los pide sin cookie al añadir a inicio.
+- **Contactos** (`/contactos`): las personas de deudas y mensualidades son
+  administrables. Servicio `src/lib/services/contact-service.ts`
+  (crear/editar/eliminar/fusionar) + `src/app/actions/contact-actions.ts`;
+  lógica pura en `src/lib/contacts-core.ts` (con tests: `normalizeContactName`
+  sin acentos ni mayúsculas, `filterContacts`, `resolveContactInput`,
+  `contactBalances` «me debe / le debo» por moneda, `mergeNotes`). Reglas:
+  el nombre no se repite al crear ni al renombrar (comparado en JS con
+  `normalizeContactName`; NO hay unicidad en BD porque existen duplicados
+  antiguos — cada deuda creaba su contacto); un contacto CON DEUDAS no se
+  elimina (FK Restrict: se eliminan antes o se FUSIONA con otro —
+  `mergeContacts` mueve deudas y planes al destino y borra el origen); sus
+  mensualidades sueltas quedan «Sin contacto». Toda fila que cambia de
+  contacto se actualiza con `updatedAt` EXPLÍCITO (el SET NULL de Postgres
+  no lo toca y el pull móvil depende de él) y el borrado anota la lápida
+  `contact`. Lista con buscador (`contacts-browser.tsx`, filtra en cliente)
+  y ficha `/contactos/[id]` con sus deudas, mensualidades e historial y los
+  drawers editar · fusionar · nueva deuda · nueva mensualidad (nombres en
+  `contactos/[id]/panels.ts`). En los formularios de deuda y mensualidad el
+  contacto se elige con `ContactPicker` (`src/components/contact-picker.tsx`):
+  un campo de texto que sugiere los existentes; NO llama a ninguna action —
+  el texto se resuelve con `resolveContactInput` (coincidencia exacta
+  normalizada → existente; si no → `contactName`, que `createDebt` /
+  `createPlan` crean en la MISMA transacción). Las tarjetas de deuda y
+  mensualidad son compartidas (`debt-card.tsx`, `plan-card.tsx`, datos e
+  `include` en `src/lib/debt-cards.ts`).
+- **Drawers**: TODO formulario corto vive en un drawer — hoja inferior
+  deslizable en móvil, panel lateral derecho en md+ — salvo `/registrar`,
+  el arqueo `/conteo/[id]` y la edición de movimiento, que siguen siendo
+  páginas. Piezas: `src/components/ui/drawer.tsx` (vaul) →
+  `src/components/form-drawer.tsx` (`FormDrawer` controlado por estado,
+  `PanelDrawer` con nombre, `FormDrawerBody`/`FormDrawerFooter`,
+  `useFormDrawer`) → `confirm-drawer.tsx` (confirmaciones destructivas,
+  siempre hoja inferior). Un `PanelDrawer` se abre con `PanelButton` /
+  `openPanel(nombre)` (`src/hooks/use-panel.ts`, estado de módulo) o
+  llegando por un enlace `…#panel=<nombre>` (`panelHref`,
+  `src/lib/panel-core.ts` con tests): el fragmento es SOLO enlace de entrada
+  y se quita al abrir. Las antiguas rutas `/x/nueva` son `redirects()` de
+  `next.config.ts` hacia esos fragmentos — ningún enlace interno debe
+  apuntar a ellas. El botón Atrás cierra el drawer mediante una entrada
+  centinela del historial con la MISMA URL
+  (`src/hooks/use-dismiss-on-back.ts`). La página que hospeda un drawer
+  carga las opciones de su formulario y se las pasa por props
+  (`src/lib/form-options.ts`); una action que cambie esas opciones debe
+  revalidar la página ANFITRIONA (`src/lib/revalidate-paths.ts`). Las
+  constantes compartidas entre una página servidor y sus componentes
+  cliente (nombres de panel) van en un módulo sin "use client".
+- **Layout de página**: `src/components/page-body.tsx` — `PageBody`
+  (`@container`, anchos `narrow|default|wide`), `CardGrid` (1 → 2 → 3
+  columnas) y `SplitLayout` (principal + lateral fijo de 20rem). Las
+  rejillas usan CONTAINER QUERIES (`@2xl:`, `@4xl:`, `@5xl:`), no
+  `md:`/`lg:`: con el sidebar plegable el viewport no dice cuánto mide el
+  contenido. Además `section.tsx` (`Section` = `<section>` + `<h2>`, que es
+  como los E2E localizan las secciones; `Card`), `filter-chips.tsx`,
+  `form-field.tsx` (`Field` con el `<label>` ENVOLVIENDO al control,
+  `FIELD_SELECT`, `FormError`, `ChoiceGroup`), `entity-avatar.tsx`
+  (iniciales con `src/lib/initials.ts`) y, en `screen-header.tsx`,
+  `HEADER_ACTION` / `HeaderStats` / `HeaderPill`. Animaciones solo CSS en
+  `globals.css` (`anim-fade-up`, `anim-stagger`, `anim-grow-x`, `press`) con
+  un apagado global para `prefers-reduced-motion`.
 - **Tema**: identidad propia de Caja (ya NO es la paleta de la tienda):
   petróleo/esmeralda + acento dorado, fuente Outfit. Tokens Tailwind 4 en
   `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados
@@ -360,7 +429,8 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **shadcn/ui**: infraestructura montada (`components.json`, tokens
   semánticos —background/primary/sidebar-\*— mapeados a la paleta tienda en
   `@theme`, deps radix-ui/cva/tw-animate-css). Componentes vendorizados:
-  sidebar, sheet, tooltip, separator, skeleton, avatar, dropdown-menu. REGLA:
+  sidebar, sheet, tooltip, separator, skeleton, avatar, dropdown-menu y
+  drawer (vaul, única dependencia de UI añadida; re-vestido con los tokens). REGLA:
   la UI nueva usa componentes shadcn; los primitivos históricos
   (Button/Input/Badge/Select estilo tienda) se mantienen.
 - **UserMenu** (`src/components/user-menu.tsx`): avatar con iniciales +
@@ -370,12 +440,26 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - **Navegación**: escritorio = `src/components/app-sidebar.tsx` (Sidebar
   shadcn colapsable a iconos, estado en cookie `sidebar_state`, atajo
   Ctrl/Cmd+B); móvil = `bottom-nav.tsx` (sin cambios). El layout de `(app)`
-  monta SidebarProvider + SidebarInset. `/mensualidades` tiene entrada propia
-  en el sidebar y en `/mas`; en la barra inferior cuelga de la pestaña
-  Deudas (las dos vistas se enlazan mutuamente).
+  monta SidebarProvider + SidebarInset. `/mensualidades` y `/contactos` tienen
+  entrada propia en el sidebar y en `/mas`; en la barra inferior cuelgan de
+  la pestaña Deudas, y las tres vistas comparten las pestañas `DebtsTabs`
+  (`src/components/section-tabs.tsx`).
 
 ## Gotchas
 
+- Historial y server actions: NUNCA llames a `history.*` ni a
+  `router.push/replace` en el mismo tick en que resuelve una server action
+  (Next descarta su resultado y vuelve a pedir la página): usa
+  `useFormDrawer().close()/closeAndGo()` o difiere con `setTimeout(…, 0)`.
+  Tampoco guardes nada propio en `history.state` (Next lo reescribe) ni
+  dejes el estado de un drawer en la URL mientras está abierto (`#…` o `?…`
+  hacen que Next repita la petición de la página tras cada action).
+- vaul inyecta su CSS SIN capa y gana a las utilidades de Tailwind: para
+  pisar un estilo suyo (el asa) la clase lleva `!`. `FormDrawer` fija
+  `handleOnly` (sin él vaul captura el puntero y rompe los `Select` y la
+  selección de texto) y el asa lleva `preventCycle` (sin él un toque en el
+  asa cierra con un guardado en curso). `PageBody` y `anim-fade-up` crean
+  bloque contenedor: nada `position: fixed` dentro sin portal.
 - El `Button` de ui/ tiene `type="button"` por defecto — los botones de
   submit en formularios DEBEN llevar `type="submit"` explícito.
 - Páginas que leen la BD llevan `export const dynamic = "force-dynamic"`.
@@ -421,4 +505,7 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   vía /auth/registro y guarda `e2e/.auth/user.json` (storageState) para los
   proyectos desktop y mobile (375×812). `channel: "chrome"` (Chrome del
   sistema): la descarga del Chromium empaquetado da 403 por geo-bloqueo.
-  `workers: 1` a propósito (los flujos mutan la misma BD SQLite).
+  `workers: 1` a propósito (los flujos mutan la misma BD SQLite). Los specs
+  entran por `/cuentas/nueva` y `/deudas/nueva`, que hoy redirigen al drawer
+  de su lista: por eso los formularios en drawer conservan labels,
+  placeholders y nombres de botón.

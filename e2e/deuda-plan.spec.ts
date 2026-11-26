@@ -11,8 +11,9 @@ test("deuda por cobrar con plan mensual: vencimiento en dashboard y cobro de cuo
   const contact = `Cliente E2E ${uniqueSuffix()}`;
   const description = `Préstamo E2E ${uniqueSuffix()}`;
 
-  // Crear la deuda: "Por cobrar" y "+ Nuevo contacto" vienen por defecto,
-  // igual que frecuencia Mensual y primer vencimiento hoy.
+  // Crear la deuda: /deudas/nueva redirige al drawer «Nueva deuda» de la
+  // lista. "Por cobrar" viene por defecto, igual que frecuencia Mensual y
+  // primer vencimiento hoy; un nombre de contacto que no existe lo crea.
   await page.goto("/deudas/nueva");
   await page.getByPlaceholder("Nombre del contacto").fill(contact);
   await page.getByLabel("Descripción").fill(description);
