@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
+import { FIELD_SELECT } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -63,8 +64,10 @@ export function Converter({
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-white p-4">
-      <div className="flex items-center gap-2.5">
+    <div className="rounded-2xl border border-line bg-card p-4">
+      {/* Dos filas (monto arriba, par abajo): cabe igual en el móvil que en
+          la columna lateral estrecha de escritorio. */}
+      <div className="flex flex-col gap-2.5">
         <Input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -72,49 +75,51 @@ export function Converter({
           placeholder="0"
           aria-label="Monto a convertir"
         />
-        <Select value={fromId} onValueChange={setFromId}>
-          <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {currencies.map((currency) => (
-              <SelectItem key={currency.id} value={currency.id}>
-                {currency.code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button
-          type="button"
-          onClick={() => {
-            setFromId(toId);
-            setToId(fromId);
-          }}
-          aria-label="Intercambiar monedas"
-          className="flex h-10 w-12 flex-none items-center justify-center rounded-xl bg-chip text-brand transition-transform active:scale-90"
-        >
-          <ArrowUpDown className="h-4 w-4" />
-        </button>
-        <Select value={toId} onValueChange={setToId}>
-          <SelectTrigger className="h-10 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {currencies.map((currency) => (
-              <SelectItem key={currency.id} value={currency.id}>
-                {currency.code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+          <Select value={fromId} onValueChange={setFromId}>
+            <SelectTrigger className={FIELD_SELECT} aria-label="Moneda de origen">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((currency) => (
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            onClick={() => {
+              setFromId(toId);
+              setToId(fromId);
+            }}
+            aria-label="Intercambiar monedas"
+            className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-90"
+          >
+            <ArrowLeftRight className="size-4" />
+          </button>
+          <Select value={toId} onValueChange={setToId}>
+            <SelectTrigger className={FIELD_SELECT} aria-label="Moneda de destino">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((currency) => (
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="mt-3.5 border-t border-line-2 pt-3">
+      <div className="mt-3.5 border-t border-line-2 pt-3" aria-live="polite">
         {warning ? (
           <div className="text-sm text-muted">{warning}</div>
         ) : result ? (
           <>
-            <div className="money text-[22px] font-bold tracking-[-0.5px] text-brand">
+            <div className="money text-[22px] font-bold tracking-[-0.5px] text-brand-ink">
               {result}
             </div>
             {rateInfo && (

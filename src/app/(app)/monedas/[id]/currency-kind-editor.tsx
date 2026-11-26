@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Banknote, CreditCard } from "lucide-react";
+import { ConfirmDrawer } from "@/components/confirm-drawer";
 import { Button } from "@/components/ui/button";
 import { setCurrencyKind } from "@/app/actions/currency-actions";
 import {
   CURRENCY_KIND_LABELS,
   type CurrencyKind,
 } from "@/lib/domain";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
 // Cambia la clasificación de la moneda (efectivo ↔ digital) con confirmación
-// inline. Pasar a digital lo valida la action: sin denominaciones ni cuentas
-// de efectivo/caja en esta moneda.
+// en drawer. Pasar a digital lo valida la action (sin denominaciones ni
+// cuentas de efectivo/caja en esta moneda): si no procede, el motivo se
+// muestra en el propio drawer.
 export function CurrencyKindEditor({
   currencyId,
   kind,
@@ -21,42 +23,38 @@ export function CurrencyKindEditor({
   currencyId: string;
   kind: string;
 }) {
-  const router = useRouter();
   const { showToast } = useUI();
   const [confirming, setConfirming] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Destino fijado AL ABRIR la confirmación: tras guardar, `kind` ya llega
+  // cambiado y, sin esto, el drawer preguntaría lo contrario mientras se
+  // cierra.
+  const [target, setTarget] = useState<CurrencyKind>("DIGITAL");
 
   const isDigital = kind === "DIGITAL";
-  const nextKind: CurrencyKind = isDigital ? "CASH" : "DIGITAL";
   const Icon = isDigital ? CreditCard : Banknote;
 
   const apply = async () => {
-    setSaving(true);
-    setError(null);
-    const result = await setCurrencyKind({ id: currencyId, kind: nextKind });
-    setSaving(false);
+    const result = await runAction(() =>
+      setCurrencyKind({ id: currencyId, kind: target })
+    );
+    if (!result.success) return result.error;
+    showToast(
+      target === "DIGITAL"
+        ? "Moneda marcada como digital"
+        : "Moneda marcada como efectivo"
+    );
     setConfirming(false);
-    if (result.success) {
-      showToast(
-        nextKind === "DIGITAL"
-          ? "Moneda marcada como digital"
-          : "Moneda marcada como efectivo"
-      );
-      router.refresh();
-    } else {
-      setError(result.error);
-    }
+    return null;
   };
 
   return (
-    <section className="rounded-2xl border border-line bg-white p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-          <Icon className="h-[18px] w-[18px]" />
+    <section className="rounded-2xl border border-line bg-card p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+          <Icon className="size-[18px]" />
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-navy">
+        <div className="min-w-0 flex-1 basis-40">
+          <div className="text-sm font-bold text-heading">
             {CURRENCY_KIND_LABELS[kind as CurrencyKind] ?? kind}
           </div>
           <div className="text-xs text-muted">
@@ -65,35 +63,35 @@ export function CurrencyKindEditor({
               : "Admite denominaciones, arqueos y cuentas de caja."}
           </div>
         </div>
-        {confirming ? (
-          <div className="flex flex-none items-center gap-2">
-            <Button size="sm" onClick={() => void apply()} disabled={saving}>
-              {saving ? "Guardando…" : "Confirmar"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setConfirming(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <Button
-            size="sm"
-            variant="chip"
-            className="flex-none"
-            onClick={() => setConfirming(true)}
-          >
-            {isDigital ? "Convertir a efectivo" : "Convertir a digital"}
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant="chip"
+          className="flex-none"
+          onClick={() => {
+            setTarget(isDigital ? "CASH" : "DIGITAL");
+            setConfirming(true);
+          }}
+        >
+          {isDigital ? "Convertir a efectivo" : "Convertir a digital"}
+        </Button>
       </div>
-      {error && (
-        <div className="mt-2.5 rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
-        </div>
-      )}
+
+      <ConfirmDrawer
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={
+          target === "CASH" ? "¿Convertir a efectivo?" : "¿Convertir a digital?"
+        }
+        description={
+          target === "CASH"
+            ? "La moneda pasará a admitir billetes y monedas, arqueos y cuentas de efectivo o caja."
+            : "La moneda dejará de admitir denominaciones y cuentas de efectivo o caja. Solo es posible si hoy no tiene ninguna."
+        }
+        confirmLabel="Confirmar"
+        busyLabel="Guardando…"
+        tone="default"
+        onConfirm={apply}
+      />
     </section>
   );
 }

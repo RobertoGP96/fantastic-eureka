@@ -1,12 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
+import { ArrowRight, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { EMPTY_STATE_CTA } from "@/components/empty-state";
+import { PanelDrawer } from "@/components/form-drawer";
+import { PageBody, SplitLayout } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
+import { RateForm } from "@/components/rate-form";
 import { RateLineChart } from "@/components/rate-line-chart";
+import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtRate } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
+import { NEW_RATE_PANEL } from "../../panels";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +32,15 @@ export default async function TasaDetallePage({
   const fromCode = decodeURIComponent(from).toUpperCase();
   const toCode = decodeURIComponent(to).toUpperCase();
 
-  const [fromCurrency, toCurrency] = await Promise.all([
-    prisma.currency.findFirst({ where: { userId: user.id, code: fromCode } }),
-    prisma.currency.findFirst({ where: { userId: user.id, code: toCode } }),
-  ]);
+  // Todas las monedas de una vez: salen el par de la URL y, además, las
+  // opciones del formulario «Registrar tasa» que hospeda esta página.
+  const currencies = await prisma.currency.findMany({
+    where: { userId: user.id },
+    orderBy: [{ isBase: "desc" }, { code: "asc" }],
+    select: { id: true, code: true, active: true },
+  });
+  const fromCurrency = currencies.find((c) => c.code === fromCode);
+  const toCurrency = currencies.find((c) => c.code === toCode);
   if (!fromCurrency || !toCurrency || fromCurrency.id === toCurrency.id) {
     notFound();
   }
@@ -68,12 +79,29 @@ export default async function TasaDetallePage({
     rateScaled: rate.rateScaled,
   }));
 
+  // Opciones del formulario: las activas y, aunque estén ocultas, las dos
+  // de este par (si no, no se podría registrar su tasa desde aquí).
+  const formCurrencies = currencies
+    .filter(
+      (c) => c.active || c.id === fromCurrency.id || c.id === toCurrency.id
+    )
+    .map((c) => ({ id: c.id, code: c.code }));
+
   return (
     <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={`${fromCode} → ${toCode}`} backHref="/tasas">
+      <ScreenHeader
+        title={`${fromCode} → ${toCode}`}
+        backHref="/tasas"
+        actions={
+          <PanelButton panel={NEW_RATE_PANEL} className={HEADER_ACTION}>
+            <Plus className="size-3.5" />
+            Nueva
+          </PanelButton>
+        }
+      >
         {latest ? (
           <div className="mt-2">
-            <div className="money text-[30px] font-bold tracking-[-0.8px]">
+            <div className="money text-[28px] font-bold tracking-[-0.5px]">
               {fmtRate(latest.rateScaled)}{" "}
               <span className="text-base font-semibold text-white/80">
                 {toCode}
@@ -97,86 +125,101 @@ export default async function TasaDetallePage({
         )}
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:max-w-xl md:px-0">
+      <PageBody className="gap-6">
         {history.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
-            Este par no tiene tasas registradas todavía.{" "}
-            <Link href="/tasas" className="font-semibold text-brand underline">
-              Registra la primera en Tasas
-            </Link>
-            .
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-card px-4 py-6 text-center">
+            <p className="text-sm text-muted">
+              Este par no tiene tasas registradas todavía.
+            </p>
+            <PanelButton panel={NEW_RATE_PANEL} className={EMPTY_STATE_CTA}>
+              Registrar tasa
+            </PanelButton>
           </div>
         ) : (
-          <>
-            <section>
-              <div className="mb-2.5 flex items-center justify-between">
-                <h2 className="text-base font-bold text-navy">Evolución</h2>
-                {deltaScaled !== null && deltaPct !== null && (
-                  <span
-                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      deltaScaled === 0
-                        ? "bg-chip text-ink-soft"
-                        : deltaScaled > 0
-                          ? "bg-ok-bg text-ok"
-                          : "bg-danger-bg text-danger"
-                    }`}
-                  >
-                    {deltaScaled > 0 ? (
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    ) : deltaScaled < 0 ? (
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    ) : null}
-                    {deltaScaled > 0 ? "+" : ""}
-                    {deltaPct.toFixed(2).replace(/\.?0+$/, "")}% vs anterior
-                  </span>
-                )}
-              </div>
-              <div className="rounded-2xl border border-line bg-white p-4">
-                {history.length === 1 ? (
-                  <p className="py-6 text-center text-sm text-muted">
-                    Solo hay un registro — el gráfico aparecerá cuando el par
-                    tenga al menos dos tasas.
+          <SplitLayout
+            main={
+              <Section
+                title="Evolución"
+                action={
+                  deltaScaled !== null &&
+                  deltaPct !== null && (
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        deltaScaled === 0
+                          ? "bg-chip text-ink-soft"
+                          : deltaScaled > 0
+                            ? "bg-ok-bg text-ok"
+                            : "bg-danger-bg text-danger"
+                      }`}
+                    >
+                      {deltaScaled > 0 ? (
+                        <TrendingUp className="size-3.5" />
+                      ) : deltaScaled < 0 ? (
+                        <TrendingDown className="size-3.5" />
+                      ) : null}
+                      {deltaScaled > 0 ? "+" : ""}
+                      {deltaPct.toFixed(2).replace(/\.?0+$/, "")}% vs anterior
+                    </span>
+                  )
+                }
+              >
+                <div className="rounded-2xl border border-line bg-card p-4">
+                  {history.length === 1 ? (
+                    <p className="py-6 text-center text-sm text-muted">
+                      Solo hay un registro — el gráfico aparecerá cuando el par
+                      tenga al menos dos tasas.
+                    </p>
+                  ) : (
+                    <RateLineChart
+                      points={chartPoints}
+                      fromCode={fromCode}
+                      toCode={toCode}
+                    />
+                  )}
+                  <p className="mt-2 text-center text-[11px] text-muted">
+                    {history.length}{" "}
+                    {history.length === 1 ? "registro" : "registros"} · desde{" "}
+                    {DATE_FMT.format(history[0].effectiveAt)}
                   </p>
-                ) : (
-                  <RateLineChart
-                    points={chartPoints}
-                    fromCode={fromCode}
-                    toCode={toCode}
-                  />
-                )}
-                <p className="mt-2 text-center text-[11px] text-muted">
-                  {history.length}{" "}
-                  {history.length === 1 ? "registro" : "registros"} · desde{" "}
-                  {DATE_FMT.format(history[0].effectiveAt)}
-                </p>
-              </div>
-            </section>
-
-            <section>
-              <h2 className="mb-2.5 text-base font-bold text-navy">
-                Histórico del par
-              </h2>
-              <div className="flex flex-col gap-1.5">
-                {[...history].reverse().map((rate) => (
-                  <div
-                    key={rate.id}
-                    className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
-                  >
-                    <span className="money flex items-center gap-1.5 font-semibold text-ink-soft">
-                      {fromCode}
-                      <ArrowRight className="h-3 w-3 text-muted" />
-                      {fmtRate(rate.rateScaled)} {toCode}
-                    </span>
-                    <span className="text-muted">
-                      {DATE_FMT.format(rate.effectiveAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
+                </div>
+              </Section>
+            }
+            aside={
+              <Section title="Histórico del par">
+                <div className="anim-stagger flex flex-col gap-1.5">
+                  {[...history].reverse().map((rate) => (
+                    <div
+                      key={rate.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm"
+                    >
+                      <span className="money flex items-center gap-1.5 font-semibold text-ink-soft">
+                        {fromCode}
+                        <ArrowRight className="size-3 text-muted" />
+                        {fmtRate(rate.rateScaled)} {toCode}
+                      </span>
+                      <span className="flex-none text-muted">
+                        {DATE_FMT.format(rate.effectiveAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            }
+          />
         )}
-      </div>
+      </PageBody>
+
+      <PanelDrawer
+        panel={NEW_RATE_PANEL}
+        title="Registrar tasa"
+        description={`Nueva tasa para ${fromCode} → ${toCode}`}
+      >
+        <RateForm
+          currencies={formCurrencies}
+          defaultFromId={fromCurrency.id}
+          defaultToId={toCurrency.id}
+        />
+      </PanelDrawer>
     </main>
   );
 }

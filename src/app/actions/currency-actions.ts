@@ -14,12 +14,17 @@ import * as currencyService from "@/lib/services/currency-service";
 // changed) no salen al cliente: la forma pública es la de siempre.
 
 // Las monedas y denominaciones alimentan selects y arqueos en toda la app.
+// Los formularios que las usan viven en drawers de estas páginas (ya no hay
+// rutas `/x/nueva`), así que se revalida la página que hospeda cada uno.
 function revalidateCurrencyPaths(currencyId?: string) {
   revalidatePath("/");
   revalidatePath("/monedas");
   if (currencyId) revalidatePath(`/monedas/${currencyId}`);
   revalidatePath("/tasas");
-  revalidatePath("/cuentas/nueva");
+  // El detalle de un par hospeda «Registrar tasa» (lista de monedas).
+  revalidatePath("/(app)/tasas/[from]/[to]", "page");
+  // El alta de cuenta es un drawer de /cuentas.
+  revalidatePath("/cuentas");
   revalidateDebtFormHosts();
 }
 

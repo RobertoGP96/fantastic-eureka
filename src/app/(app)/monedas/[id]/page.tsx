@@ -1,5 +1,10 @@
 import { notFound } from "next/navigation";
-import { ScreenHeader } from "@/components/screen-header";
+import { Plus } from "lucide-react";
+import { DenominationForm } from "@/components/denomination-form";
+import { PanelDrawer } from "@/components/form-drawer";
+import { PageBody, SplitLayout } from "@/components/page-body";
+import { PanelButton } from "@/components/panel-button";
+import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import {
@@ -7,6 +12,7 @@ import {
   type DenominationItem,
 } from "./denomination-manager";
 import { CurrencyKindEditor } from "./currency-kind-editor";
+import { NEW_DENOMINATION_PANEL } from "../panels";
 
 export const dynamic = "force-dynamic";
 
@@ -37,41 +43,74 @@ export default async function MonedaDetallePage({
     usageCount: d._count.countLines + d._count.txLines,
   }));
 
+  const isDigital = currency.kind === "DIGITAL";
+  const displayCurrency = {
+    id: currency.id,
+    code: currency.code,
+    decimalPlaces: currency.decimalPlaces,
+  };
+
   return (
     <main className="flex flex-1 flex-col pb-8">
       <ScreenHeader
         title={`${currency.code} · ${currency.name}`}
         backHref="/monedas"
+        actions={
+          // Una moneda digital no lleva billetes ni monedas.
+          !isDigital && (
+            <PanelButton
+              panel={NEW_DENOMINATION_PANEL}
+              className={HEADER_ACTION}
+            >
+              <Plus className="size-3.5" />
+              Nueva
+            </PanelButton>
+          )
+        }
       >
         <p className="mt-1 text-sm text-white/80">
           {currency.decimalPlaces} decimales
           {currency.isBase ? " · Moneda base" : ""}
-          {currency.kind === "DIGITAL"
+          {isDigital
             ? " · Digital (sin efectivo)"
             : currency.denominations.length === 0
               ? " · Sin denominaciones"
               : ""}
         </p>
       </ScreenHeader>
-      <div className="anim-fade-up flex flex-col gap-4 px-5 pt-5 md:max-w-xl md:px-0">
-        <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
-        {currency.kind === "DIGITAL" ? (
-          <p className="rounded-2xl border border-line bg-white px-4 py-5 text-center text-sm text-muted">
-            Esta moneda es digital: no existe en efectivo, así que no lleva
-            billetes ni monedas. Conviértela a efectivo si necesitas
-            denominaciones.
-          </p>
-        ) : (
-          <DenominationManager
-            currency={{
-              id: currency.id,
-              code: currency.code,
-              decimalPlaces: currency.decimalPlaces,
-            }}
-            denominations={items}
-          />
-        )}
-      </div>
+
+      <PageBody>
+        <SplitLayout
+          asideFirst
+          aside={
+            <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
+          }
+          main={
+            isDigital ? (
+              <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">
+                Esta moneda es digital: no existe en efectivo, así que no lleva
+                billetes ni monedas. Conviértela a efectivo si necesitas
+                denominaciones.
+              </p>
+            ) : (
+              <DenominationManager
+                currency={displayCurrency}
+                denominations={items}
+              />
+            )
+          }
+        />
+      </PageBody>
+
+      {!isDigital && (
+        <PanelDrawer
+          panel={NEW_DENOMINATION_PANEL}
+          title="Nueva denominación"
+          description={`Billete o moneda de ${currency.code}`}
+        >
+          <DenominationForm currency={displayCurrency} />
+        </PanelDrawer>
+      )}
     </main>
   );
 }
