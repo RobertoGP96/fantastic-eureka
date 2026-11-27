@@ -16,13 +16,16 @@ import {
 } from "react";
 import { GripHorizontal } from "lucide-react";
 import { saveDashboardPrefs } from "@/app/actions/dashboard-actions";
+import { SectionHeader } from "@/components/section-header";
 import type { DashboardPrefs, WidgetSize } from "@/lib/dashboard-prefs";
 import { useUI } from "@/lib/ui-store";
 
+// Container queries (`@…/main`): el panel responde al ancho real de la
+// columna de contenido, no al del viewport.
 const SIZE_CLASSES: Record<WidgetSize, string> = {
-  sm: "lg:col-span-2",
-  md: "sm:col-span-2 lg:col-span-3",
-  lg: "sm:col-span-2 lg:col-span-6",
+  sm: "@4xl/main:col-span-2",
+  md: "@2xl/main:col-span-2 @4xl/main:col-span-3",
+  lg: "@2xl/main:col-span-2 @4xl/main:col-span-6",
 };
 
 export function BentoPanel({
@@ -99,14 +102,16 @@ export function BentoPanel({
 
   return (
     <section>
-      <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-base font-bold text-navy">Panel</h2>
-        <span className="hidden text-xs text-muted md:block">
-          Arrastra el asa para reordenar
-        </span>
-      </div>
+      <SectionHeader
+        title="Panel"
+        action={
+          <span className="hidden text-xs text-muted md:block">
+            Arrastra el asa para reordenar
+          </span>
+        }
+      />
       <div
-        className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-6"
+        className="grid grid-cols-1 gap-3 @2xl/main:grid-cols-2 @4xl/main:grid-cols-6"
         onDrop={(event) => event.preventDefault()}
         onDragOver={(event) => {
           if (draggingId) event.preventDefault();
@@ -132,7 +137,7 @@ export function BentoPanel({
                 aria-label="Arrastrar para reordenar"
                 onPointerDown={() => setArmedId(id)}
                 onPointerUp={() => setArmedId(null)}
-                className="absolute top-1 left-1/2 z-10 hidden -translate-x-1/2 cursor-grab rounded-md px-2 py-0.5 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-brand active:cursor-grabbing md:block"
+                className="absolute top-1 left-1/2 z-10 hidden -translate-x-1/2 cursor-grab rounded-md px-2 py-0.5 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-heading focus-visible:opacity-100 active:cursor-grabbing md:block"
               >
                 <GripHorizontal className="h-4 w-4" />
               </button>

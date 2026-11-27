@@ -2,16 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/segmented";
 import { setCurrencyKind } from "@/app/actions/currency-actions";
-import {
-  CURRENCY_KIND_LABELS,
-  type CurrencyKind,
-} from "@/lib/domain";
+import { type CurrencyKind } from "@/lib/domain";
 import { useUI } from "@/lib/ui-store";
 
-// Cambia la clasificación de la moneda (efectivo ↔ digital) con confirmación
+// Rótulos cortos para el control segmentado (CURRENCY_KIND_LABELS trae
+// «Digital (sin efectivo)», que no cabe en media tarjeta); el detalle lo da
+// la línea de ayuda de debajo.
+const KIND_OPTIONS: { value: CurrencyKind; label: string }[] = [
+  { value: "CASH", label: "Efectivo" },
+  { value: "DIGITAL", label: "Digital" },
+];
+
+const KIND_HELP: Record<CurrencyKind, string> = {
+  CASH: "Admite denominaciones, arqueos y cuentas de caja.",
+  DIGITAL: "Solo saldo: sin denominaciones ni cuentas de caja.",
+};
+
+// Cambia la clasificación de la moneda (efectivo ↔ digital). Elegir la otra
+// opción NO aplica nada: la deja marcada como pendiente y pide confirmación
 // inline. Pasar a digital lo valida la action: sin denominaciones ni cuentas
 // de efectivo/caja en esta moneda.
 export function CurrencyKindEditor({
@@ -28,8 +40,10 @@ export function CurrencyKindEditor({
   const [error, setError] = useState<string | null>(null);
 
   const isDigital = kind === "DIGITAL";
+  const currentKind: CurrencyKind = isDigital ? "DIGITAL" : "CASH";
   const nextKind: CurrencyKind = isDigital ? "CASH" : "DIGITAL";
-  const Icon = isDigital ? CreditCard : Banknote;
+  // Mientras se confirma, el control muestra la opción pendiente.
+  const shownKind = confirming ? nextKind : currentKind;
 
   const apply = async () => {
     setSaving(true);
@@ -50,50 +64,50 @@ export function CurrencyKindEditor({
   };
 
   return (
-    <section className="rounded-2xl border border-line bg-white p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-          <Icon className="h-[18px] w-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-navy">
-            {CURRENCY_KIND_LABELS[kind as CurrencyKind] ?? kind}
-          </div>
-          <div className="text-xs text-muted">
-            {isDigital
-              ? "Solo saldo: sin denominaciones ni cuentas de caja."
-              : "Admite denominaciones, arqueos y cuentas de caja."}
-          </div>
+    <Card asChild>
+      <section className="flex flex-col gap-3">
+        <CardTitle>Clasificación</CardTitle>
+        <div className="flex flex-col gap-1.5">
+          <Segmented
+            layout="fill"
+            ariaLabel="Clasificación de la moneda"
+            options={KIND_OPTIONS.map((option) => ({
+              ...option,
+              disabled: saving,
+            }))}
+            value={shownKind}
+            onValueChange={(value) => {
+              setError(null);
+              setConfirming(value !== currentKind);
+            }}
+          />
+          <p className="text-xs text-muted">{KIND_HELP[shownKind]}</p>
         </div>
-        {confirming ? (
-          <div className="flex flex-none items-center gap-2">
+        {confirming && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={() => void apply()} disabled={saving}>
-              {saving ? "Guardando…" : "Confirmar"}
+              {saving
+                ? "Guardando…"
+                : nextKind === "DIGITAL"
+                  ? "Convertir a digital"
+                  : "Convertir a efectivo"}
             </Button>
             <Button
               size="sm"
               variant="ghost"
+              disabled={saving}
               onClick={() => setConfirming(false)}
             >
               Cancelar
             </Button>
           </div>
-        ) : (
-          <Button
-            size="sm"
-            variant="chip"
-            className="flex-none"
-            onClick={() => setConfirming(true)}
-          >
-            {isDigital ? "Convertir a efectivo" : "Convertir a digital"}
-          </Button>
         )}
-      </div>
-      {error && (
-        <div className="mt-2.5 rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
-        </div>
-      )}
-    </section>
+        {error && (
+          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+            {error}
+          </div>
+        )}
+      </section>
+    </Card>
   );
 }

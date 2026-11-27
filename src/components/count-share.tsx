@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { fmtMinor, type DisplayCurrency } from "@/lib/format";
 import {
   DENOMINATION_KIND_LABELS,
@@ -49,10 +50,12 @@ export function CountShareButton({
   denominations,
   quantities,
   currency,
+  className,
 }: {
   denominations: readonly ShareableDenomination[];
   quantities: Readonly<Record<string, number>>;
   currency: DisplayCurrency;
+  className?: string;
 }) {
   const { showToast } = useUI();
   const [copied, setCopied] = useState(false);
@@ -81,18 +84,19 @@ export function CountShareButton({
   };
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
+      className={className}
       onClick={() => void share()}
       disabled={pieces === 0}
-      className="flex flex-none items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
     >
       {copied ? (
-        <Check className="h-4 w-4 text-ok" />
+        <Check className="size-3.5 text-ok" />
       ) : (
-        <Share2 className="h-4 w-4" />
+        <Share2 className="size-3.5" />
       )}
       Compartir
-    </button>
+    </Button>
   );
 }

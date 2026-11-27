@@ -34,33 +34,45 @@ export function ShareCodeForm({ invalid = false }: { invalid?: boolean }) {
 
   return (
     <form
-      className="flex flex-col gap-2.5"
+      className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         submit();
       }}
     >
-      <label className="text-xs font-semibold text-ink-soft" htmlFor="share-code">
-        Código de seguimiento
-      </label>
-      <div className="flex gap-2">
-        <Input
-          id="share-code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Pega aquí el código o el enlace"
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          className="h-10 font-mono text-sm"
-          required
-        />
-        <Button type="submit" disabled={!code.trim()}>
-          <KeyRound className="h-4 w-4" />
-          Abrir
-        </Button>
+      <div className="flex flex-col gap-1.5">
+        <label
+          className="text-sm font-medium text-ink-soft"
+          htmlFor="share-code"
+        >
+          Código de seguimiento
+        </label>
+        {/* En móvil el botón baja bajo el campo: el código pegado se ve
+            entero. El campo NO fija alto ni tamaño de letra: en táctil debe
+            quedarse en 16 px (iOS hace zoom por debajo). */}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id="share-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Pega aquí el código o el enlace"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            className="font-mono placeholder:font-sans"
+            required
+          />
+          <Button type="submit" className="flex-none" disabled={!code.trim()}>
+            <KeyRound className="size-4" />
+            Abrir
+          </Button>
+        </div>
       </div>
-      {error && <p className="text-xs text-danger">{error}</p>}
+      {error && (
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+          {error}
+        </div>
+      )}
     </form>
   );
 }

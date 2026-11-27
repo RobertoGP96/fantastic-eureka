@@ -31,14 +31,14 @@ export function PasswordForm() {
 
   return (
     <form
-      className="flex flex-col gap-3.5"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Contraseña actual
         </span>
         <Input
@@ -52,7 +52,7 @@ export function PasswordForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Nueva
           </span>
           <Input
@@ -65,7 +65,7 @@ export function PasswordForm() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Repetir
           </span>
           <Input
@@ -86,6 +86,8 @@ export function PasswordForm() {
 
       <Button
         type="submit"
+        size="lg"
+        className="w-full"
         disabled={saving || !current || !next || !confirm}
       >
         {saving ? "Cambiando…" : "Cambiar contraseña"}

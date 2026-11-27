@@ -2,45 +2,50 @@
 @import "tw-animate-css";
 
 /*
- * Identidad de Caja (sistema de diseño v2): petróleo/esmeralda con acento
- * dorado. Dos familias de tokens:
- *  - MARCA (navy, brand*, gold*): rellenos de degradados, logotipo y sidebar.
- *  - SEMÁNTICOS (app, card, heading, ink, muted, brand-ink, primary, estados):
- *    los que usa el contenido. Todo par texto/fondo llega a 4,5:1.
+ * Identidad de Caja (sistema de diseño v3): lienzo gris muy claro, tarjetas
+ * blancas con borde fino, sin sombras ni degradados, y el verde-azul de
+ * siempre como ÚNICO color de acento. Dos familias de tokens:
+ *  - MARCA (navy, brand*, gold*): logotipo, barra lateral y rellenos de acento.
+ *  - SEMÁNTICOS (app, card, subtle, heading, ink, muted, brand-ink, primary,
+ *    estados): los que usa el contenido. Todo par texto/fondo llega a 4,5:1
+ *    sobre card, app, subtle y chip.
+ * Se conservan los NOMBRES de v1/v2 y cambian los valores: así la interfaz
+ * se re-viste sin tocar componentes.
  * muted-2 NO es color de texto: solo borde de campos e iconos decorativos.
- * heading y brand-ink valen hoy lo mismo que navy y brand; existen para que
- * un futuro tema oscuro pueda cambiar el texto sin tocar los rellenos.
+ * No existe `bg-muted` como relleno (muted es tinta): el relleno neutro es
+ * `subtle` y el tinte de acento es `chip`.
  */
 @theme {
   /* Marca */
   --color-navy: #07272e;
   --color-brand: #0c6b70;
-  --color-brand-mid: #0d7a77;
+  --color-brand-mid: #0b7572;
   --color-brand-light: #27b3a4;
   --color-brand-soft: #82d7c9;
   --color-gold: #d9a13b;
   --color-gold-soft: #eec06b;
   --color-danger-soft: #e79aa7;
 
-  /* Superficies */
-  --color-page: #c3d6d3;
-  --color-app: #eef4f2;
-  --color-chip: #dcf0ec;
+  /* Superficies: page = app (ya no hay «marco de teléfono» sobre otro fondo) */
+  --color-page: #f6f8f8;
+  --color-app: #f6f8f8;
+  --color-chip: #e4f2f0;
+  --color-subtle: #ebf0ef;
   --color-inverse: #07272e;
   --color-inverse-foreground: #ffffff;
 
   /* Texto */
-  --color-heading: #07272e;
-  --color-ink: #12292d;
-  --color-ink-soft: #43605f;
-  --color-muted: #526e6c;
-  --color-muted-2: #708a87;
+  --color-heading: #0c2226;
+  --color-ink: #162a2d;
+  --color-ink-soft: #3f5457;
+  --color-muted: #566a6c;
+  --color-muted-2: #768a8b;
   --color-brand-ink: #0c6b70;
-  --color-disabled: #b5c6c3;
+  --color-disabled: #b4c0c1;
 
   /* Bordes */
-  --color-line: #d9e5e2;
-  --color-line-2: #e4eeeb;
+  --color-line: #e1e7e6;
+  --color-line-2: #ecf0ef;
 
   /* Estados (tinta sobre su -bg >= 4,5:1) */
   --color-ok: #17703f;
@@ -51,30 +56,37 @@
   --color-danger-bg: #f7e3e6;
   --color-gold-bg: #f8eed9;
 
+  /* Gráficos: una sola serie de acento, el resto neutro */
+  --color-chart-1: #0c6b70;
+  --color-chart-2: #7f9294;
+  --color-chart-track: #d8e0df;
+
   /* Tokens semánticos de shadcn/ui */
-  --color-background: #eef4f2;
-  --color-foreground: #12292d;
+  --color-background: #f6f8f8;
+  --color-foreground: #162a2d;
   --color-card: #ffffff;
-  --color-card-foreground: #12292d;
+  --color-card-foreground: #162a2d;
   --color-popover: #ffffff;
-  --color-popover-foreground: #12292d;
+  --color-popover-foreground: #162a2d;
   --color-primary: #0c6b70;
   --color-primary-foreground: #ffffff;
-  --color-primary-hover: #0d7a77;
-  --color-secondary: #dcf0ec;
-  --color-secondary-foreground: #0c6b70;
-  --color-accent: #dcf0ec;
-  --color-accent-foreground: #0c6b70;
+  --color-primary-hover: #0a5c61;
+  --color-secondary: #ebf0ef;
+  --color-secondary-foreground: #162a2d;
+  --color-accent: #ebf0ef;
+  --color-accent-foreground: #162a2d;
   --color-destructive: #a83a4c;
   --color-destructive-foreground: #ffffff;
-  --color-border: #d9e5e2;
-  --color-input: #708a87;
+  --color-border: #e1e7e6;
+  --color-input: #768a8b;
   --color-ring: #128f89;
-  --color-muted-foreground: #526e6c;
+  --color-muted-foreground: #566a6c;
 
-  /* Sidebar en petróleo profundo */
+  /* Barra lateral en petróleo profundo (la única superficie oscura).
+     Pasarla a clara es cambiar SOLO este bloque. */
   --color-sidebar: #07272e;
   --color-sidebar-foreground: #cfe4e0;
+  --color-sidebar-muted: #9dbab5;
   --color-sidebar-primary: #0d7a77;
   --color-sidebar-primary-foreground: #ffffff;
   --color-sidebar-accent: #0e3a40;
@@ -82,35 +94,39 @@
   --color-sidebar-border: #14454b;
   --color-sidebar-ring: #82d7c9;
 
-  /* Sombras: solo para lo que flota, en la tinta del petróleo */
-  --shadow-popover: 0 10px 30px rgba(7, 39, 46, 0.16);
-  --shadow-toast: 0 6px 20px rgba(7, 39, 46, 0.3);
-  --shadow-nav: 0 -6px 24px rgba(7, 39, 46, 0.1);
-  --shadow-fab: 0 10px 24px rgba(12, 107, 112, 0.45);
-  --shadow-modal: 0 20px 60px rgba(7, 39, 46, 0.3);
+  /* Radios: la escala se remapea (xl 10, 2xl 12, 3xl 16 px) para que
+     `rounded-xl|2xl|3xl` den esquinas más sobrias sin tocar cada clase. */
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1rem;
+
+  /* Sombras: SOLO para lo que flota (menús, toast, tooltips, diálogos).
+     Las tarjetas se separan con borde, nunca con sombra. No poner una
+     sombra a `none`: invalida todo el box-shadow, anillos incluidos. */
+  --shadow-popover: 0 8px 24px rgb(12 34 38 / 0.1), 0 1px 2px rgb(12 34 38 / 0.06);
+  --shadow-toast: 0 8px 24px rgb(12 34 38 / 0.18);
+  --shadow-modal: 0 16px 48px rgb(12 34 38 / 0.16);
 }
 
-/* Degradados de marca. Texto encima: blanco en header/confirm, navy en
-   gold; grad-cta y grad-progress solo llevan icono, nunca texto. */
-.grad-header {
-  background: linear-gradient(150deg, #07272e 0%, #0c6b70 78%, #0d7a77 100%);
+/* La fuente la carga next/font en src/app/fonts/index.ts y la expone como
+   --font-app en <html>; `inline` para que Tailwind resuelva la variable. */
+@theme inline {
+  --font-sans: var(--font-app), ui-sans-serif, system-ui, sans-serif;
 }
 
-.grad-cta {
-  background: linear-gradient(120deg, #0c6b70, #27b3a4);
-}
+/* Densidad de controles: escritorio con ratón. Móvil y tablet táctil se
+   quedan en 44 px de alto y 16 px de texto en campos (sin zoom en iOS). */
+@custom-variant dense (@media (width >= 48rem) and (pointer: fine));
 
-.grad-progress {
-  background: linear-gradient(90deg, #0c6b70, #27b3a4);
-}
-
-.grad-confirm {
-  background: linear-gradient(160deg, #07272e, #0c6b70);
-}
-
-/* Acento dorado para resaltar dinero (totales, hitos) */
-.grad-gold {
-  background: linear-gradient(120deg, #d9a13b, #eec06b);
+@layer base {
+  /* Los `border` sin color (shadcn) caerían a currentColor en Tailwind 4. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
 }
 
 @keyframes toastIn {
@@ -124,19 +140,21 @@
   }
 }
 
+/* Termina en `none` (no en translateY(0)): con fill-mode both un transform
+   final dejaría el bloque como contenedor de los position: fixed de dentro. */
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
 .anim-fade-up {
-  animation: fadeUp 0.4s ease both;
+  animation: fadeUp 0.3s ease both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -153,6 +171,13 @@
   animation: toastIn 0.25s ease;
 }
 
+/* En escritorio no hay barra inferior que esquivar. */
+@media (width >= 48rem) {
+  .toast-pop {
+    bottom: 32px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toast-pop {
     animation: none;
@@ -163,17 +188,17 @@ input {
   outline: none;
 }
 
-/* Scrollbars finas con la paleta. `scrollbar-gutter: stable` reserva el
-   hueco de la barra vertical del documento aunque no haga falta, así su
-   aparición no re-acomoda el layout; en los contenedores internos la barra
-   fina con pista transparente no altera la estructura visible. */
+/* Scrollbars finas y neutras. `scrollbar-gutter: stable` reserva el hueco de
+   la barra vertical del documento aunque no haga falta, así su aparición no
+   re-acomoda el layout; en los contenedores internos la barra fina con pista
+   transparente no altera la estructura visible. */
 html {
   scrollbar-gutter: stable;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--color-brand) 40%, transparent)
+  scrollbar-color: color-mix(in srgb, var(--color-ink-soft) 30%, transparent)
     transparent;
 }
 
@@ -189,12 +214,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-brand) 40%, transparent);
+  background: color-mix(in srgb, var(--color-ink-soft) 30%, transparent);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  background: color-mix(in srgb, var(--color-ink-soft) 50%, transparent);
 }
 
 .no-scrollbar {
@@ -205,7 +230,7 @@ html {
   display: none;
 }
 
-/* Cifras monetarias alineadas en tablas e historiales */
+/* Cifras monetarias alineadas en tablas, historiales y KPIs */
 .money {
   font-variant-numeric: tabular-nums;
 }

@@ -15,19 +15,19 @@ export default function CompartirLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex min-h-dvh justify-center bg-page">
-      <div className="relative flex min-h-dvh w-full max-w-[430px] flex-col bg-app shadow-[0_0_40px_rgba(7,39,46,.16)] md:max-w-2xl md:px-6 md:pb-12 md:shadow-none">
-        {children}
-        <footer className="mt-auto flex items-center justify-center gap-2 px-5 py-6 text-[11px] text-muted">
-          <BrandMark className="size-5" idPrefix="fe-share" />
-          <span>
-            Vista de solo lectura ·{" "}
-            <Link href="/" className="font-semibold text-brand">
-              {APP_NAME}
-            </Link>
-          </span>
-        </footer>
-      </div>
+    // @container/main: las mismas rejillas `@…/main:` que usa (app) funcionan
+    // aquí aunque no haya barra lateral.
+    <div className="@container/main mx-auto flex min-h-dvh w-full max-w-4xl flex-col md:px-8 md:pb-6">
+      {children}
+      <footer className="mt-auto flex items-center justify-center gap-2 px-5 py-6 text-[11px] text-muted">
+        <BrandMark className="size-5" idPrefix="fe-share" />
+        <span>
+          Vista de solo lectura ·{" "}
+          <Link href="/" className="font-semibold text-brand-ink">
+            {APP_NAME}
+          </Link>
+        </span>
+      </footer>
     </div>
   );
 }

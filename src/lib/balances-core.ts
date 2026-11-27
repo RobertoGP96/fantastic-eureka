@@ -2,6 +2,7 @@
 //   + INCOME y ADJUSTMENT (con signo) sobre la cuenta
 //   − EXPENSE y TRANSFER saliente
 //   + TRANSFER entrante (counterAmountMinor, en la moneda de la cuenta destino)
+import { convertMinor } from "@/lib/money";
 
 export interface OwnKindGroup {
   accountId: string;
@@ -62,6 +63,54 @@ export function totalsByCurrency<C extends { id: string }>(
     }
   }
   return totals;
+}
+
+export interface ConsolidatedTotal {
+  /** Suma en la moneda base de las cuentas que SÍ se pudieron convertir. */
+  totalMinor: number;
+  /** false si alguna cuenta con saldo quedó fuera por no tener tasa. */
+  complete: boolean;
+  /** Códigos de las monedas sin tasa, sin repetir y en orden de aparición. */
+  missing: string[];
+}
+
+/**
+ * Saldo consolidado en la moneda base. Las cuentas en la base suman directo
+ * y las demás se convierten con su tasa vigente. Una cuenta sin tasa pero
+ * con saldo 0 no estorba; con saldo distinto de 0 deja el total incompleto
+ * (quien lo pinta decide si lo oculta: un total parcial engaña).
+ */
+export function consolidatedTotalMinor(
+  accounts: readonly {
+    balanceMinor: number;
+    currency: { id: string; code: string; decimalPlaces: number };
+  }[],
+  base: { id: string; decimalPlaces: number },
+  rates: ReadonlyMap<string, { rateScaled: number }>
+): ConsolidatedTotal {
+  let totalMinor = 0;
+  const missing: string[] = [];
+  for (const account of accounts) {
+    if (account.currency.id === base.id) {
+      totalMinor += account.balanceMinor;
+      continue;
+    }
+    const rate = rates.get(account.currency.id);
+    if (rate) {
+      totalMinor += convertMinor(
+        account.balanceMinor,
+        account.currency,
+        base,
+        rate.rateScaled
+      );
+    } else if (
+      account.balanceMinor !== 0 &&
+      !missing.includes(account.currency.code)
+    ) {
+      missing.push(account.currency.code);
+    }
+  }
+  return { totalMinor, complete: missing.length === 0, missing };
 }
 
 export function balancesFromGroups(

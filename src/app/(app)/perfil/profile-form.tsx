@@ -38,14 +38,14 @@ export function ProfileForm({
 
   return (
     <form
-      className="flex flex-col gap-3.5"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Nombre
         </span>
         <Input
@@ -58,7 +58,7 @@ export function ProfileForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Correo
         </span>
         <Input
@@ -78,6 +78,8 @@ export function ProfileForm({
 
       <Button
         type="submit"
+        size="lg"
+        className="w-full"
         disabled={saving || !dirty || !name.trim() || !email.trim()}
       >
         {saving ? "Guardando…" : "Guardar cambios"}

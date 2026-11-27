@@ -1,4 +1,6 @@
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { PlanForm } from "./plan-form";
@@ -26,15 +28,21 @@ export default async function NuevaMensualidadPage() {
   ]);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Nueva mensualidad" backHref="/mensualidades" />
-      <div className="anim-fade-up px-5 pt-5 md:max-w-md md:px-0">
-        <PlanForm
-          contacts={contacts}
-          currencies={currencies}
-          accounts={accounts}
-        />
-      </div>
-    </main>
+    <Page width="form">
+      <ScreenHeader
+        title="Nueva mensualidad"
+        subtitle="Renta, suscripciones y cuotas fijas"
+        backHref="/mensualidades"
+      />
+      <PageBody>
+        <Card>
+          <PlanForm
+            contacts={contacts}
+            currencies={currencies}
+            accounts={accounts}
+          />
+        </Card>
+      </PageBody>
+    </Page>
   );
 }

@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -67,10 +69,11 @@ type RateDirection = "AMOUNT_TO_ACCOUNT" | "ACCOUNT_TO_AMOUNT";
 
 type Mode = "gasto" | "ingreso" | "transferencia";
 
-const MODES: { key: Mode; label: string }[] = [
-  { key: "gasto", label: "Gasto" },
-  { key: "ingreso", label: "Ingreso" },
-  { key: "transferencia", label: "Transferencia" },
+// Opciones del control segmentado (forma {value, label} de <Segmented>).
+const MODES: { value: Mode; label: string }[] = [
+  { value: "gasto", label: "Gasto" },
+  { value: "ingreso", label: "Ingreso" },
+  { value: "transferencia", label: "Transferencia" },
 ];
 
 // Radix Select no admite value "": valor especial para «Sin categoría».
@@ -380,9 +383,9 @@ export function RegisterForm({
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
+      <Card dashed className="py-6 text-center text-sm text-muted">
         Primero crea una cuenta para poder registrar movimientos.
-      </div>
+      </Card>
     );
   }
 
@@ -417,7 +420,16 @@ export function RegisterForm({
     />
   );
 
-  return (
+  // La tarjeta la pinta este componente (y no la página) porque sin cuentas
+  // se devuelve arriba el aviso discontinuo en su lugar. El formulario va en
+  // una constante y la tarjeta lo envuelve al final.
+  // RESTRICCIONES de los tests E2E sobre este marcado:
+  //  - cada Select vive DENTRO de su <label>, cuyo primer hijo es un único
+  //    elemento con el rótulo exacto («Cuenta», «Categoría (opcional)»);
+  //  - el label del monto EMPIEZA por «Monto» y su <Input> va ANTES del
+  //    selector de moneda (el primer control del label es el que se rellena);
+  //  - «Guardar» es el único control de la pantalla con ese texto.
+  const form = (
     <form
       className="flex flex-col gap-4"
       onSubmit={(e) => {
@@ -425,25 +437,16 @@ export function RegisterForm({
         void submit();
       }}
     >
-      <div className="grid grid-cols-3 gap-2">
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => switchMode(m.key)}
-            className={`rounded-xl border px-2 py-2.5 text-sm font-semibold transition-colors ${
-              mode === m.key
-                ? "border-brand bg-chip text-brand"
-                : "border-line bg-white text-ink-soft hover:border-brand-soft"
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        layout="fill"
+        ariaLabel="Tipo de movimiento"
+        options={MODES}
+        value={mode}
+        onValueChange={switchMode}
+      />
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           {mode === "transferencia" ? "Cuenta de origen" : "Cuenta"}
         </span>
         <Select
@@ -458,7 +461,7 @@ export function RegisterForm({
             }
           }}
         >
-          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger variant="form" className="w-full">
             <SelectValue placeholder="Elige cuenta" />
           </SelectTrigger>
           <SelectContent>
@@ -473,7 +476,7 @@ export function RegisterForm({
 
       {mode === "transferencia" && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Cuenta de destino
           </span>
           <Select
@@ -483,7 +486,7 @@ export function RegisterForm({
               setDestLines({});
             }}
           >
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue placeholder="Elige cuenta" />
             </SelectTrigger>
             <SelectContent>
@@ -503,7 +506,7 @@ export function RegisterForm({
       {!crossCurrency && destBreakdown}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Monto
           {mode === "transferencia" && from
             ? ` (${from.currency.code})`
@@ -527,7 +530,8 @@ export function RegisterForm({
             >
               <SelectTrigger
                 aria-label="Moneda del monto"
-                className="h-10 w-28 flex-none rounded-xl border border-line bg-white px-3.5 text-sm text-ink"
+                variant="form"
+                className="w-28 flex-none"
               >
                 <SelectValue placeholder="Moneda" />
               </SelectTrigger>
@@ -551,7 +555,7 @@ export function RegisterForm({
 
       {crossCurrencyOp && opCurrency && accountCurrency && from && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Tasa (1{" "}
             {rateDirection === "AMOUNT_TO_ACCOUNT"
               ? `${opCurrency.code} = ? ${accountCurrency.code}`
@@ -567,14 +571,17 @@ export function RegisterForm({
               required
               className="flex-1"
             />
-            <button
-              type="button"
+            {/* Mismo alto que el campo de al lado: 44 px en táctil, 36 px
+                en escritorio. */}
+            <Button
+              variant="outline"
+              size="icon"
               onClick={flipRateDirection}
               aria-label="Invertir la dirección de la tasa"
-              className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-line bg-white text-ink-soft transition-colors hover:border-brand-soft"
+              className="size-11 flex-none dense:size-9"
             >
-              <ArrowRightLeft className="h-4 w-4" />
-            </button>
+              <ArrowRightLeft />
+            </Button>
           </div>
           <span className="text-xs text-muted">
             {convertedPreview
@@ -590,7 +597,7 @@ export function RegisterForm({
         <>
           {destBreakdown}
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink-soft">
+            <span className="text-sm font-medium text-ink-soft">
               Monto recibido ({to?.currency.code})
             </span>
             <Input
@@ -610,7 +617,7 @@ export function RegisterForm({
 
       {mode !== "transferencia" && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Categoría (opcional)
           </span>
           <Select
@@ -619,7 +626,7 @@ export function RegisterForm({
               setCategoryId(value === NO_CATEGORY ? "" : value)
             }
           >
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue placeholder="Sin categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -636,9 +643,9 @@ export function RegisterForm({
         </label>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Fecha
           </span>
           <Input
@@ -650,7 +657,7 @@ export function RegisterForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Nota (opcional)
           </span>
           <Input
@@ -671,6 +678,7 @@ export function RegisterForm({
       <Button
         type="submit"
         size="lg"
+        className="w-full"
         disabled={
           saving ||
           !accountId ||
@@ -686,4 +694,6 @@ export function RegisterForm({
       </Button>
     </form>
   );
+
+  return <Card>{form}</Card>;
 }

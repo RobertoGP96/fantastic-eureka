@@ -1,4 +1,5 @@
 import { Archive } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { requireSessionUser } from "@/lib/auth";
@@ -14,10 +15,19 @@ export default async function CuentasArchivadasPage() {
   ).filter((account) => account.archived);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Cuentas archivadas" backHref="/cuentas" />
+    <Page>
+      <ScreenHeader
+        title="Cuentas archivadas"
+        // Sin archivadas, el vacío de abajo ya lo explica: no se repite.
+        subtitle={
+          accounts.length > 0
+            ? "Las cuentas archivadas conservan su historial y no aparecen al registrar movimientos. Entra al detalle para activarlas de nuevo."
+            : undefined
+        }
+        backHref="/cuentas"
+      />
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:px-0">
+      <PageBody>
         {accounts.length === 0 ? (
           <EmptyState
             icon={Archive}
@@ -25,19 +35,15 @@ export default async function CuentasArchivadasPage() {
             description="Cuando archives una cuenta desde su detalle, aparecerá aquí con su historial intacto."
           />
         ) : (
-          <>
-            <p className="text-xs text-muted">
-              Las cuentas archivadas conservan su historial y no aparecen al
-              registrar movimientos. Entra al detalle para activarlas de nuevo.
-            </p>
-            <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
-              {accounts.map((account) => (
-                <AccountCard key={account.id} account={account} />
-              ))}
-            </div>
-          </>
+          // grid-cols-1 explícito: la columna implícita (auto) crecía hasta
+          // el nombre más largo y la página desbordaba en móvil.
+          <div className="grid grid-cols-1 gap-3 @2xl/main:grid-cols-2 @4xl/main:grid-cols-3">
+            {accounts.map((account) => (
+              <AccountCard key={account.id} account={account} />
+            ))}
+          </div>
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

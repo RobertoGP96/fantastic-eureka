@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import { createAccount } from "@/app/actions/account-actions";
 import { IconPicker } from "@/components/icon-picker";
 import { useUI } from "@/lib/ui-store";
 import { runAction } from "@/lib/run-action";
+import { cn } from "@/lib/utils";
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
@@ -35,6 +37,11 @@ interface GroupOption {
 }
 
 const NO_GROUP = "__none__";
+
+const TYPE_OPTIONS = ACCOUNT_TYPES.map((accountType) => ({
+  value: accountType,
+  label: ACCOUNT_TYPE_LABELS[accountType],
+}));
 
 export function AccountForm({
   currencies,
@@ -114,7 +121,7 @@ export function AccountForm({
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Nombre
         </span>
         <Input
@@ -126,79 +133,84 @@ export function AccountForm({
         />
       </label>
 
+      {/* Tipo e Icono son <div> + <span>, NO <label>: un label alrededor de
+          un grupo de botones reenvía el clic al primero. */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">Tipo</span>
-        <div className="grid grid-cols-2 gap-2">
-          {ACCOUNT_TYPES.map((accountType) => (
-            <button
-              key={accountType}
-              type="button"
-              onClick={() => pickType(accountType)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
-                type === accountType
-                  ? "border-brand bg-chip text-brand"
-                  : "border-line bg-white text-ink-soft hover:border-brand-soft"
-              }`}
-            >
-              {ACCOUNT_TYPE_LABELS[accountType]}
-            </button>
-          ))}
-        </div>
+        <span className="text-sm font-medium text-ink-soft">Tipo</span>
+        <Segmented
+          layout="grid"
+          ariaLabel="Tipo de cuenta"
+          options={TYPE_OPTIONS}
+          value={type}
+          onValueChange={pickType}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Icono (opcional; si no eliges, se usa el del tipo)
         </span>
         <IconPicker value={icon} onChange={setIcon} />
       </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
-          Moneda
-        </span>
-        <Select value={currencyId} onValueChange={setCurrencyId}>
-          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-            <SelectValue placeholder="Elige moneda" />
-          </SelectTrigger>
-          <SelectContent>
-            {eligibleCurrencies.map((currency) => (
-              <SelectItem key={currency.id} value={currency.id}>
-                {currency.code} · {currency.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {cashLike && hiddenDigitalCount > 0 && (
-          <span className="text-xs text-muted">
-            Las monedas digitales no aparecen: no existen en efectivo.
-          </span>
+      {/* Moneda y Grupo comparten fila desde `sm` (breakpoint de viewport a
+          propósito: la tarjeta tiene ancho máximo fijo). Sin grupos, Moneda
+          ocupa todo el ancho. */}
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          groups.length > 0 && "sm:grid-cols-2 sm:gap-3"
         )}
-      </label>
-
-      {groups.length > 0 && (
+      >
+        {/* El primer hijo del label es SOLO el rótulo: el test E2E abre el
+            selector buscando el texto exacto «Moneda» dentro del label. */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
-            Grupo (opcional)
+          <span className="text-sm font-medium text-ink-soft">
+            Moneda
           </span>
-          <Select value={groupId} onValueChange={setGroupId}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-              <SelectValue />
+          <Select value={currencyId} onValueChange={setCurrencyId}>
+            <SelectTrigger variant="form" className="w-full">
+              <SelectValue placeholder="Elige moneda" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_GROUP}>Sin grupo</SelectItem>
-              {groups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
+              {eligibleCurrencies.map((currency) => (
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code} · {currency.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {cashLike && hiddenDigitalCount > 0 && (
+            <span className="text-xs text-muted">
+              Las monedas digitales no aparecen: no existen en efectivo.
+            </span>
+          )}
         </label>
-      )}
+
+        {groups.length > 0 && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink-soft">
+              Grupo (opcional)
+            </span>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger variant="form" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_GROUP}>Sin grupo</SelectItem>
+                {groups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        )}
+      </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Saldo inicial (opcional)
         </span>
         <Input
@@ -215,7 +227,12 @@ export function AccountForm({
         </div>
       )}
 
-      <Button type="submit" size="lg" disabled={saving || !name.trim() || !currencyId}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={saving || !name.trim() || !currencyId}
+      >
         {saving ? "Creando…" : "Crear cuenta"}
       </Button>
     </form>

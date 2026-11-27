@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,11 @@ interface AccountOption {
 
 const NEW_CONTACT = "__new__";
 const NO_ACCOUNT = "__none__";
+
+const DIRECTION_OPTIONS = DEBT_DIRECTIONS.map((dir) => ({
+  value: dir,
+  label: DEBT_DIRECTION_LABELS[dir],
+}));
 
 const todayISO = () => toLocalDateISO();
 
@@ -118,54 +124,49 @@ export function DebtForm({
         void submit();
       }}
     >
-      <div className="grid grid-cols-2 gap-2">
-        {DEBT_DIRECTIONS.map((dir) => (
-          <button
-            key={dir}
-            type="button"
-            onClick={() => setDirection(dir)}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
-              direction === dir
-                ? "border-brand bg-chip text-brand"
-                : "border-line bg-white text-ink-soft hover:border-brand-soft"
-            }`}
-          >
-            {DEBT_DIRECTION_LABELS[dir]}
-          </button>
-        ))}
+      <Segmented
+        layout="fill"
+        ariaLabel="Tipo de deuda"
+        options={DIRECTION_OPTIONS}
+        value={direction}
+        onValueChange={setDirection}
+      />
+
+      {/* El nombre del contacto nuevo va pegado a su selector. Ese campo no
+          lleva <label>: el test E2E lo localiza por su placeholder. */}
+      <div className="flex flex-col gap-2">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Contacto
+          </span>
+          <Select value={contactId} onValueChange={setContactId}>
+            <SelectTrigger variant="form" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NEW_CONTACT}>+ Nuevo contacto</SelectItem>
+              {contacts.map((contact) => (
+                <SelectItem key={contact.id} value={contact.id}>
+                  {contact.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+
+        {contactId === NEW_CONTACT && (
+          <Input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            placeholder="Nombre del contacto"
+            maxLength={60}
+            required
+          />
+        )}
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
-          Contacto
-        </span>
-        <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NEW_CONTACT}>+ Nuevo contacto</SelectItem>
-            {contacts.map((contact) => (
-              <SelectItem key={contact.id} value={contact.id}>
-                {contact.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
-
-      {contactId === NEW_CONTACT && (
-        <Input
-          value={contactName}
-          onChange={(e) => setContactName(e.target.value)}
-          placeholder="Nombre del contacto"
-          maxLength={60}
-          required
-        />
-      )}
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Descripción
         </span>
         <Input
@@ -179,7 +180,7 @@ export function DebtForm({
 
       <div className="grid grid-cols-[1fr_110px] gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Monto total
           </span>
           <Input
@@ -191,11 +192,11 @@ export function DebtForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Moneda
           </span>
           <Select value={currencyId} onValueChange={changeCurrency}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -211,11 +212,11 @@ export function DebtForm({
 
       {currencyAccounts.length > 0 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Cuenta para abonos (opcional)
           </span>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -233,12 +234,14 @@ export function DebtForm({
         </label>
       )}
 
-      <label className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-3">
+      {/* Checkbox NATIVO dentro de su <label>: el test E2E lo marca con
+          getByRole("checkbox") a través del label (un Switch lo rompería). */}
+      <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:bg-subtle/60">
         <input
           type="checkbox"
           checked={withPlan}
           onChange={(e) => setWithPlan(e.target.checked)}
-          className="h-4 w-4 accent-[#0c6b70]"
+          className="size-4 flex-none accent-brand focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
         <span className="text-sm font-medium text-ink-soft">
           Con plan de cuotas (recordatorios periódicos)
@@ -246,14 +249,15 @@ export function DebtForm({
       </label>
 
       {withPlan && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-brand-soft/50 bg-chip/40 p-4">
+        // Panel interior neutro: los campos del plan cuelgan del checkbox.
+        <div className="flex flex-col gap-3 rounded-xl bg-subtle p-4">
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink-soft">
+              <span className="text-sm font-medium text-ink-soft">
                 Frecuencia
               </span>
               <Select value={frequency} onValueChange={setFrequency}>
-                <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+                <SelectTrigger variant="form" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -265,8 +269,10 @@ export function DebtForm({
                 </SelectContent>
               </Select>
             </label>
+            {/* El texto de este label es EXACTAMENTE «Cuota» (el test E2E usa
+                getByLabel exacto): sin ayuda, unidad ni asterisco dentro. */}
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink-soft">
+              <span className="text-sm font-medium text-ink-soft">
                 Cuota
               </span>
               <Input
@@ -279,7 +285,7 @@ export function DebtForm({
             </label>
           </div>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink-soft">
+            <span className="text-sm font-medium text-ink-soft">
               Primer vencimiento
             </span>
             <Input
@@ -301,6 +307,7 @@ export function DebtForm({
       <Button
         type="submit"
         size="lg"
+        className="w-full"
         disabled={
           saving ||
           !description.trim() ||

@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Banknote, Plus } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { TxList } from "@/components/tx-list";
 import { GroupSelect } from "@/components/group-select";
 import { AccountIconEditor } from "@/components/account-icon-editor";
@@ -13,7 +18,7 @@ import { activeShareForAccount } from "@/lib/shares";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
-import { fmtMinor } from "@/lib/format";
+import { fmtMinorParts } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
 import { AccountActivityChart } from "@/components/account-activity-chart";
 import {
@@ -24,6 +29,10 @@ import {
 import { DenominationAvailability } from "@/components/denomination-availability";
 
 export const dynamic = "force-dynamic";
+
+// Icono de las acciones de cabecera: se oculta cuando la columna es estrecha
+// para que en un móvil quede sitio para el nombre de la cuenta.
+const ACTION_ICON = "hidden size-3.5 @xl/main:block";
 
 export default async function CuentaDetallePage({
   params,
@@ -92,122 +101,140 @@ export default async function CuentaDetallePage({
     .map((tx) => toTxRow(tx, account.id, account.currency))
     .reverse();
 
+  const balance = fmtMinorParts(balanceMinor, account.currency);
+  const typeLabel =
+    ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type;
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={account.name} backHref="/cuentas">
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
-              Saldo actual
-            </div>
-            <div
-              className={`mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
-                balanceMinor < 0 ? "text-red-300" : ""
-              }`}
-            >
-              {fmtMinor(balanceMinor, account.currency)}
-            </div>
-          </div>
-          <Badge variant="neutral" className="mb-1.5 bg-white/15 text-white">
-            {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}
-            {account.archived ? " · Archivada" : ""}
-          </Badge>
-        </div>
+    <Page>
+      <ScreenHeader
+        title={account.name}
+        subtitle={`${typeLabel} · ${account.currency.code}`}
+        backHref="/cuentas"
+        actions={
+          // Archivada: /registrar y /conteo solo admiten cuentas activas; el
+          // enlace acababa preseleccionando en silencio otra cuenta.
+          !account.archived && (
+            <>
+              {isCashLikeType(account.type) && (
+                <Link
+                  href={`/conteo/${account.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  <Banknote className={ACTION_ICON} />
+                  Arqueo
+                </Link>
+              )}
+              <Link
+                href={`/registrar?cuenta=${account.id}`}
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus className={ACTION_ICON} />
+                Registrar
+              </Link>
+            </>
+          )
+        }
+      >
+        {account.archived && <Badge>Archivada</Badge>}
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        {/* Archivada: /registrar y /conteo solo admiten cuentas activas; el
-            enlace acababa preseleccionando en silencio otra cuenta. */}
-        {!account.archived && (
-        <div className="flex gap-2.5">
-          <Link
-            href={`/registrar?cuenta=${account.id}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-mid"
-          >
-            <Plus className="h-4 w-4" />
-            Registrar
-          </Link>
-          {isCashLikeType(account.type) && (
-            <Link
-              href={`/conteo/${account.id}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-white py-3 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-            >
-              <Banknote className="h-4 w-4" />
-              Arqueo
-            </Link>
-          )}
-        </div>
-        )}
+      <PageBody>
+        {/* Las columnas y las tarjetas son <div>: el único <section> que
+            envuelve «Movimientos recientes» es el suyo (lo exigen los tests). */}
+        <div className="grid gap-5 @4xl/main:grid-cols-12">
+          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
+            {/* «Saldo actual» aparece UNA sola vez y lo pinta StatCard: el
+                helper E2E saldoActual() sube al padre del rótulo y espera
+                encontrar ahí el monto. */}
+            <StatCard
+              size="lg"
+              label="Saldo actual"
+              value={balance.amount}
+              unit={balance.code}
+              tone={balanceMinor < 0 ? "danger" : "default"}
+            />
 
-        {activity.length > 0 && (
-          <AccountActivityChart
-            deltas={activity}
-            currency={{
-              code: account.currency.code,
-              decimalPlaces: account.currency.decimalPlaces,
-            }}
-          />
-        )}
+            {activity.length > 0 && (
+              <AccountActivityChart
+                deltas={activity}
+                currency={{
+                  code: account.currency.code,
+                  decimalPlaces: account.currency.decimalPlaces,
+                }}
+              />
+            )}
 
-        <div className="rounded-2xl border border-line bg-white px-4 py-3">
-          <AccountIconEditor
-            accountId={account.id}
-            icon={account.icon}
-            type={account.type}
-          />
-        </div>
+            <section>
+              <SectionHeader title="Movimientos recientes" />
+              {rows.length === 0 ? (
+                <Card className="py-6 text-center text-sm text-muted">
+                  Sin movimientos todavía.
+                </Card>
+              ) : (
+                <TxList rows={rows} />
+              )}
+            </section>
+          </div>
 
-        {groups.length > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-2.5">
-            <span className="text-sm font-semibold text-ink-soft">
-              Grupo
-            </span>
-            <GroupSelect
+          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-4">
+            {account.type === "CASH_BOX" && (
+              <DenominationAvailability
+                userId={user.id}
+                accountId={account.id}
+                currency={account.currency}
+              />
+            )}
+
+            <Card padding="none">
+              <h2 className="px-4 pt-4 pb-1 text-sm font-semibold text-heading">
+                Ajustes de la cuenta
+              </h2>
+              <div className="divide-y divide-line-2">
+                <div className="px-4 py-2">
+                  <AccountIconEditor
+                    accountId={account.id}
+                    icon={account.icon}
+                    type={account.type}
+                  />
+                </div>
+                {groups.length > 0 && (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                    <span className="flex-none text-sm font-medium text-ink-soft">
+                      Grupo
+                    </span>
+                    <GroupSelect
+                      accountId={account.id}
+                      groups={groups}
+                      currentGroupId={account.groupId}
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <AccountEditor
               accountId={account.id}
-              groups={groups}
-              currentGroupId={account.groupId}
+              name={account.name}
+              archived={account.archived}
+              hasUsage={ledger.length + countCount > 0}
+            />
+
+            <AccountSharePanel
+              accountId={account.id}
+              accountName={account.name}
+              share={
+                share
+                  ? {
+                      token: share.token,
+                      expiresAt: share.expiresAt.toISOString(),
+                    }
+                  : null
+              }
             />
           </div>
-        )}
-
-        <AccountEditor
-          accountId={account.id}
-          name={account.name}
-          archived={account.archived}
-          hasUsage={ledger.length + countCount > 0}
-        />
-
-        <AccountSharePanel
-          accountId={account.id}
-          accountName={account.name}
-          share={
-            share
-              ? { token: share.token, expiresAt: share.expiresAt.toISOString() }
-              : null
-          }
-        />
-
-        {account.type === "CASH_BOX" && (
-          <DenominationAvailability
-            userId={user.id}
-            accountId={account.id}
-            currency={account.currency}
-          />
-        )}
-
-        <section>
-          <h2 className="mb-2.5 text-base font-bold text-navy">
-            Movimientos recientes
-          </h2>
-          {rows.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
-              Sin movimientos todavía.
-            </div>
-          ) : (
-            <TxList rows={rows} />
-          )}
-        </section>
-      </div>
-    </main>
+        </div>
+      </PageBody>
+    </Page>
   );
 }

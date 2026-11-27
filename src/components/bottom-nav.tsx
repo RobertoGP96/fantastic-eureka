@@ -59,37 +59,47 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   return (
     <Link
       href={item.href}
-      className="relative flex w-16 flex-col items-center min-h-12 gap-0.5 text-[11px] font-semibold"
+      aria-current={active ? "page" : undefined}
+      className="flex min-h-12 w-16 flex-col items-center justify-center gap-0.5 text-[11px]"
     >
       <span
-        className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+        className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${
           active ? "bg-chip text-brand-ink" : "text-muted"
         }`}
       >
-        <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
+        <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
       </span>
-      <span className={active ? "text-brand-ink" : "text-muted"}>
+      <span
+        className={
+          active ? "font-semibold text-brand-ink" : "font-medium text-muted"
+        }
+      >
         {item.label}
       </span>
     </Link>
   );
 }
 
+// Barra inferior de móvil: plana, con borde fino arriba (sin sombra ni
+// esquinas redondeadas) y el «+» como botón de acento al centro.
 export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 z-40 mt-auto rounded-t-3xl border-t border-line-2 bg-card pb-[max(env(safe-area-inset-bottom),8px)] shadow-nav md:hidden">
-      <div className="flex items-end justify-around px-2 pt-2">
+    <nav
+      aria-label="Navegación principal"
+      className="sticky bottom-0 z-40 mt-auto border-t border-line bg-card pb-[max(env(safe-area-inset-bottom),8px)] md:hidden"
+    >
+      <div className="flex items-center justify-around px-2 pt-1.5">
         {LEFT.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
         <Link
           href="/registrar"
           aria-label="Registrar movimiento"
-          className="grad-cta -mt-9 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-fab ring-4 ring-app transition-transform active:scale-95"
+          className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-colors active:bg-primary-hover"
         >
-          <Plus className="h-6 w-6" strokeWidth={2.4} />
+          <Plus className="h-6 w-6" strokeWidth={2.2} />
         </Link>
         {RIGHT.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />

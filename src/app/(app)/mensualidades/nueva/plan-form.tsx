@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,14 @@ interface AccountOption {
 
 const NO_CONTACT = "__none__";
 const NO_ACCOUNT = "__none_account__";
+
+// El paréntesis aclara desde qué lado se mira el plan.
+const KIND_OPTIONS = PLAN_KINDS.map((planKind) => ({
+  value: planKind,
+  label: `${PLAN_KIND_LABELS[planKind]}${
+    planKind === "COLLECT" ? " (me pagan)" : " (yo pago)"
+  }`,
+}));
 
 const todayISO = () => toLocalDateISO();
 
@@ -111,26 +120,16 @@ export function PlanForm({
         void submit();
       }}
     >
-      <div className="grid grid-cols-2 gap-2">
-        {PLAN_KINDS.map((planKind) => (
-          <button
-            key={planKind}
-            type="button"
-            onClick={() => setKind(planKind)}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
-              kind === planKind
-                ? "border-brand bg-chip text-brand"
-                : "border-line bg-white text-ink-soft hover:border-brand-soft"
-            }`}
-          >
-            {PLAN_KIND_LABELS[planKind]}
-            {planKind === "COLLECT" ? " (me pagan)" : " (yo pago)"}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        layout="fill"
+        ariaLabel="Tipo de mensualidad"
+        options={KIND_OPTIONS}
+        value={kind}
+        onValueChange={setKind}
+      />
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Descripción
         </span>
         <Input
@@ -143,11 +142,11 @@ export function PlanForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Contacto (opcional)
         </span>
         <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+          <SelectTrigger variant="form" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -163,7 +162,7 @@ export function PlanForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Cuota
           </span>
           <Input
@@ -175,11 +174,11 @@ export function PlanForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Moneda
           </span>
           <Select value={currencyId} onValueChange={changeCurrency}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -195,11 +194,11 @@ export function PlanForm({
 
       {currencyAccounts.length > 0 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Cuenta habitual (opcional)
           </span>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -217,13 +216,13 @@ export function PlanForm({
         </label>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Frecuencia
           </span>
           <Select value={frequency} onValueChange={setFrequency}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -236,7 +235,7 @@ export function PlanForm({
           </Select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Primer vencimiento
           </span>
           <Input
@@ -249,7 +248,7 @@ export function PlanForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Termina el (opcional)
         </span>
         <Input
@@ -269,6 +268,7 @@ export function PlanForm({
       <Button
         type="submit"
         size="lg"
+        className="w-full"
         disabled={saving || !description.trim() || !amount.trim() || !currencyId}
       >
         {saving ? "Creando…" : "Crear mensualidad"}

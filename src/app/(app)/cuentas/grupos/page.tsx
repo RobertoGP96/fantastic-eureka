@@ -1,3 +1,4 @@
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -20,15 +21,15 @@ export default async function GruposPage() {
   }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Grupos de cuentas" backHref="/cuentas">
-        <p className="mt-1 text-sm text-white/80">
-          Organiza tus cuentas: negocio, personal, cajas…
-        </p>
-      </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+    <Page width="narrow">
+      <ScreenHeader
+        title="Grupos de cuentas"
+        subtitle="Organiza tus cuentas: negocio, personal, cajas…"
+        backHref="/cuentas"
+      />
+      <PageBody>
         <GroupManager groups={items} />
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

@@ -4,9 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { deleteAccount, updateAccount } from "@/app/actions/account-actions";
 import { useUI } from "@/lib/ui-store";
+
+// Confirmar/cancelar van en un bloque: si no caben junto al campo o al aviso,
+// bajan los dos a la vez (sueltos, se partían uno en cada línea).
+const BUTTON_PAIR = "flex flex-none items-center gap-2";
 
 /**
  * Gestión de la cuenta desde su detalle: renombrar, archivar/activar y
@@ -80,10 +85,14 @@ export function AccountEditor({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white px-4 py-3">
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-heading">Gestionar cuenta</h2>
       {editing ? (
+        // En la columna lateral estrecha el campo (basis-40) ocupa su propia
+        // línea y la pareja de botones baja junta, en vez de encogerlo hasta
+        // no dejar ver el nombre.
         <form
-          className="flex items-center gap-2"
+          className="flex flex-wrap items-center justify-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             void rename();
@@ -93,51 +102,56 @@ export function AccountEditor({
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             maxLength={60}
-            className="h-9"
+            className="grow basis-40"
             autoFocus
             required
           />
-          <Button type="submit" size="sm" disabled={saving || !editName.trim()}>
-            Guardar
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={saving}
-            onClick={() => setEditing(false)}
-          >
-            Cancelar
-          </Button>
+          <div className={BUTTON_PAIR}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving || !editName.trim()}
+            >
+              Guardar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={saving}
+              onClick={() => setEditing(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
         </form>
       ) : confirmDelete ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-xs text-muted">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="min-w-0 grow basis-52 text-xs break-words text-muted">
             {hasUsage
               ? `¿Eliminar “${name}”? Se borrarán también TODOS sus movimientos y arqueos (incluidas transferencias con otras cuentas y abonos vinculados). No se puede deshacer.`
               : `¿Eliminar “${name}”? No se puede deshacer.`}
           </span>
-          <Button
-            size="sm"
-            variant="danger"
-            disabled={saving}
-            onClick={() => void remove()}
-          >
-            Eliminar
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={saving}
-            onClick={() => setConfirmDelete(false)}
-          >
-            Cancelar
-          </Button>
+          <div className={BUTTON_PAIR}>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={saving}
+              onClick={() => void remove()}
+            >
+              Eliminar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={saving}
+              onClick={() => setConfirmDelete(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-sm font-semibold text-ink-soft">
-            Gestionar cuenta
-          </span>
           <Button
             size="sm"
             variant="outline"
@@ -147,7 +161,7 @@ export function AccountEditor({
               setEditing(true);
             }}
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Pencil className="size-3.5" />
             Renombrar
           </Button>
           <Button
@@ -157,9 +171,9 @@ export function AccountEditor({
             onClick={() => void toggleArchived()}
           >
             {archived ? (
-              <ArchiveRestore className="h-3.5 w-3.5" />
+              <ArchiveRestore className="size-3.5" />
             ) : (
-              <Archive className="h-3.5 w-3.5" />
+              <Archive className="size-3.5" />
             )}
             {archived ? "Activar" : "Archivar"}
           </Button>
@@ -170,16 +184,16 @@ export function AccountEditor({
             disabled={saving}
             onClick={requestDelete}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="size-3.5" />
             Eliminar
           </Button>
         </div>
       )}
-      <p className="text-[11px] text-muted">
+      <p className="text-xs text-muted">
         Eliminar una cuenta borra también todo su historial (movimientos,
         arqueos y abonos vinculados). Si prefieres conservarlo, archívala y
         dejará de aparecer al registrar.
       </p>
-    </div>
+    </Card>
   );
 }

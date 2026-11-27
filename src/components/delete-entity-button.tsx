@@ -75,36 +75,39 @@ export function DeleteEntityButton({
       <Button
         variant="ghost"
         size="sm"
-        className="text-danger hover:text-danger"
+        className="text-danger hover:bg-danger-bg hover:text-danger"
         onClick={() => setConfirming(true)}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="size-3.5" />
         {labels.button}
       </Button>
     );
   }
 
+  // La advertencia va en su propia línea a todo el ancho y los botones
+  // debajo: en fila, a 375 px el texto quedaba en una columna de pocas
+  // palabras junto a los botones.
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <span className="min-w-0 flex-1 text-xs text-muted">
-        {labels.warning}
-      </span>
-      <Button
-        variant="danger"
-        size="sm"
-        disabled={saving}
-        onClick={() => void remove()}
-      >
-        Eliminar
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={saving}
-        onClick={() => setConfirming(false)}
-      >
-        Cancelar
-      </Button>
+    <div className="flex w-full flex-col gap-2">
+      <p className="text-xs text-ink-soft">{labels.warning}</p>
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="danger"
+          size="sm"
+          disabled={saving}
+          onClick={() => void remove()}
+        >
+          Eliminar
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={saving}
+          onClick={() => setConfirming(false)}
+        >
+          Cancelar
+        </Button>
+      </div>
     </div>
   );
 }

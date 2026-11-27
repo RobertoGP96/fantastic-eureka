@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Coins } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
 import { RateSparkline } from "@/components/rate-sparkline";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { pairRateSeries } from "@/lib/rates";
@@ -82,117 +86,130 @@ export default async function TasasPage() {
     .slice(0, 15);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Tasas de cambio" backHref="/mas">
-        {base && (
-          <p className="mt-1 text-sm text-white/80">
-            Moneda base: {base.code} · se cambia en{" "}
-            <Link href="/monedas" className="underline">
-              Monedas
-            </Link>
-          </p>
-        )}
-      </ScreenHeader>
+    <Page>
+      <ScreenHeader
+        title="Tasas de cambio"
+        subtitle={base ? `Moneda base: ${base.code}` : undefined}
+        backHref="/mas"
+        actions={
+          <Link
+            href="/monedas"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <Coins className="size-3.5" />
+            Monedas
+          </Link>
+        }
+      />
 
-      <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:max-w-xl md:px-0">
-        <section>
-          <h2 className="mb-2.5 text-base font-bold text-navy">
-            Registrar tasa
-          </h2>
-          <RateForm
-            currencies={activeCurrencies.map((c) => ({
-              id: c.id,
-              code: c.code,
-            }))}
-          />
-        </section>
+      <PageBody>
+        <div className="grid gap-5 @4xl/main:grid-cols-12">
+          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
+            <section>
+              <SectionHeader
+                title="Pares vigentes"
+                description={
+                  currentPairs.length > 0
+                    ? "Toca un par para ver su evolución en detalle."
+                    : undefined
+                }
+              />
+              {currentPairs.length === 0 ? (
+                <Card dashed className="py-6 text-center text-sm text-muted">
+                  Sin tasas registradas todavía. Registra la primera en
+                  «Registrar tasa» — el par inverso se resuelve solo.
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 @2xl/main:grid-cols-2">
+                  {currentPairs.map((pair) => (
+                    // Cada par es UN solo enlace a su detalle.
+                    <Card key={pair.key} asChild interactive>
+                      <Link
+                        href={`/tasas/${pair.fromCode}/${pair.toCode}`}
+                        className="flex items-center gap-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 text-xs font-medium text-muted">
+                            {pair.fromCode}
+                            <ArrowRight className="size-3" />
+                            {pair.toCode}
+                          </div>
+                          <div className="money mt-1 text-[15px] font-semibold text-heading">
+                            1 {pair.fromCode} = {fmtRate(pair.rateScaled)}{" "}
+                            {pair.toCode}
+                          </div>
+                          <div className="mt-0.5 text-xs text-muted">
+                            {DATE_FMT.format(pair.effectiveAt)}
+                          </div>
+                        </div>
+                        <RateSparkline values={pair.trend} />
+                      </Link>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
 
-        <section>
-          <div className="mb-2.5">
-            <h2 className="text-base font-bold text-navy">
-              Pares vigentes
-            </h2>
-            {currentPairs.length > 0 && (
-              <p className="text-xs text-muted">
-                Toca un par para ver su evolución en detalle.
-              </p>
+            {history.length > 0 && (
+              <section>
+                <SectionHeader title="Histórico" />
+                <Card
+                  padding="none"
+                  className="divide-y divide-line-2 overflow-hidden"
+                >
+                  {history.map((rate, i) => (
+                    <div
+                      key={`${rate.fromCode}-${rate.toCode}-${rate.effectiveAt.getTime()}-${i}`}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <span className="money min-w-0 text-sm font-medium text-heading">
+                        1 {rate.fromCode} = {fmtRate(rate.rateScaled)}{" "}
+                        {rate.toCode}
+                      </span>
+                      <span className="flex-none text-xs text-muted">
+                        {DATE_FMT.format(rate.effectiveAt)}
+                      </span>
+                    </div>
+                  ))}
+                </Card>
+              </section>
             )}
           </div>
-          {currentPairs.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
-              Sin tasas registradas todavía. Registra la primera arriba — el
-              par inverso se resuelve solo.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {currentPairs.map((pair) => (
-                <Link
-                  key={pair.key}
-                  href={`/tasas/${pair.fromCode}/${pair.toCode}`}
-                  className="rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold text-navy">
-                        {pair.fromCode}
-                        <ArrowRight className="h-3.5 w-3.5 text-muted" />
-                        {pair.toCode}
-                      </div>
-                      <div className="money mt-1 text-xl font-bold tracking-[-0.5px] text-brand">
-                        {fmtRate(pair.rateScaled)}
-                      </div>
-                    </div>
-                    <RateSparkline values={pair.trend} />
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-muted">
-                    1 {pair.fromCode} = {fmtRate(pair.rateScaled)}{" "}
-                    {pair.toCode} · {DATE_FMT.format(pair.effectiveAt)}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
 
-        <section>
-          <h2 className="mb-2.5 text-base font-bold text-navy">
-            Conversor rápido
-          </h2>
-          <Converter
-            currencies={activeCurrencies.map((c) => ({
-              id: c.id,
-              code: c.code,
-              decimalPlaces: c.decimalPlaces,
-            }))}
-            pairs={converterPairs}
-            baseId={base?.id ?? null}
-          />
-        </section>
+          {/* Columna lateral: va después en el DOM (derecha en escritorio) y
+              `order-first` la sube en móvil, donde lo habitual es registrar o
+              convertir antes de consultar. En anchos intermedios sus dos
+              tarjetas se ponen lado a lado. */}
+          <div className="order-first grid min-w-0 content-start gap-5 @2xl/main:grid-cols-2 @4xl/main:order-none @4xl/main:col-span-4 @4xl/main:grid-cols-1">
+            <Card asChild>
+              <section>
+                <SectionHeader size="sm" title="Registrar tasa" />
+                <RateForm
+                  currencies={activeCurrencies.map((c) => ({
+                    id: c.id,
+                    code: c.code,
+                  }))}
+                />
+              </section>
+            </Card>
 
-        {history.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Histórico
-            </h2>
-            <div className="flex flex-col gap-1.5">
-              {history.map((rate, i) => (
-                <div
-                  key={`${rate.fromCode}-${rate.toCode}-${rate.effectiveAt.getTime()}-${i}`}
-                  className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
-                >
-                  <span className="money font-semibold text-ink-soft">
-                    1 {rate.fromCode} = {fmtRate(rate.rateScaled)}{" "}
-                    {rate.toCode}
-                  </span>
-                  <span className="text-muted">
-                    {DATE_FMT.format(rate.effectiveAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-    </main>
+            <Card asChild>
+              <section>
+                <SectionHeader size="sm" title="Conversor rápido" />
+                <Converter
+                  currencies={activeCurrencies.map((c) => ({
+                    id: c.id,
+                    code: c.code,
+                    decimalPlaces: c.decimalPlaces,
+                  }))}
+                  pairs={converterPairs}
+                  baseId={base?.id ?? null}
+                />
+              </section>
+            </Card>
+          </div>
+        </div>
+      </PageBody>
+    </Page>
   );
 }

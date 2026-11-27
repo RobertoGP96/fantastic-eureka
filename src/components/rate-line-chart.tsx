@@ -136,7 +136,9 @@ export function RateLineChart({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    // El alto se reserva desde el primer render: el SVG no se pinta hasta
+    // medir el ancho y, sin esto, la tarjeta daba un salto al aparecer.
+    <div ref={containerRef} className="relative" style={{ height: HEIGHT }}>
       {geometry && (
         <svg
           width={width}
@@ -263,10 +265,10 @@ export function RateLineChart({
         </svg>
       )}
 
-      {/* Tooltip HTML anclado al punto activo */}
+      {/* Tooltip HTML anclado al punto activo (capa flotante: lleva sombra) */}
       {active && activeCoord && geometry && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 shadow-sm"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-card px-2.5 py-1.5 shadow-popover"
           style={{
             left: Math.min(Math.max(activeCoord.x, 70), width - 70),
             top: Math.max(activeCoord.y - 54, 0),
@@ -275,7 +277,7 @@ export function RateLineChart({
           <div className="text-[11px] whitespace-nowrap text-muted">
             {FULL_DATE.format(new Date(active.t))}
           </div>
-          <div className="money text-sm font-bold whitespace-nowrap text-navy">
+          <div className="money text-sm font-semibold whitespace-nowrap text-heading">
             1 {fromCode} = {fmtRate(active.rateScaled)} {toCode}
           </div>
         </div>

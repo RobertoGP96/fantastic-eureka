@@ -7,16 +7,26 @@ import {
   Banknote,
   Calculator,
   CalendarClock,
+  ChevronsUpDown,
   Coins,
   HandCoins,
   History,
   House,
   LogOut,
+  Plus,
   Tags,
   UserRound,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -32,76 +42,107 @@ import {
 } from "@/components/ui/sidebar";
 import { logoutUser } from "@/app/actions/auth-actions";
 import { BrandMark } from "@/components/brand-mark";
+import { initials } from "@/components/user-menu";
 import { APP_NAME } from "@/lib/config";
 
 interface NavItem {
   href: string;
   icon: LucideIcon;
+  /** Texto visible (corto: el grupo ya da el contexto). */
   label: string;
+  /** Nombre completo para el tooltip de la barra plegada. */
+  tooltip?: string;
   isActive: (pathname: string) => boolean;
 }
 
-const MAIN: NavItem[] = [
-  { href: "/", icon: House, label: "Inicio", isActive: (p) => p === "/" },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const GROUPS: NavGroup[] = [
   {
-    href: "/cuentas",
-    icon: Wallet,
-    label: "Cuentas",
-    isActive: (p) => p.startsWith("/cuentas"),
+    label: "General",
+    items: [
+      { href: "/", icon: House, label: "Inicio", isActive: (p) => p === "/" },
+      {
+        href: "/cuentas",
+        icon: Wallet,
+        label: "Cuentas",
+        isActive: (p) => p.startsWith("/cuentas"),
+      },
+      {
+        href: "/movimientos",
+        icon: History,
+        label: "Movimientos",
+        isActive: (p) => p.startsWith("/movimientos"),
+      },
+    ],
   },
   {
-    href: "/movimientos",
-    icon: History,
-    label: "Movimientos",
-    isActive: (p) => p.startsWith("/movimientos"),
+    label: "Compromisos",
+    items: [
+      {
+        href: "/deudas",
+        icon: HandCoins,
+        label: "Deudas",
+        isActive: (p) => p.startsWith("/deudas"),
+      },
+      {
+        href: "/mensualidades",
+        icon: CalendarClock,
+        label: "Mensualidades",
+        isActive: (p) => p.startsWith("/mensualidades"),
+      },
+    ],
   },
   {
-    href: "/deudas",
-    icon: HandCoins,
-    label: "Deudas",
-    isActive: (p) => p.startsWith("/deudas"),
+    label: "Efectivo",
+    items: [
+      {
+        href: "/conteo",
+        icon: Banknote,
+        label: "Conteo",
+        tooltip: "Conteo de efectivo",
+        isActive: (p) => p.startsWith("/conteo"),
+      },
+      {
+        href: "/calculadora",
+        icon: Calculator,
+        label: "Calculadora",
+        tooltip: "Calculadora de efectivo",
+        isActive: (p) => p.startsWith("/calculadora"),
+      },
+    ],
   },
   {
-    href: "/mensualidades",
-    icon: CalendarClock,
-    label: "Mensualidades",
-    isActive: (p) => p.startsWith("/mensualidades"),
+    label: "Ajustes",
+    items: [
+      {
+        href: "/tasas",
+        icon: ArrowRightLeft,
+        label: "Tasas de cambio",
+        isActive: (p) => p.startsWith("/tasas"),
+      },
+      {
+        href: "/monedas",
+        icon: Coins,
+        label: "Monedas",
+        isActive: (p) => p.startsWith("/monedas"),
+      },
+      {
+        href: "/categorias",
+        icon: Tags,
+        label: "Categorías",
+        isActive: (p) => p.startsWith("/categorias"),
+      },
+    ],
   },
 ];
 
-const TOOLS: NavItem[] = [
-  {
-    href: "/conteo",
-    icon: Banknote,
-    label: "Conteo de efectivo",
-    isActive: (p) => p.startsWith("/conteo"),
-  },
-  {
-    href: "/calculadora",
-    icon: Calculator,
-    label: "Calculadora de efectivo",
-    isActive: (p) => p.startsWith("/calculadora"),
-  },
-  {
-    href: "/tasas",
-    icon: ArrowRightLeft,
-    label: "Tasas de cambio",
-    isActive: (p) => p.startsWith("/tasas"),
-  },
-  {
-    href: "/categorias",
-    icon: Tags,
-    label: "Categorías",
-    isActive: (p) => p.startsWith("/categorias"),
-  },
-  {
-    href: "/monedas",
-    icon: Coins,
-    label: "Monedas",
-    isActive: (p) => p.startsWith("/monedas"),
-  },
-];
-
+// Barra lateral de escritorio (en móvil manda la barra inferior). Todos los
+// colores salen de los tokens --color-sidebar-*: pasarla a clara es cambiar
+// ese bloque de globals.css, sin tocar este archivo.
 export function AppSidebar({
   userName,
   userEmail,
@@ -118,28 +159,9 @@ export function AppSidebar({
     router.refresh();
   };
 
-  const renderItems = (items: NavItem[]) =>
-    items.map((item) => {
-      const Icon = item.icon;
-      return (
-        <SidebarMenuItem key={item.href}>
-          <SidebarMenuButton
-            asChild
-            isActive={item.isActive(pathname)}
-            tooltip={item.label}
-          >
-            <Link href={item.href}>
-              <Icon />
-              <span>{item.label}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      );
-    });
-
   return (
-    // border-r-0!: el borde por defecto (color-border casi blanco) dejaba una
-    // raya vertical; important porque la clase original lleva la variante
+    // border-r-0!: sobre fondo oscuro el borde por defecto dejaba una raya
+    // vertical; important porque la clase original lleva la variante
     // group-data-[side=left]: y gana en especificidad a un border-r-0 plano.
     <Sidebar collapsible="icon" className="border-r-0!">
       <SidebarHeader>
@@ -151,9 +173,28 @@ export function AppSidebar({
                 <span className="flex size-8 shrink-0 items-center justify-center">
                   <BrandMark className="size-8" idPrefix="fe-sidebar" />
                 </span>
-                <span className="text-base font-bold tracking-[-0.3px] text-white">
+                <span className="text-base font-semibold tracking-tight text-sidebar-accent-foreground">
                   {APP_NAME}
                 </span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          {/* Acceso global a «Registrar»: en escritorio no existía (en móvil
+              es el «+» de la barra inferior). Plegada queda como cuadrado «+». */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Registrar movimiento"
+              className="justify-center bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-brand-mid hover:text-sidebar-primary-foreground active:bg-brand-mid active:text-sidebar-primary-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+            >
+              <Link
+                href="/registrar"
+                aria-current={
+                  pathname.startsWith("/registrar") ? "page" : undefined
+                }
+              >
+                <Plus />
+                <span>Registrar</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -161,52 +202,94 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderItems(MAIN)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Herramientas</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderItems(TOOLS)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {GROUPS.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = item.isActive(pathname);
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.tooltip ?? item.label}
+                      >
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          <Icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              tooltip="Mi perfil"
-              isActive={pathname.startsWith("/perfil")}
-            >
-              <Link href="/perfil">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent">
-                  <UserRound className="size-4" />
-                </span>
-                <span className="flex min-w-0 flex-col leading-tight">
-                  <span className="truncate text-sm font-semibold text-white">
-                    {userName}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  aria-label={`Cuenta de ${userName}`}
+                  isActive={pathname.startsWith("/perfil")}
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                    {initials(userName)}
                   </span>
-                  <span className="truncate text-xs text-sidebar-foreground/60">
-                    {userEmail}
+                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                    <span className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+                      {userName}
+                    </span>
+                    <span className="truncate text-xs text-sidebar-muted">
+                      {userEmail}
+                    </span>
                   </span>
-                </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Cerrar sesión"
-              onClick={() => void logout()}
-            >
-              <LogOut />
-              <span>Cerrar sesión</span>
-            </SidebarMenuButton>
+                  <ChevronsUpDown className="ml-auto text-sidebar-muted" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="right"
+                align="end"
+                sideOffset={8}
+                className="min-w-52 rounded-xl border-line"
+              >
+                <DropdownMenuLabel>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-heading">
+                      {userName}
+                    </span>
+                    <span className="truncate text-xs font-normal text-muted">
+                      {userEmail}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/perfil">
+                    <UserRound />
+                    Mi perfil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => void logout()}
+                >
+                  <LogOut />
+                  Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

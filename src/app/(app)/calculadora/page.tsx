@@ -1,4 +1,5 @@
 import { Coins } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 import { requireSessionUser } from "@/lib/auth";
@@ -33,13 +34,13 @@ export default async function CalculadoraPage() {
     }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Calculadora de efectivo" backHref="/">
-        <p className="mt-1 text-sm text-white/80">
-          Cuenta billetes y monedas sin elegir cuenta; no se guarda nada.
-        </p>
-      </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+    <Page>
+      <ScreenHeader
+        title="Calculadora de efectivo"
+        subtitle="Cuenta billetes y monedas sin elegir cuenta; no se guarda nada."
+        backHref="/"
+      />
+      <PageBody>
         {options.length === 0 ? (
           <EmptyState
             icon={Coins}
@@ -51,7 +52,7 @@ export default async function CalculadoraPage() {
         ) : (
           <CashCalculator currencies={options} />
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

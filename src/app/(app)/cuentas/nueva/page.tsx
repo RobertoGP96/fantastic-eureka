@@ -1,4 +1,6 @@
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AccountForm } from "./account-form";
@@ -21,11 +23,17 @@ export default async function NuevaCuentaPage() {
   ]);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Nueva cuenta" backHref="/cuentas" />
-      <div className="anim-fade-up px-5 pt-5 md:max-w-md md:px-0">
-        <AccountForm currencies={currencies} groups={groups} />
-      </div>
-    </main>
+    <Page width="form">
+      <ScreenHeader
+        title="Nueva cuenta"
+        subtitle="Efectivo, caja, banco o saldo digital"
+        backHref="/cuentas"
+      />
+      <PageBody>
+        <Card>
+          <AccountForm currencies={currencies} groups={groups} />
+        </Card>
+      </PageBody>
+    </Page>
   );
 }

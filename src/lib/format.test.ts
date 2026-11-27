@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fmtMinor,
+  fmtMinorParts,
   fmtRate,
   fmtSignedMinor,
   normalizeText,
@@ -32,6 +33,23 @@ describe("fmtMinor", () => {
   it("maneja cero", () => {
     expect(fmtMinor(0, CUP)).toBe("0 CUP");
     expect(fmtMinor(0, USD)).toBe("0 USD");
+  });
+});
+
+describe("fmtMinorParts", () => {
+  it("separa la cifra (con signo) del código de moneda", () => {
+    expect(fmtMinorParts(4750, CUP)).toEqual({ amount: "4 750", code: "CUP" });
+    expect(fmtMinorParts(-1250, USD)).toEqual({
+      amount: "-12.50",
+      code: "USD",
+    });
+  });
+
+  it("recompone exactamente fmtMinor", () => {
+    for (const minor of [0, 1, 25000, 25050, -4750, 1234567]) {
+      const { amount, code } = fmtMinorParts(minor, USD);
+      expect(`${amount} ${code}`).toBe(fmtMinor(minor, USD));
+    }
   });
 });
 
