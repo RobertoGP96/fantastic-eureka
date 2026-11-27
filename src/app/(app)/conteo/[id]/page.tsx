@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
@@ -36,18 +38,21 @@ export default async function ConteoCajaPage({
   ]);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={`Arqueo · ${account.name}`} backHref="/conteo">
-        <p className="mt-1 text-sm text-white/80">
-          Saldo teórico: {fmtMinor(expectedMinor, account.currency)}
-        </p>
-      </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+    <Page>
+      {/* El saldo teórico va como UNA sola frase en el subtítulo: el test de
+          arqueo exige que «1 750 CUP» a secas solo aparezca en el total
+          contado, así que aquí no se pinta como cifra suelta (StatCard). */}
+      <ScreenHeader
+        title={`Arqueo · ${account.name}`}
+        subtitle={`Saldo teórico: ${fmtMinor(expectedMinor, account.currency)}`}
+        backHref="/conteo"
+      />
+      <PageBody>
         {denominations.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
+          <Card dashed className="py-6 text-center text-sm text-muted">
             La moneda {account.currency.code} no tiene denominaciones
             configuradas (es saldo digital), así que no admite arqueo físico.
-          </div>
+          </Card>
         ) : (
           <CountForm
             account={{ id: account.id, name: account.name }}
@@ -63,7 +68,7 @@ export default async function ConteoCajaPage({
             expectedMinor={expectedMinor}
           />
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

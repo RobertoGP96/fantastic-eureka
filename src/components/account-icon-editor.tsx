@@ -8,6 +8,9 @@ import { setAccountIcon } from "@/app/actions/account-actions";
 import { getAccountIcon } from "@/lib/account-icons";
 import { useUI } from "@/lib/ui-store";
 
+// Fila «Icono» de los ajustes de la cuenta: la fila entera es el botón que
+// despliega el selector. No trae marco propio: va dentro de la tarjeta de
+// ajustes del detalle.
 export function AccountIconEditor({
   accountId,
   icon,
@@ -37,28 +40,31 @@ export function AccountIconEditor({
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={saving}
-        className="flex w-full items-center justify-between"
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none"
       >
-        <span className="text-sm font-semibold text-ink-soft">
-          Icono
-        </span>
+        <span className="text-sm font-medium text-ink-soft">Icono</span>
         <span className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-chip text-brand">
-            <Icon className="h-[18px] w-[18px]" />
+          <span className="flex size-9 items-center justify-center rounded-xl bg-chip text-brand-ink">
+            <Icon className="size-[18px]" />
           </span>
           {open ? (
-            <ChevronUp className="h-4 w-4 text-muted" />
+            <ChevronUp className="size-4 text-muted" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-muted" />
+            <ChevronDown className="size-4 text-muted" />
           )}
         </span>
       </button>
-      {open && <IconPicker value={icon} onChange={(name) => void pick(name)} />}
+      {open && (
+        <div className="pt-1 pb-2">
+          <IconPicker value={icon} onChange={(name) => void pick(name)} />
+        </div>
+      )}
     </div>
   );
 }

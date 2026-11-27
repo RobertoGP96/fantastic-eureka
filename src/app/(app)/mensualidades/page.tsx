@@ -3,14 +3,17 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarClock,
-  ChevronRight,
-  HandCoins,
   Plus,
-  UserRound,
 } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatGrid } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented";
 import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
@@ -28,6 +31,10 @@ import {
   type Frequency,
   type PlanKind,
 } from "@/lib/domain";
+import {
+  TotalsStatCard,
+  type CurrencyTotal,
+} from "../deudas/totals-stat-card";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +43,9 @@ export const dynamic = "force-dynamic";
 const SETTLE_WINDOW_DAYS = 7;
 
 const FILTERS = [
-  { value: null, label: "Todas" },
-  { value: "pagar", label: "Que pago" },
-  { value: "cobrar", label: "Que cobro" },
+  { value: "todas", label: "Todas", href: "/mensualidades" },
+  { value: "pagar", label: "Que pago", href: "/mensualidades?tipo=pagar" },
+  { value: "cobrar", label: "Que cobro", href: "/mensualidades?tipo=cobrar" },
 ] as const;
 
 export default async function MensualidadesPage({
@@ -86,9 +93,11 @@ export default async function MensualidadesPage({
 
   const rows = visible.map((plan) => {
     const next = nextPending(plan.installments);
+    const days = next ? daysUntil(next.dueAt) : null;
     return {
       plan,
       next,
+      days,
       nextDueAt: next?.dueAt ?? null,
       description: plan.description,
       paidCount: plan.installments.filter((inst) => inst.status === "PAID")
@@ -96,6 +105,7 @@ export default async function MensualidadesPage({
       overdue: plan.installments.some(
         (inst) => inst.status === "PENDING" && daysUntil(inst.dueAt) < 0
       ),
+      canSettle: days !== null && days <= SETTLE_WINDOW_DAYS,
     };
   });
 
@@ -108,100 +118,83 @@ export default async function MensualidadesPage({
   // separado por dirección porque uno sale de las cuentas y el otro entra.
   const activePlans = active.map((row) => row.plan);
   const currencyById = new Map(plans.map((p) => [p.currencyId, p.currency]));
-  const totalsText = (kind: PlanKind) =>
-    monthlyCommitmentByCurrency(activePlans.filter((p) => p.kind === kind))
-      .map((total) => {
-        const currency = currencyById.get(total.currencyId);
-        return currency ? fmtMinor(total.amountMinor, currency) : null;
-      })
-      .filter(Boolean)
-      .join(" · ");
-  const payText = totalsText("PAY");
-  const collectText = totalsText("COLLECT");
+  const totalsFor = (kind: PlanKind): CurrencyTotal[] =>
+    monthlyCommitmentByCurrency(
+      activePlans.filter((p) => p.kind === kind)
+    ).flatMap((total) => {
+      const currency = currencyById.get(total.currencyId);
+      return currency ? [{ amountMinor: total.amountMinor, currency }] : [];
+    });
+  const payTotals = totalsFor("PAY");
+  const collectTotals = totalsFor("COLLECT");
+  // Con una sola dirección (lo normal al filtrar) solo hay un KPI: en móvil
+  // ocupa las dos columnas en vez de dejar media fila vacía.
+  const loneStat =
+    payTotals.length === 0 || collectTotals.length === 0
+      ? "col-span-2 @2xl/main:col-span-1"
+      : undefined;
   const overdueCount = active.filter((row) => row.overdue).length;
+  // En escritorio el formulario de saldar va a la derecha de su fila. Si
+  // alguna lo lleva, TODAS reservan esa columna: así los montos quedan
+  // alineados entre filas con y sin formulario.
+  const settleColumn = active.some((row) => row.canSettle);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title="Mensualidades"
+        subtitle={`${active.length} activa${active.length === 1 ? "" : "s"}`}
         actions={
-          <Link
-            href="/mensualidades/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva
-          </Link>
+          <>
+            <Link
+              href="/deudas"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Deudas
+            </Link>
+            <Link
+              href="/mensualidades/nueva"
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Nueva mensualidad
+            </Link>
+          </>
         }
       >
-        {(payText || collectText) && (
-          <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
-            {payText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Pago al mes
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {payText}
-                </div>
-              </div>
-            )}
-            {collectText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Cobro al mes
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {collectText}
-                </div>
-              </div>
-            )}
-          </div>
+        {overdueCount > 0 && (
+          <Badge variant="danger">{overdueCount} con cuota vencida</Badge>
         )}
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
-            {active.length} activa{active.length === 1 ? "" : "s"}
-          </span>
-          {overdueCount > 0 && (
-            <span className="rounded-md bg-danger-bg px-2 py-[3px] font-semibold text-danger">
-              {overdueCount} con cuota vencida
-            </span>
-          )}
-        </div>
       </ScreenHeader>
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            {FILTERS.map((filter) => {
-              const selected = (tipo ?? null) === filter.value;
-              return (
-                <Link
-                  key={filter.label}
-                  href={
-                    filter.value
-                      ? `/mensualidades?tipo=${filter.value}`
-                      : "/mensualidades"
-                  }
-                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
-                    selected
-                      ? "bg-brand text-white"
-                      : "bg-chip text-brand hover:bg-brand-soft/30"
-                  }`}
-                >
-                  {filter.label}
-                </Link>
-              );
-            })}
-          </div>
-          <Link
-            href="/deudas"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            <HandCoins className="h-3.5 w-3.5" />
-            Deudas
-          </Link>
-        </div>
+      <PageBody>
+        {(payTotals.length > 0 || collectTotals.length > 0) && (
+          <StatGrid cols={2}>
+            <TotalsStatCard
+              label="Pago al mes"
+              totals={payTotals}
+              className={loneStat}
+            />
+            <TotalsStatCard
+              label="Cobro al mes"
+              totals={collectTotals}
+              className={loneStat}
+            />
+          </StatGrid>
+        )}
+
+        <SegmentedLinks
+          ariaLabel="Filtrar mensualidades"
+          options={FILTERS}
+          current={
+            kindFilter === "PAY"
+              ? "pagar"
+              : kindFilter === "COLLECT"
+                ? "cobrar"
+                : "todas"
+          }
+          className="self-start"
+        />
 
         {active.length === 0 && ended.length === 0 ? (
           <EmptyState
@@ -212,128 +205,136 @@ export default async function MensualidadesPage({
             ctaHref="/mensualidades/nueva"
           />
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {active.map((row) => {
-              const { plan, next } = row;
-              const days = next ? daysUntil(next.dueAt) : null;
-              const contactName =
-                plan.contact?.name ?? plan.debt?.contact.name ?? null;
-              const collect = plan.kind === "COLLECT";
-              const Icon = collect ? ArrowDownLeft : ArrowUpRight;
-              const canSettle =
-                next !== null && days !== null && days <= SETTLE_WINDOW_DAYS;
-              const planAccounts = accounts.filter(
-                (account) => account.currencyId === plan.currencyId
-              );
-              // En un plan de deuda no se puede cobrar más de lo pendiente:
-              // el monto propuesto se recorta igual que en /deudas/[id].
-              const debtRemaining = plan.debt
-                ? plan.debt.totalMinor -
-                  plan.debt.payments.reduce((sum, p) => sum + p.amountMinor, 0)
-                : null;
-              const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
-              return (
-                <article
-                  key={plan.id}
-                  className={`overflow-hidden rounded-2xl border bg-white ${
-                    row.overdue ? "border-danger/35" : "border-line"
-                  }`}
-                >
-                  <Link
-                    href={`/mensualidades/${plan.id}`}
-                    className="flex items-start gap-3.5 p-4 transition-colors hover:bg-chip/30"
+          active.length > 0 && (
+            <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
+              {active.map((row) => {
+                const { plan, next, days, canSettle } = row;
+                const contactName =
+                  plan.contact?.name ?? plan.debt?.contact.name ?? null;
+                const collect = plan.kind === "COLLECT";
+                const Icon = collect ? ArrowDownLeft : ArrowUpRight;
+                const planAccounts = accounts.filter(
+                  (account) => account.currencyId === plan.currencyId
+                );
+                // En un plan de deuda no se puede cobrar más de lo pendiente:
+                // el monto propuesto se recorta igual que en /deudas/[id].
+                const debtRemaining = plan.debt
+                  ? plan.debt.totalMinor -
+                    plan.debt.payments.reduce((sum, p) => sum + p.amountMinor, 0)
+                  : null;
+                const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
+                return (
+                  // Cada plan es un <article> con UN solo enlace (los tests
+                  // E2E lo localizan así); el formulario de saldar va FUERA
+                  // del enlace: debajo en móvil, a la derecha en escritorio.
+                  <article
+                    key={plan.id}
+                    className={
+                      settleColumn
+                        ? "@4xl/main:grid @4xl/main:grid-cols-[minmax(0,1fr)_20rem]"
+                        : undefined
+                    }
                   >
-                    <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${
-                        row.overdue
-                          ? "bg-danger-bg text-danger"
-                          : collect
-                            ? "bg-ok-bg text-ok"
-                            : "bg-chip text-brand"
-                      }`}
+                    {/* Rejilla propia por fila: en móvil, qué + monto arriba y
+                        las etiquetas debajo; en escritorio, tres columnas. El
+                        mínimo de la del monto (7rem) mantiene las columnas
+                        alineadas de una fila a otra. */}
+                    <Link
+                      href={`/mensualidades/${plan.id}`}
+                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-subtle/60 @4xl/main:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7rem,auto)] @4xl/main:items-center @4xl/main:gap-x-5"
                     >
-                      <Icon className="h-[18px] w-[18px]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-sm font-semibold text-navy">
-                          {plan.description}
+                      <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex size-9 flex-none items-center justify-center rounded-xl ${
+                            row.overdue
+                              ? "bg-danger-bg text-danger"
+                              : collect
+                                ? "bg-ok-bg text-ok"
+                                : "bg-chip text-brand-ink"
+                          }`}
+                        >
+                          <Icon className="size-[18px]" />
                         </span>
-                        <span className="text-base font-bold whitespace-nowrap text-navy">
-                          {fmtMinor(plan.amountMinor, plan.currency)}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-heading">
+                            {plan.description}
+                          </div>
+                          <div className="truncate text-xs text-muted">
+                            {contactName ?? "Sin contacto"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted">
-                        <UserRound className="h-3 w-3 flex-none" />
-                        <span className="truncate">
-                          {contactName ?? "Sin contacto"}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+
+                      <div className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 pl-12 @4xl/main:col-span-1 @4xl/main:col-start-2 @4xl/main:row-start-1 @4xl/main:pl-0">
                         <Badge variant="neutral">
                           {FREQUENCY_LABELS[plan.frequency as Frequency]}
                         </Badge>
                         {next && days !== null && (
                           <Badge variant={dueTone(days)}>
-                            <CalendarClock className="h-3 w-3" />
+                            <CalendarClock className="size-3" />
                             {dueLabel(next.dueAt)}
                           </Badge>
                         )}
                         {row.paidCount > 0 && (
-                          <span className="text-[11px] text-muted">
+                          <span className="text-xs text-muted">
                             {row.paidCount} saldada
                             {row.paidCount === 1 ? "" : "s"}
                           </span>
                         )}
                       </div>
-                    </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
-                  </Link>
 
-                  {canSettle && next && (
-                    <div className="border-t border-line-2 bg-app/60 px-4 py-3">
-                      {/* key por cuota y cuenta: al saldar llega la cuota
-                          siguiente y el formulario debe re-inicializarse (si
-                          no, heredaba el monto editado de la anterior). */}
-                      <SettleInstallment
-                        key={`${next.id}-${settleAccountId ?? "none"}`}
-                        installmentId={next.id}
-                        accounts={planAccounts}
-                        defaultAmount={minorToInput(
-                          debtRemaining === null
-                            ? next.amountMinor
-                            : Math.min(next.amountMinor, Math.max(debtRemaining, 0)),
-                          plan.currency.decimalPlaces
-                        )}
-                        currencyCode={plan.currency.code}
-                        kind={plan.kind}
-                        defaultAccountId={settleAccountId}
-                      />
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+                      <div className="money col-start-2 row-start-1 text-right text-[15px] font-semibold whitespace-nowrap text-heading @4xl/main:col-start-3">
+                        {fmtMinor(plan.amountMinor, plan.currency)}
+                      </div>
+                    </Link>
+
+                    {canSettle && next && (
+                      <div className="bg-subtle/50 px-4 py-3 @4xl/main:flex @4xl/main:flex-col @4xl/main:justify-center @4xl/main:bg-transparent @4xl/main:pl-0">
+                        {/* key por cuota y cuenta: al saldar llega la cuota
+                            siguiente y el formulario debe re-inicializarse (si
+                            no, heredaba el monto editado de la anterior). */}
+                        <SettleInstallment
+                          key={`${next.id}-${settleAccountId ?? "none"}`}
+                          installmentId={next.id}
+                          accounts={planAccounts}
+                          defaultAmount={minorToInput(
+                            debtRemaining === null
+                              ? next.amountMinor
+                              : Math.min(next.amountMinor, Math.max(debtRemaining, 0)),
+                            plan.currency.decimalPlaces
+                          )}
+                          currencyCode={plan.currency.code}
+                          kind={plan.kind}
+                          defaultAccountId={settleAccountId}
+                        />
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </Card>
+          )
         )}
 
         {ended.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Finalizadas
-            </h2>
-            <div className="flex flex-col gap-2">
+            <SectionHeader title="Finalizadas" />
+            <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
               {ended.map(({ plan, paidCount }) => {
                 const contactName =
                   plan.contact?.name ?? plan.debt?.contact.name ?? null;
+                const Icon = plan.kind === "COLLECT" ? ArrowDownLeft : ArrowUpRight;
                 return (
                   <Link
                     key={plan.id}
                     href={`/mensualidades/${plan.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
+                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle/60"
                   >
+                    <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-subtle text-ink-soft">
+                      <Icon className="size-[18px]" />
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-navy">
+                      <div className="truncate text-sm font-medium text-heading">
                         {plan.description}
                       </div>
                       <div className="truncate text-xs text-muted">
@@ -342,17 +343,19 @@ export default async function MensualidadesPage({
                         saldada{paidCount === 1 ? "" : "s"}
                       </div>
                     </div>
-                    <span className="text-sm font-bold whitespace-nowrap text-navy">
-                      {fmtMinor(plan.amountMinor, plan.currency)}
-                    </span>
-                    <ChevronRight className="h-4 w-4 flex-none text-muted" />
+                    <div className="flex flex-none flex-col items-end gap-1">
+                      <span className="money text-[15px] font-semibold whitespace-nowrap text-heading">
+                        {fmtMinor(plan.amountMinor, plan.currency)}
+                      </span>
+                      <Badge variant="neutral">Finalizada</Badge>
+                    </div>
                   </Link>
                 );
               })}
-            </div>
+            </Card>
           </section>
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

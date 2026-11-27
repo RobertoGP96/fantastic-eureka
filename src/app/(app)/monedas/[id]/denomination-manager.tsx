@@ -10,9 +10,12 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { SectionHeader } from "@/components/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/segmented";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,8 +34,11 @@ import { fmtMinor, type DisplayCurrency } from "@/lib/format";
 import {
   DENOMINATION_KINDS,
   DENOMINATION_KIND_LABELS,
-  type DenominationKind,
 } from "@/lib/domain";
+
+// El alta y la rejilla son dos componentes porque en escritorio viven en
+// columnas distintas (formulario en la lateral, teselas en la principal) y
+// la página es quien arma la rejilla. No comparten estado.
 
 export interface DenominationItem {
   id: string;
@@ -42,51 +48,43 @@ export interface DenominationItem {
   usageCount: number;
 }
 
-/** Botonera BILL/COIN compartida por el alta y la edición. */
+type ManagedCurrency = DisplayCurrency & { id: string };
+
+const KIND_OPTIONS = DENOMINATION_KINDS.map((kind) => ({
+  value: kind as string,
+  label: DENOMINATION_KIND_LABELS[kind],
+}));
+
+/** Selector Billete/Moneda compartido por el alta y la edición. */
 function KindPicker({
   value,
   onChange,
+  layout,
 }: {
   value: string;
   onChange: (kind: string) => void;
+  layout: "fill" | "inline";
 }) {
   return (
-    <div className="grid flex-none grid-cols-2 gap-1.5">
-      {DENOMINATION_KINDS.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onChange(option)}
-          className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
-            value === option
-              ? "border-brand bg-chip text-brand"
-              : "border-line bg-white text-ink-soft hover:border-brand-soft"
-          }`}
-        >
-          {DENOMINATION_KIND_LABELS[option]}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      layout={layout}
+      ariaLabel="Tipo de denominación"
+      className={layout === "inline" ? "flex-none" : undefined}
+      options={KIND_OPTIONS}
+      value={value}
+      onValueChange={onChange}
+    />
   );
 }
 
-export function DenominationManager({
-  currency,
-  denominations,
-}: {
-  currency: DisplayCurrency & { id: string };
-  denominations: DenominationItem[];
-}) {
+/** Tarjeta «Nueva denominación» (columna lateral del detalle de moneda). */
+export function DenominationForm({ currency }: { currency: ManagedCurrency }) {
   const router = useRouter();
   const { showToast } = useUI();
   const [value, setValue] = useState("");
   const [kind, setKind] = useState<string>("BILL");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [editKind, setEditKind] = useState<string>("BILL");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const add = async () => {
     setSaving(true);
@@ -105,6 +103,63 @@ export function DenominationManager({
       setError(result.error);
     }
   };
+
+  return (
+    <Card asChild>
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void add();
+        }}
+      >
+        <CardTitle>Nueva denominación</CardTitle>
+        <KindPicker layout="fill" value={kind} onChange={setKind} />
+        <div className="flex items-center gap-2">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            inputMode="decimal"
+            placeholder={currency.decimalPlaces > 0 ? "0.25" : "1000"}
+            aria-label={`Valor en ${currency.code}`}
+            className="money"
+            required
+          />
+          <Button
+            type="submit"
+            className="flex-none"
+            disabled={saving || !value.trim()}
+            aria-label="Añadir denominación"
+          >
+            <Plus className="size-4" />
+            Añadir
+          </Button>
+        </div>
+        {error && (
+          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+            {error}
+          </div>
+        )}
+      </form>
+    </Card>
+  );
+}
+
+/** Teselas de denominaciones por tipo, con edición y borrado en línea. */
+export function DenominationGrid({
+  currency,
+  denominations,
+}: {
+  currency: ManagedCurrency;
+  denominations: DenominationItem[];
+}) {
+  const router = useRouter();
+  const { showToast } = useUI();
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editKind, setEditKind] = useState<string>("BILL");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const toggle = async (id: string) => {
     const result = await toggleDenomination(id);
@@ -175,167 +230,157 @@ export function DenominationManager({
   }));
 
   return (
-    <div className="flex flex-col gap-4">
-      <form
-        className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void add();
-        }}
-      >
-        <div className="text-sm font-bold text-navy">
-          Nueva denominación
-        </div>
-        <div className="flex gap-2.5">
-          <KindPicker value={kind} onChange={setKind} />
-          <Input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            inputMode="decimal"
-            placeholder={currency.decimalPlaces > 0 ? "0.25" : "1000"}
-            aria-label={`Valor en ${currency.code}`}
-            required
-          />
-          <Button
-            type="submit"
-            disabled={saving || !value.trim()}
-            aria-label="Añadir denominación"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        {error && (
-          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-            {error}
-          </div>
-        )}
-      </form>
+    <div className="flex flex-col gap-5">
+      {denominations.length === 0 && (
+        <Card dashed className="py-6 text-center text-sm text-muted">
+          Sin denominaciones todavía. Añade la primera con «Nueva
+          denominación».
+        </Card>
+      )}
 
       {groups.map(
         (group) =>
           group.items.length > 0 && (
             <section key={group.kind}>
-              <h2 className="mb-2 text-sm font-bold text-navy">
-                {DENOMINATION_KIND_LABELS[group.kind as DenominationKind]}s
-              </h2>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {group.items.map((denomination) =>
-                  editingId === denomination.id ? (
-                    <form
-                      key={denomination.id}
-                      className="col-span-full flex items-center gap-2 rounded-xl border border-brand-soft bg-white p-2.5"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void update(denomination.id);
-                      }}
-                    >
-                      <KindPicker value={editKind} onChange={setEditKind} />
-                      <Input
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        inputMode="decimal"
-                        aria-label={`Nuevo valor en ${currency.code}`}
-                        className="h-9 min-w-0"
-                        autoFocus
-                        required
-                      />
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={saving || !editValue.trim()}
+              <SectionHeader
+                title={`${DENOMINATION_KIND_LABELS[group.kind]}s`}
+              />
+              <div className="grid grid-cols-2 gap-3 @2xl/main:grid-cols-3 @4xl/main:grid-cols-4">
+                {group.items.map((denomination) => {
+                  const label = fmtMinor(denomination.valueMinor, currency);
+                  // Editar y confirmar borrado ocupan la fila entera de la
+                  // rejilla: en una tesela no caben sus controles.
+                  if (editingId === denomination.id) {
+                    return (
+                      <form
+                        key={denomination.id}
+                        className="col-span-full flex flex-wrap items-center gap-2 rounded-2xl border border-brand-soft bg-card p-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void update(denomination.id);
+                        }}
                       >
-                        Guardar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={saving}
-                        onClick={() => setEditingId(null)}
+                        <KindPicker
+                          layout="inline"
+                          value={editKind}
+                          onChange={setEditKind}
+                        />
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          inputMode="decimal"
+                          aria-label={`Nuevo valor en ${currency.code}`}
+                          className="money min-w-24 flex-1"
+                          autoFocus
+                          required
+                        />
+                        <div className="ml-auto flex items-center gap-2">
+                          <Button
+                            type="submit"
+                            disabled={saving || !editValue.trim()}
+                          >
+                            Guardar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={saving}
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </form>
+                    );
+                  }
+                  if (confirmDeleteId === denomination.id) {
+                    return (
+                      <div
+                        key={denomination.id}
+                        className="col-span-full flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-card p-3"
                       >
-                        Cancelar
-                      </Button>
-                    </form>
-                  ) : confirmDeleteId === denomination.id ? (
+                        <span className="money min-w-0 flex-1 basis-40 text-sm text-ink-soft">
+                          ¿Eliminar {label}?
+                        </span>
+                        <div className="ml-auto flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={saving}
+                            onClick={() => void remove(denomination.id)}
+                          >
+                            Eliminar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={saving}
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
                     <div
                       key={denomination.id}
-                      className="col-span-full flex items-center gap-2 rounded-xl border border-line bg-white p-2.5"
+                      className="flex items-start gap-1 rounded-2xl border border-line bg-card py-1 pr-1 pl-3.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                        ¿Eliminar{" "}
-                        {fmtMinor(denomination.valueMinor, currency)}?
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={saving}
-                        onClick={() => void remove(denomination.id)}
-                      >
-                        Eliminar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={saving}
-                        onClick={() => setConfirmDeleteId(null)}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      key={denomination.id}
-                      className={`flex items-center justify-between gap-1.5 rounded-xl border border-line bg-white py-1.5 pr-1.5 pl-3 ${
-                        denomination.active ? "" : "opacity-55"
-                      }`}
-                    >
-                      <span className="truncate text-sm font-bold text-navy">
-                        {fmtMinor(denomination.valueMinor, currency)}
-                      </span>
-                      <div className="flex flex-none items-center gap-1">
+                      {/* El valor y sus insignias comparten línea si caben y,
+                          si no, las insignias bajan: el valor nunca se
+                          recorta por ellas. `py-2.5` centra la primera línea
+                          con el botón de 40 px. */}
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 py-2.5">
+                        <span className="money min-w-0 truncate text-sm font-semibold text-heading">
+                          {label}
+                        </span>
                         {denomination.usageCount > 0 && (
-                          <Badge variant="neutral">
+                          <Badge variant="neutral" className="money">
                             {denomination.usageCount}
                           </Badge>
                         )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Opciones de ${fmtMinor(
-                                denomination.valueMinor,
-                                currency
-                              )}`}
-                            >
-                              <EllipsisVertical />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="min-w-40">
-                            <DropdownMenuItem
-                              onSelect={() => requestEdit(denomination)}
-                            >
-                              <Pencil />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => void toggle(denomination.id)}
-                            >
-                              {denomination.active ? <EyeOff /> : <Eye />}
-                              {denomination.active ? "Ocultar" : "Activar"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => requestDelete(denomination)}
-                            >
-                              <Trash2 />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Oculta: insignia y contraste normal, no opacidad. */}
+                        {!denomination.active && (
+                          <Badge variant="neutral">Oculta</Badge>
+                        )}
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="flex-none"
+                            aria-label={`Opciones de ${label}`}
+                          >
+                            <EllipsisVertical />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-40">
+                          <DropdownMenuItem
+                            onSelect={() => requestEdit(denomination)}
+                          >
+                            <Pencil />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => void toggle(denomination.id)}
+                          >
+                            {denomination.active ? <EyeOff /> : <Eye />}
+                            {denomination.active ? "Ocultar" : "Activar"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => requestDelete(denomination)}
+                          >
+                            <Trash2 />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  )
-                )}
+                  );
+                })}
               </div>
             </section>
           )

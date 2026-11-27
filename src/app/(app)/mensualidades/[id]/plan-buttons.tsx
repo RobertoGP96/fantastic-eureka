@@ -27,31 +27,37 @@ export function PlanButtons({ planId }: { planId: string }) {
 
   if (!confirming) {
     return (
-      <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+      <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
         Finalizar mensualidad
       </Button>
     );
   }
 
+  // Misma forma que la confirmación de DeleteEntityButton (comparten fila):
+  // pregunta a todo el ancho y botones debajo.
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted">¿Finalizar? Las cuotas pendientes se omiten.</span>
-      <Button
-        variant="danger"
-        size="sm"
-        disabled={saving}
-        onClick={() => void deactivate()}
-      >
-        Sí, finalizar
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={saving}
-        onClick={() => setConfirming(false)}
-      >
-        Cancelar
-      </Button>
+    <div className="flex w-full flex-col gap-2">
+      <p className="text-xs text-ink-soft">
+        ¿Finalizar? Las cuotas pendientes se omiten.
+      </p>
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="danger"
+          size="sm"
+          disabled={saving}
+          onClick={() => void deactivate()}
+        >
+          Sí, finalizar
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={saving}
+          onClick={() => setConfirming(false)}
+        >
+          Cancelar
+        </Button>
+      </div>
     </div>
   );
 }

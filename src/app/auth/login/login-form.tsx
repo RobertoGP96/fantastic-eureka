@@ -36,7 +36,7 @@ export function LoginForm() {
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Correo
         </span>
         <Input
@@ -50,7 +50,7 @@ export function LoginForm() {
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Contraseña
         </span>
         <Input
@@ -82,7 +82,7 @@ export function LoginForm() {
         ¿No tienes cuenta?{" "}
         <Link
           href="/auth/registro"
-          className="font-semibold text-brand-mid transition-colors hover:text-brand"
+          className="font-semibold text-brand-ink transition-colors hover:text-brand-mid"
         >
           Regístrate
         </Link>

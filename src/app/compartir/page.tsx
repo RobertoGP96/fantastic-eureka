@@ -1,5 +1,7 @@
 import { Eye } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/ui/card";
 import { ShareCodeForm } from "./code-form";
 
 export const dynamic = "force-dynamic";
@@ -13,25 +15,24 @@ export default async function CompartirIndexPage({
 }) {
   const { invalido } = await searchParams;
   return (
-    <main className="flex flex-1 flex-col">
-      <ScreenHeader title="Cuenta compartida">
-        <p className="mt-2 text-sm text-white/80">
-          Consulta el saldo y los movimientos de una cuenta con el código que
-          te enviaron. Válido durante 24 h.
-        </p>
-      </ScreenHeader>
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:px-0">
-        <div className="rounded-2xl border border-line bg-white px-4 py-4">
+    <Page width="form">
+      <ScreenHeader
+        title="Cuenta compartida"
+        subtitle="Consulta el saldo y los movimientos de una cuenta con el código que te enviaron. Válido durante 24 h."
+      />
+      <PageBody className="gap-3">
+        <Card>
           <ShareCodeForm invalid={invalido === "1"} />
-        </div>
-        <div className="flex items-start gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-xs text-muted">
-          <Eye className="mt-0.5 h-4 w-4 flex-none text-brand" />
+        </Card>
+        {/* Nota al pie de la tarjeta: informa, no compite con el formulario. */}
+        <p className="flex items-start gap-2 px-1 text-xs text-muted">
+          <Eye className="mt-0.5 size-3.5 flex-none" aria-hidden />
           <span>
             Solo verás la información: no se puede registrar ni modificar
             nada desde esta vista.
           </span>
-        </div>
-      </div>
-    </main>
+        </p>
+      </PageBody>
+    </Page>
   );
 }

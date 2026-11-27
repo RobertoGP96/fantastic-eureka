@@ -7,6 +7,8 @@ import { ChevronRight, Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,7 @@ import {
 } from "@/app/actions/currency-actions";
 import { useUI } from "@/lib/ui-store";
 import { type CurrencyKind } from "@/lib/domain";
+import { cn } from "@/lib/utils";
 
 export interface CurrencyItem {
   id: string;
@@ -37,9 +40,14 @@ export interface CurrencyItem {
 
 const DECIMAL_OPTIONS = ["0", "2", "3", "4"];
 
-const KIND_OPTIONS: { key: CurrencyKind; label: string; hint: string }[] = [
-  { key: "CASH", label: "Efectivo", hint: "con billetes y monedas" },
-  { key: "DIGITAL", label: "Digital", hint: "solo saldo, sin denominaciones" },
+// `hint` describe la opción elegida bajo el control segmentado.
+const KIND_OPTIONS: { value: CurrencyKind; label: string; hint: string }[] = [
+  { value: "CASH", label: "Efectivo", hint: "con billetes y monedas" },
+  {
+    value: "DIGITAL",
+    label: "Digital",
+    hint: "solo saldo, sin denominaciones",
+  },
 ];
 
 export function CurrencyManager({
@@ -103,117 +111,143 @@ export function CurrencyManager({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <form
-        className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void add();
-        }}
-      >
-        <div className="text-sm font-bold text-navy">Nueva moneda</div>
-        <div className="flex gap-2.5">
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="MXN"
-            maxLength={6}
-            className="w-24"
-            aria-label="Código"
-            required
-          />
-          <Input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            placeholder="$"
-            maxLength={4}
-            className="w-16"
-            aria-label="Símbolo"
-            required
-          />
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Peso mexicano"
-            maxLength={60}
-            aria-label="Nombre"
-            required
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {KIND_OPTIONS.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => setKind(option.key)}
-              className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-                kind === option.key
-                  ? "border-brand bg-chip"
-                  : "border-line bg-white hover:border-brand-soft"
-              }`}
-            >
-              <span
-                className={`block text-sm font-semibold ${
-                  kind === option.key ? "text-brand" : "text-ink-soft"
-                }`}
-              >
-                {option.label}
-              </span>
-              <span className="block text-[11px] text-muted">
-                {option.hint}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2.5">
-          <Select value={decimals} onValueChange={setDecimals}>
-            <SelectTrigger className="h-10 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DECIMAL_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option} decimales
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="submit"
-            className="ml-auto"
-            disabled={saving || !code.trim() || !name.trim() || !symbol.trim()}
-          >
-            <Plus className="h-4 w-4" />
-            Añadir
-          </Button>
-        </div>
-        {error && (
-          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-            {error}
-          </div>
-        )}
-      </form>
+  const kindHint = KIND_OPTIONS.find((option) => option.value === kind)?.hint;
 
-      <div className="flex flex-col gap-2">
-        {currencies.map((currency) => (
-          <div
-            key={currency.id}
-            className={`rounded-2xl border border-line bg-white p-4 ${
-              currency.active ? "" : "opacity-55"
-            }`}
+  return (
+    <div className="grid gap-5 @4xl/main:grid-cols-12">
+      {/* Primero en el DOM (arriba en móvil); en escritorio pasa a la
+          derecha con order-2. */}
+      <div className="flex min-w-0 flex-col gap-3 @4xl/main:order-2 @4xl/main:col-span-4">
+        <Card asChild>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void add();
+            }}
           >
-            <div className="flex items-center gap-3">
+            <CardTitle>Nueva moneda</CardTitle>
+            <div className="flex gap-2">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="MXN"
+                maxLength={6}
+                className="min-w-0 flex-1"
+                aria-label="Código"
+                required
+              />
+              <Input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="$"
+                maxLength={4}
+                className="w-20 flex-none"
+                aria-label="Símbolo"
+                required
+              />
+            </div>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Peso mexicano"
+              maxLength={60}
+              aria-label="Nombre"
+              required
+            />
+            <div className="flex flex-col gap-1.5">
+              <Segmented
+                layout="fill"
+                ariaLabel="Clasificación"
+                options={KIND_OPTIONS}
+                value={kind}
+                onValueChange={setKind}
+              />
+              {kindHint && (
+                <p className="text-xs text-muted first-letter:uppercase">
+                  {kindHint}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={decimals} onValueChange={setDecimals}>
+                <SelectTrigger
+                  variant="form"
+                  className="min-w-0 flex-1"
+                  aria-label="Decimales"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECIMAL_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option} decimales
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="submit"
+                className="flex-none"
+                disabled={
+                  saving || !code.trim() || !name.trim() || !symbol.trim()
+                }
+              >
+                <Plus className="size-4" />
+                Añadir
+              </Button>
+            </div>
+            {error && (
+              <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+                {error}
+              </div>
+            )}
+          </form>
+        </Card>
+
+        <p className="text-xs text-muted">
+          La moneda base es en la que se consolidan los totales. Las tasas se
+          registran por pares en{" "}
+          <Link
+            href="/tasas"
+            className="font-semibold text-brand-ink hover:text-brand-mid"
+          >
+            Tasas
+          </Link>
+          , así que cambiar la base no invalida ninguna: solo hace falta que
+          exista un par (directo o inverso) entre cada moneda y la nueva base.
+        </p>
+      </div>
+
+      {currencies.length > 0 && (
+        <Card
+          padding="none"
+          className="min-w-0 divide-y divide-line-2 self-start overflow-hidden @4xl/main:col-span-8"
+        >
+          {currencies.map((currency) => (
+            // El enlace al detalle y los botones son HERMANOS (un botón
+            // dentro de un <a> no es válido). En móvil los botones bajan a
+            // una segunda línea; en escritorio comparten la fila.
+            <div
+              key={currency.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3"
+            >
               <Link
                 href={`/monedas/${currency.id}`}
-                className="flex min-w-0 flex-1 items-center gap-3"
+                className="group flex min-w-0 flex-1 basis-60 items-center gap-3"
               >
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-base font-bold text-brand">
+                <span
+                  className={cn(
+                    "flex size-9 flex-none items-center justify-center rounded-xl bg-chip font-semibold text-brand-ink",
+                    // Símbolos largos («CUC$») no caben a tamaño normal.
+                    currency.symbol.length > 2 ? "text-[11px]" : "text-sm"
+                  )}
+                >
                   {currency.symbol}
                 </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-navy">
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-sm font-medium text-heading transition-colors group-hover:text-brand-ink">
                       {currency.code}
                     </span>
                     {currency.isBase && <Badge variant="featured">Base</Badge>}
@@ -233,61 +267,55 @@ export function CurrencyManager({
                       ` · ${currency.accountCount} cuentas`}
                   </span>
                 </span>
-                <ChevronRight className="h-4 w-4 flex-none text-muted" />
+                {/* Pista táctil de que la fila abre el detalle; con ratón
+                    basta el realce del código al pasar por encima. */}
+                <ChevronRight className="size-4 flex-none text-muted dense:hidden" />
               </Link>
-            </div>
 
-            <div className="mt-3 flex items-center justify-end gap-2 border-t border-line-2 pt-2.5">
-              {!currency.isBase &&
-                (confirmBaseId === currency.id ? (
-                  <>
-                    <span className="mr-auto text-[11px] text-muted">
-                      Los totales se consolidarán en esta moneda
-                    </span>
-                    <Button size="sm" onClick={() => void makeBase(currency.id)}>
-                      Confirmar base
-                    </Button>
+              {!currency.isBase && (
+                <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+                  {confirmBaseId === currency.id ? (
+                    <>
+                      <span className="text-xs text-muted">
+                        Los totales se consolidarán en esta moneda
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => void makeBase(currency.id)}
+                      >
+                        Confirmar base
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setConfirmBaseId(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  ) : (
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirmBaseId(null)}
+                      variant="outline"
+                      onClick={() => setConfirmBaseId(currency.id)}
                     >
-                      Cancelar
+                      <Star className="size-3.5" />
+                      Hacer base
                     </Button>
-                  </>
-                ) : (
+                  )}
                   <Button
                     size="sm"
-                    variant="chip"
-                    onClick={() => setConfirmBaseId(currency.id)}
+                    variant="ghost"
+                    onClick={() => void toggle(currency.id)}
                   >
-                    <Star className="h-3.5 w-3.5" />
-                    Hacer base
+                    {currency.active ? "Ocultar" : "Activar"}
                   </Button>
-                ))}
-              {!currency.isBase && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void toggle(currency.id)}
-                >
-                  {currency.active ? "Ocultar" : "Activar"}
-                </Button>
+                </div>
               )}
             </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-xs text-muted">
-        La moneda base es en la que se consolidan los totales. Las tasas se
-        registran por pares en{" "}
-        <Link href="/tasas" className="font-semibold text-brand-mid">
-          Tasas
-        </Link>
-        , así que cambiar la base no invalida ninguna: solo hace falta que
-        exista un par (directo o inverso) entre cada moneda y la nueva base.
-      </p>
+          ))}
+        </Card>
+      )}
     </div>
   );
 }

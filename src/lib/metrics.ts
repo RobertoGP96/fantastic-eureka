@@ -1,6 +1,12 @@
 import "server-only";
 
+import { cache } from "react";
 import { prisma } from "@/lib/db";
+import {
+  activityMapRangeStart,
+  buildActivityMap,
+  type ActivityMap,
+} from "@/lib/activity-map";
 import { latestRatesByCurrency } from "@/lib/balances";
 import { convertMinor } from "@/lib/money";
 import {
@@ -106,6 +112,23 @@ export async function dashboardMetrics(
 
   return { series, topCategories, receivableMinor, payableMinor, missingRates };
 }
+
+/**
+ * Datos del gadget «Mapa de actividad»: una sola consulta con las fechas de
+ * los movimientos del último año (solo `occurredAt`, sin montos ni joins) y
+ * el conteo por día hecho en memoria. Cuenta TODOS los movimientos del
+ * usuario, sea cual sea su tipo o moneda: mide actividad, no dinero.
+ * cache(): varios gadgets del mismo tipo comparten la consulta.
+ */
+export const activityMapData = cache(async function activityMapData(
+  userId: string
+): Promise<ActivityMap> {
+  const rows = await prisma.transaction.findMany({
+    where: { userId, occurredAt: { gte: activityMapRangeStart() } },
+    select: { occurredAt: true },
+  });
+  return buildActivityMap(rows.map((row) => row.occurredAt));
+});
 
 export interface IncomeCardData {
   currency: { code: string; decimalPlaces: number };

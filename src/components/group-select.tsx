@@ -53,8 +53,16 @@ export function GroupSelect({
       onValueChange={(value) => void assign(value)}
       disabled={saving}
     >
-      <SelectTrigger className="h-9 rounded-lg border border-line bg-white px-3 text-sm text-ink">
-        <SelectValue />
+      {/* min-w-0 + truncate: un nombre de grupo largo no desborda la fila
+          estrecha de los ajustes de la cuenta. */}
+      <SelectTrigger
+        variant="form"
+        aria-label="Grupo"
+        className="h-9 min-w-0"
+      >
+        <span className="truncate">
+          <SelectValue />
+        </span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={NONE}>Sin grupo</SelectItem>

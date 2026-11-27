@@ -14,12 +14,16 @@ import {
 } from "@/lib/account-activity";
 import { fmtMinor, fmtSignedMinor, type DisplayCurrency } from "@/lib/format";
 import { pow10 } from "@/lib/money";
+import { Card } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/segmented";
 
 // Gráfico de barras SVG puro (sin librería de charts) para la actividad de una
-// cuenta: barras espejadas por período — entradas hacia arriba en ok, salidas
-// hacia abajo en danger — con extremos redondeados anclados a la línea cero,
-// rejilla recesiva, tooltip por columna y chips de período predefinidos
-// (el cambio de período se resuelve en el cliente, sin tocar el servidor).
+// cuenta: barras espejadas por período — entradas hacia arriba en el color de
+// acento, salidas hacia abajo en rojo suave — con extremos redondeados
+// anclados a la línea cero, rejilla recesiva, tooltip por columna y control
+// segmentado de período (el cambio de período se resuelve en el cliente, sin
+// tocar el servidor). Los montos van en tinta neutra: el color solo distingue
+// las dos series (y el neto negativo).
 
 interface AccountActivityChartProps {
   /** Deltas de la cuenta en orden cronológico ascendente. */
@@ -39,6 +43,10 @@ const PERIODS = [
 ] as const;
 
 type PeriodKey = (typeof PERIODS)[number]["key"];
+
+const PERIOD_OPTIONS: { value: PeriodKey; label: string }[] = PERIODS.map(
+  (p) => ({ value: p.key, label: p.label })
+);
 
 const DAY_LABEL = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
 const DAY_FULL = new Intl.DateTimeFormat("es", {
@@ -223,29 +231,19 @@ export function AccountActivityChart({
   };
 
   return (
-    <section className="rounded-2xl border border-line bg-white p-4">
+    <Card>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 className="text-base font-bold text-navy">Actividad</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {PERIODS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              aria-pressed={period === p.key}
-              onClick={() => {
-                setPeriod(p.key);
-                setHoverIndex(null);
-              }}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                period === p.key
-                  ? "bg-brand text-white"
-                  : "bg-chip text-brand hover:bg-brand-soft/30"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="text-sm font-semibold text-heading">Actividad</h2>
+        <Segmented
+          size="sm"
+          ariaLabel="Período"
+          options={PERIOD_OPTIONS}
+          value={period}
+          onValueChange={(key) => {
+            setPeriod(key);
+            setHoverIndex(null);
+          }}
+        />
       </div>
 
       <div ref={containerRef} className="relative mt-2" style={{ height: HEIGHT }}>
@@ -277,8 +275,8 @@ export function AccountActivityChart({
                 <text
                   x={MARGIN.left}
                   y={geometry.baseY - tick * geometry.scale - 3}
-                  fontSize="9.5"
-                  fill="var(--color-muted-2)"
+                  fontSize="10"
+                  fill="var(--color-muted)"
                   className="money"
                 >
                   {tickLabel(tick, currency.decimalPlaces)}
@@ -286,8 +284,8 @@ export function AccountActivityChart({
                 <text
                   x={MARGIN.left}
                   y={geometry.baseY + tick * geometry.scale - 3}
-                  fontSize="9.5"
-                  fill="var(--color-muted-2)"
+                  fontSize="10"
+                  fill="var(--color-muted)"
                   className="money"
                 >
                   {tickLabel(-tick, currency.decimalPlaces)}
@@ -302,7 +300,7 @@ export function AccountActivityChart({
                 y={MARGIN.top}
                 width={geometry.slotW}
                 height={geometry.innerH}
-                fill="var(--color-navy)"
+                fill="var(--color-heading)"
                 opacity="0.05"
               />
             )}
@@ -317,12 +315,14 @@ export function AccountActivityChart({
               strokeWidth="1"
             />
 
-            {/* Barras: entradas arriba, salidas abajo */}
+            {/* Barras: entradas arriba (acento), salidas abajo (rojo suave) */}
             {geometry.bars.map((bar, i) => (
               <g key={view.buckets[i].startT}>
-                {bar.inPath && <path d={bar.inPath} fill="var(--color-ok)" />}
+                {bar.inPath && (
+                  <path d={bar.inPath} fill="var(--color-chart-1)" />
+                )}
                 {bar.outPath && (
-                  <path d={bar.outPath} fill="var(--color-danger)" />
+                  <path d={bar.outPath} fill="var(--color-danger-soft)" />
                 )}
               </g>
             ))}
@@ -358,10 +358,11 @@ export function AccountActivityChart({
           </svg>
         )}
 
-        {/* Tooltip HTML anclado a la columna activa */}
+        {/* Tooltip HTML anclado a la columna activa. Es una capa flotante:
+            la única pieza del gráfico que lleva sombra. */}
         {view && active && activeBar && (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 shadow-sm"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-card px-2.5 py-1.5 shadow-popover"
             style={{
               left: Math.min(Math.max(activeBar.centerX, 90), width - 90),
               top: 2,
@@ -370,14 +371,16 @@ export function AccountActivityChart({
             <div className="text-[11px] whitespace-nowrap text-muted">
               {bucketFullLabel(active.startT, active.endT, view.granularity)}
             </div>
-            <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="money text-xs font-bold text-ok">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="size-2 flex-none rounded-full bg-chart-1" />
+              <span className="money text-xs font-semibold text-heading">
                 {fmtSignedMinor(active.inMinor, currency)}
               </span>
               <span className="text-[11px] text-muted">entradas</span>
             </div>
-            <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="money text-xs font-bold text-danger">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="size-2 flex-none rounded-full bg-danger-soft" />
+              <span className="money text-xs font-semibold text-heading">
                 {fmtMinor(-active.outMinor, currency)}
               </span>
               <span className="text-[11px] text-muted">salidas</span>
@@ -390,29 +393,29 @@ export function AccountActivityChart({
       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line-2 pt-3">
         <div>
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
-            <span className="h-2 w-2 rounded-full bg-ok" />
+            <span className="size-2 flex-none rounded-full bg-chart-1" />
             Entradas
           </div>
-          <div className="money mt-0.5 text-sm font-bold text-ok">
+          <div className="money mt-0.5 text-sm font-semibold text-heading">
             {view ? fmtSignedMinor(view.totalIn, currency) : " "}
           </div>
         </div>
         <div>
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
-            <span className="h-2 w-2 rounded-full bg-danger" />
+            <span className="size-2 flex-none rounded-full bg-danger-soft" />
             Salidas
           </div>
-          <div className="money mt-0.5 text-sm font-bold text-danger">
+          <div className="money mt-0.5 text-sm font-semibold text-heading">
             {view ? fmtMinor(-view.totalOut, currency) : " "}
           </div>
         </div>
         <div>
           <div className="text-[11px] font-medium text-muted">Neto</div>
           <div
-            className={`money mt-0.5 text-sm font-bold ${
+            className={`money mt-0.5 text-sm font-semibold ${
               view && view.totalIn - view.totalOut < 0
                 ? "text-danger"
-                : "text-navy"
+                : "text-heading"
             }`}
           >
             {view
@@ -421,6 +424,6 @@ export function AccountActivityChart({
           </div>
         </div>
       </div>
-    </section>
+    </Card>
   );
 }

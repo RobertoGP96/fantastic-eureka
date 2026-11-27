@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { createCashCount } from "@/app/actions/cash-count-actions";
 import {
   DenominationCounter,
@@ -69,75 +70,88 @@ export function CountForm({
     }
   };
 
+  // El propio <form> es la rejilla: denominaciones a la izquierda y, en
+  // escritorio, el resumen fijo a la derecha mientras se recorre la lista.
   return (
     <form
-      className="flex flex-col gap-4"
+      className="grid gap-5 @4xl/main:grid-cols-12"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <DenominationCounter
-        denominations={denominations}
-        quantities={quantities}
-        onQtyChange={setQty}
-        currency={currency}
-      />
-
-      <div className="rounded-2xl border border-line bg-white p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-ink-soft">
-            Total contado
-          </span>
-          <span className="text-[22px] font-bold tracking-[-0.5px] text-navy">
-            {fmtMinor(totalMinor, currency)}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-between border-t border-line-2 pt-2.5">
-          <span className="text-sm text-muted">
-            Teórico: {fmtMinor(expectedMinor, currency)}
-          </span>
-          {differenceMinor === 0 ? (
-            <Badge variant="ok">Cuadra</Badge>
-          ) : (
-            <Badge variant={differenceMinor > 0 ? "warn" : "danger"}>
-              {differenceMinor > 0 ? "Sobra " : "Falta "}
-              {fmtMinor(Math.abs(differenceMinor), currency)}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <label className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-3">
-        <input
-          type="checkbox"
-          checked={createAdjustment}
-          onChange={(e) => setCreateAdjustment(e.target.checked)}
-          className="h-4 w-4 accent-[#0c6b70]"
+      <Card
+        padding="none"
+        className="min-w-0 self-start overflow-hidden @4xl/main:col-span-8"
+      >
+        <DenominationCounter
+          denominations={denominations}
+          quantities={quantities}
+          onQtyChange={setQty}
+          currency={currency}
         />
-        <span className="text-sm font-medium text-ink-soft">
-          Registrar ajuste por la diferencia
-          {differenceMinor !== 0 &&
-            ` (${fmtSignedMinor(differenceMinor, currency)})`}
-        </span>
-      </label>
+      </Card>
 
-      <Input
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        maxLength={200}
-        placeholder="Nota (opcional)"
-      />
+      <div className="flex min-w-0 flex-col gap-4 self-start @4xl/main:sticky @4xl/main:top-4 @4xl/main:col-span-4">
+        {/* OJO, fijado por el test de arqueo: el total contado es UN solo
+            nodo de texto («1 750 CUP») y es el único elemento de la pantalla
+            con ese texto exacto. Por eso no se usa StatCard (parte cifra y
+            unidad) y el teórico vive dentro de la frase «Teórico: …». */}
+        <Card>
+          <div className="text-xs font-medium text-muted">Total contado</div>
+          <div className="money mt-1.5 text-[22px] font-semibold tracking-tight break-words text-heading">
+            {fmtMinor(totalMinor, currency)}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line-2 pt-3">
+            <span className="money text-sm text-muted">
+              {`Teórico: ${fmtMinor(expectedMinor, currency)}`}
+            </span>
+            {differenceMinor === 0 ? (
+              <Badge variant="ok">Cuadra</Badge>
+            ) : (
+              <Badge
+                variant={differenceMinor > 0 ? "warn" : "danger"}
+                className="money"
+              >
+                {differenceMinor > 0 ? "Sobra " : "Falta "}
+                {fmtMinor(Math.abs(differenceMinor), currency)}
+              </Badge>
+            )}
+          </div>
+        </Card>
 
-      {error && (
-        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
-        </div>
-      )}
+        <label className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-card px-3.5 py-2.5">
+          <input
+            type="checkbox"
+            checked={createAdjustment}
+            onChange={(e) => setCreateAdjustment(e.target.checked)}
+            className="size-4 flex-none accent-brand"
+          />
+          <span className="text-sm font-medium text-ink-soft">
+            Registrar ajuste por la diferencia
+            {differenceMinor !== 0 &&
+              ` (${fmtSignedMinor(differenceMinor, currency)})`}
+          </span>
+        </label>
 
-      <Button type="submit" size="lg" disabled={saving}>
-        {saving ? "Guardando…" : "Guardar arqueo"}
-      </Button>
+        <Input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={200}
+          placeholder="Nota (opcional)"
+          aria-label="Nota (opcional)"
+        />
+
+        {error && (
+          <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+            {error}
+          </div>
+        )}
+
+        <Button type="submit" size="lg" className="w-full" disabled={saving}>
+          {saving ? "Guardando…" : "Guardar arqueo"}
+        </Button>
+      </div>
     </form>
   );
 }

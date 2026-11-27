@@ -7,8 +7,12 @@ import {
   type CounterDenomination,
 } from "@/components/denomination-counter";
 import { CountShareButton } from "@/components/count-share";
+import { StatCard } from "@/components/stat-card";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/segmented";
 import { countedPieces, countedTotalMinor } from "@/lib/counting";
-import { fmtMinor } from "@/lib/format";
+import { fmtMinorParts } from "@/lib/format";
 
 export interface CalculatorCurrency {
   id: string;
@@ -55,66 +59,65 @@ export function CashCalculator({
     [currency, quantities]
   );
   const pieces = useMemo(() => countedPieces(quantities), [quantities]);
+  const total = fmtMinorParts(totalMinor, currency);
 
   return (
-    <div className="flex flex-col gap-4">
-      {currencies.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {currencies.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setCurrencyId(option.id)}
-              className={`flex-none rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                option.id === currency.id
-                  ? "border-brand bg-chip text-brand"
-                  : "border-line bg-white text-ink-soft hover:border-brand-soft"
-              }`}
-            >
-              {option.code}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="grid gap-5 @4xl/main:grid-cols-12">
+      {/* Primero en el DOM para que en móvil el total quede arriba; en
+          escritorio pasa a la derecha (order-2) y se queda fijo mientras se
+          recorre la lista de denominaciones. */}
+      <div className="flex min-w-0 flex-col gap-3 self-start @4xl/main:sticky @4xl/main:top-4 @4xl/main:order-2 @4xl/main:col-span-4">
+        {currencies.length > 1 && (
+          <Segmented
+            ariaLabel="Moneda"
+            className="self-start"
+            options={currencies.map((option) => ({
+              value: option.id,
+              label: option.code,
+            }))}
+            value={currency.id}
+            onValueChange={setCurrencyId}
+          />
+        )}
 
-      <div className="rounded-2xl border border-line bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              Total contado
-            </div>
-            <div className="mt-0.5 text-2xl font-bold tracking-[-0.5px] text-navy">
-              {fmtMinor(totalMinor, currency)}
-            </div>
-            <div className="text-xs text-muted">
-              {pieces === 1 ? "1 pieza" : `${pieces} piezas`}
-            </div>
-          </div>
-          <div className="flex flex-none flex-col items-stretch gap-1.5 sm:flex-row">
+        <StatCard
+          label="Total contado"
+          value={total.amount}
+          unit={total.code}
+          hint={pieces === 1 ? "1 pieza" : `${pieces} piezas`}
+        >
+          <div className="flex gap-2">
             <CountShareButton
+              className="flex-1"
               denominations={currency.denominations}
               quantities={quantities}
               currency={currency}
             />
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
               onClick={clear}
               disabled={pieces === 0}
-              className="flex flex-none items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
             >
-              <Eraser className="h-4 w-4" />
+              <Eraser className="size-3.5" />
               Limpiar
-            </button>
+            </Button>
           </div>
-        </div>
+        </StatCard>
       </div>
 
-      <DenominationCounter
-        denominations={currency.denominations}
-        quantities={quantities}
-        onQtyChange={setQty}
-        currency={currency}
-      />
+      <Card
+        padding="none"
+        className="min-w-0 self-start overflow-hidden @4xl/main:col-span-8"
+      >
+        <DenominationCounter
+          denominations={currency.denominations}
+          quantities={quantities}
+          onQtyChange={setQty}
+          currency={currency}
+        />
+      </Card>
     </div>
   );
 }

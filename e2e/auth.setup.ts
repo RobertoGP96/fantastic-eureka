@@ -1,9 +1,10 @@
 import { test as setup, expect } from "@playwright/test";
 import { STORAGE_STATE, TEST_USER } from "./helpers";
 
-// La BD de test se recrea vacía en cada corrida (e2e/setup-db.ts), así que
-// registrar el usuario con correo fijo siempre funciona y deja la sesión
-// iniciada. El storageState resultante lo reutilizan desktop y mobile.
+// El schema de test (`caja_e2e`) se recrea vacío en cada corrida
+// (e2e/setup-db.ts), así que registrar el usuario con correo fijo siempre
+// funciona y deja la sesión iniciada. El storageState resultante lo
+// reutilizan desktop y mobile.
 setup("registrar usuario de pruebas", async ({ page }) => {
   await page.goto("/auth/registro");
   await page.getByLabel("Nombre").fill(TEST_USER.name);
@@ -13,6 +14,8 @@ setup("registrar usuario de pruebas", async ({ page }) => {
   await page.getByRole("button", { name: "Crear cuenta" }).click();
 
   await page.waitForURL("/");
-  await expect(page.getByText("Total consolidado")).toBeVisible();
+  // Inicio de un usuario recién registrado: sección Cuentas vacía.
+  await expect(page.getByRole("heading", { name: "Cuentas" })).toBeVisible();
+  await expect(page.getByText("Sin cuentas todavía")).toBeVisible();
   await page.context().storageState({ path: STORAGE_STATE });
 });

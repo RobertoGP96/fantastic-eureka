@@ -21,6 +21,7 @@ export const WIDGET_TYPES = [
   "currencyTotals",
   "ratePair",
   "incomeCard",
+  "activityMap",
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -29,6 +30,7 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   currencyTotals: "Totales por moneda",
   ratePair: "Tasa de cambio",
   incomeCard: "Resumen de ingresos",
+  activityMap: "Mapa de actividad",
 };
 
 /** Tamaño del gadget dentro del panel bento (columnas que ocupa). */
@@ -46,6 +48,8 @@ export const DEFAULT_WIDGET_SIZE: Record<WidgetType, WidgetSize> = {
   currencyTotals: "md",
   ratePair: "sm",
   incomeCard: "md",
+  // Un año de semanas pide ancho: por defecto ocupa la fila entera.
+  activityMap: "lg",
 };
 
 // Configuración del gadget «Resumen de ingresos» (tarjeta con gráfico).

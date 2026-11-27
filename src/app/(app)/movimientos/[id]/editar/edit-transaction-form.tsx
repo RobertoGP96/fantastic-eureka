@@ -18,7 +18,6 @@ import {
   DenominationBreakdownField,
   type BreakdownDenomination,
 } from "@/components/denomination-breakdown-field";
-import { TRANSACTION_KIND_LABELS, type TransactionKind } from "@/lib/domain";
 import { useUI } from "@/lib/ui-store";
 import { toLocalDateISO } from "@/lib/dates";
 import { runAction } from "@/lib/run-action";
@@ -188,9 +187,6 @@ export function EditTransactionForm({
     }
   };
 
-  const kindLabel =
-    TRANSACTION_KIND_LABELS[tx.kind as TransactionKind] ?? tx.kind;
-
   return (
     <form
       className="flex flex-col gap-4"
@@ -199,21 +195,18 @@ export function EditTransactionForm({
         void submit();
       }}
     >
-      <div className="rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
-        <span className="font-semibold text-navy">{kindLabel}</span>
-        {" · "}
-        {isTransfer && tx.counterAccountName
-          ? `${tx.accountName} → ${tx.counterAccountName}`
-          : tx.accountName}
-        <div className="mt-1 text-xs text-muted">
+      {/* El tipo y las cuentas ya van en el subtítulo de la pantalla (los
+          pone la página); aquí quedan solo los avisos. */}
+      <div className="flex flex-col gap-1 rounded-xl bg-subtle px-3.5 py-2.5 text-xs text-muted">
+        <p>
           El tipo y las cuentas no se cambian: si te equivocaste de cuenta,
           elimina el movimiento y regístralo de nuevo.
-        </div>
+        </p>
         {tx.isLinked && (
-          <div className="mt-1 text-xs text-muted">
+          <p>
             Este movimiento nació de un abono o cuota: al cambiar el monto se
             actualiza también el pendiente de la deuda.
-          </div>
+          </p>
         )}
       </div>
 
@@ -249,7 +242,7 @@ export function EditTransactionForm({
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           {isTransfer ? `Monto enviado (${tx.currency.code})` : `Monto (${tx.currency.code})`}
         </span>
         <Input
@@ -276,7 +269,7 @@ export function EditTransactionForm({
 
       {cross && tx.counterCurrency && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             {isTransfer
               ? `Monto recibido (${tx.counterCurrency.code})`
               : `Monto original (${tx.counterCurrency.code})`}
@@ -298,11 +291,11 @@ export function EditTransactionForm({
 
       {!isTransfer && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Categoría (opcional)
           </span>
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue placeholder="Sin categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -317,9 +310,9 @@ export function EditTransactionForm({
         </label>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Fecha
           </span>
           <Input
@@ -331,7 +324,7 @@ export function EditTransactionForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Nota (opcional)
           </span>
           <Input
@@ -352,6 +345,7 @@ export function EditTransactionForm({
       <Button
         type="submit"
         size="lg"
+        className="w-full"
         disabled={
           saving ||
           !amount.trim() ||

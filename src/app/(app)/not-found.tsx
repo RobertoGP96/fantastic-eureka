@@ -1,4 +1,5 @@
 import { SearchX } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState } from "@/components/empty-state";
 
@@ -7,15 +8,19 @@ import { EmptyState } from "@/components/empty-state";
 // Conserva sidebar/bottom nav y ofrece una salida, en vez del 404 pelado.
 export default function AppNotFound() {
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader title="No encontrado" />
-      <EmptyState
-        icon={SearchX}
-        title="Esto ya no existe"
-        description="El elemento que buscas fue eliminado o el enlace no es correcto."
-        ctaLabel="Ir a Inicio"
-        ctaHref="/"
-      />
-    </main>
+      <PageBody className="justify-center">
+        <div className="mx-auto w-full max-w-xl">
+          <EmptyState
+            icon={SearchX}
+            title="Esto ya no existe"
+            description="El elemento que buscas fue eliminado o el enlace no es correcto."
+            ctaLabel="Ir a Inicio"
+            ctaHref="/"
+          />
+        </div>
+      </PageBody>
+    </Page>
   );
 }

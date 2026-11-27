@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { RateLineChart } from "@/components/rate-line-chart";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtRate } from "@/lib/format";
@@ -46,12 +50,13 @@ export default async function TasaDetallePage({
   const latest = history.at(-1) ?? null;
   const previous = history.at(-2) ?? null;
 
-  // Variación frente al registro anterior (puntos escalados → %).
+  // Variación frente al registro anterior (puntos escalados → %), con dos
+  // decimales como mucho: es el chip de la tarjeta «Tasa vigente».
   const deltaScaled =
     latest && previous ? latest.rateScaled - previous.rateScaled : null;
   const deltaPct =
     deltaScaled !== null && previous && previous.rateScaled > 0
-      ? (deltaScaled / previous.rateScaled) * 100
+      ? Number(((deltaScaled / previous.rateScaled) * 100).toFixed(2))
       : null;
 
   let inverseScaled: number | null = null;
@@ -69,114 +74,108 @@ export default async function TasaDetallePage({
   }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={`${fromCode} → ${toCode}`} backHref="/tasas">
-        {latest ? (
-          <div className="mt-2">
-            <div className="money text-[30px] font-bold tracking-[-0.8px]">
-              {fmtRate(latest.rateScaled)}{" "}
-              <span className="text-base font-semibold text-white/80">
-                {toCode}
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-white/80">
-              1 {fromCode} = {fmtRate(latest.rateScaled)} {toCode} ·{" "}
-              {DATE_FMT.format(latest.effectiveAt)}
-              {inverseScaled !== null && (
-                <>
-                  {" "}
-                  · inverso: 1 {toCode} = {fmtRate(inverseScaled)} {fromCode}
-                </>
-              )}
-            </p>
-          </div>
-        ) : (
-          <p className="mt-1 text-sm text-white/80">
-            Sin tasas registradas para este par.
-          </p>
-        )}
-      </ScreenHeader>
+    <Page>
+      <ScreenHeader
+        title={`${fromCode} → ${toCode}`}
+        subtitle={
+          latest
+            ? `1 ${fromCode} = ${fmtRate(latest.rateScaled)} ${toCode} · ${DATE_FMT.format(latest.effectiveAt)}`
+            : "Sin tasas registradas para este par."
+        }
+        backHref="/tasas"
+      />
 
-      <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:max-w-xl md:px-0">
-        {history.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
+      <PageBody>
+        {!latest ? (
+          <Card dashed className="py-6 text-center text-sm text-muted">
             Este par no tiene tasas registradas todavía.{" "}
-            <Link href="/tasas" className="font-semibold text-brand underline">
+            <Link
+              href="/tasas"
+              className="font-semibold text-brand-ink hover:text-brand-mid"
+            >
               Registra la primera en Tasas
             </Link>
             .
-          </div>
+          </Card>
         ) : (
           <>
-            <section>
-              <div className="mb-2.5 flex items-center justify-between">
-                <h2 className="text-base font-bold text-navy">Evolución</h2>
-                {deltaScaled !== null && deltaPct !== null && (
-                  <span
-                    className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      deltaScaled === 0
-                        ? "bg-chip text-ink-soft"
-                        : deltaScaled > 0
-                          ? "bg-ok-bg text-ok"
-                          : "bg-danger-bg text-danger"
-                    }`}
-                  >
-                    {deltaScaled > 0 ? (
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    ) : deltaScaled < 0 ? (
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    ) : null}
-                    {deltaScaled > 0 ? "+" : ""}
-                    {deltaPct.toFixed(2).replace(/\.?0+$/, "")}% vs anterior
-                  </span>
-                )}
-              </div>
-              <div className="rounded-2xl border border-line bg-white p-4">
-                {history.length === 1 ? (
-                  <p className="py-6 text-center text-sm text-muted">
-                    Solo hay un registro — el gráfico aparecerá cuando el par
-                    tenga al menos dos tasas.
-                  </p>
-                ) : (
-                  <RateLineChart
-                    points={chartPoints}
-                    fromCode={fromCode}
-                    toCode={toCode}
-                  />
-                )}
-                <p className="mt-2 text-center text-[11px] text-muted">
-                  {history.length}{" "}
-                  {history.length === 1 ? "registro" : "registros"} · desde{" "}
-                  {DATE_FMT.format(history[0].effectiveAt)}
-                </p>
-              </div>
-            </section>
+            {/* Sin inverso representable (tasa enorme) la tarjeta se omite y
+                la rejilla pasa a dos columnas. Con las tres, en móvil la tasa
+                vigente ocupa la fila entera. */}
+            <StatGrid cols={inverseScaled !== null ? 3 : 2}>
+              <StatCard
+                label="Tasa vigente"
+                value={fmtRate(latest.rateScaled)}
+                unit={toCode}
+                delta={deltaPct}
+                hint={deltaPct !== null ? "vs anterior" : undefined}
+                className={
+                  inverseScaled !== null
+                    ? "col-span-2 @2xl/main:col-span-1"
+                    : undefined
+                }
+              />
+              {inverseScaled !== null && (
+                <StatCard
+                  label="Inverso"
+                  value={fmtRate(inverseScaled)}
+                  unit={fromCode}
+                  hint={`1 ${toCode} = ${fmtRate(inverseScaled)} ${fromCode}`}
+                />
+              )}
+              <StatCard
+                label="Registros"
+                value={history.length}
+                hint={`desde ${DATE_FMT.format(history[0].effectiveAt)}`}
+              />
+            </StatGrid>
 
-            <section>
-              <h2 className="mb-2.5 text-base font-bold text-navy">
-                Histórico del par
-              </h2>
-              <div className="flex flex-col gap-1.5">
-                {[...history].reverse().map((rate) => (
-                  <div
-                    key={rate.id}
-                    className="flex items-center justify-between rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm"
-                  >
-                    <span className="money flex items-center gap-1.5 font-semibold text-ink-soft">
-                      {fromCode}
-                      <ArrowRight className="h-3 w-3 text-muted" />
-                      {fmtRate(rate.rateScaled)} {toCode}
-                    </span>
-                    <span className="text-muted">
-                      {DATE_FMT.format(rate.effectiveAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <div className="grid gap-5 @4xl/main:grid-cols-12">
+              <Card asChild className="min-w-0 self-start @4xl/main:col-span-8">
+                <section>
+                  <SectionHeader size="sm" title="Evolución" />
+                  {history.length === 1 ? (
+                    <p className="py-6 text-center text-sm text-muted">
+                      Solo hay un registro — el gráfico aparecerá cuando el par
+                      tenga al menos dos tasas.
+                    </p>
+                  ) : (
+                    <RateLineChart
+                      points={chartPoints}
+                      fromCode={fromCode}
+                      toCode={toCode}
+                    />
+                  )}
+                </section>
+              </Card>
+
+              <section className="min-w-0 @4xl/main:col-span-4">
+                <SectionHeader title="Histórico del par" />
+                <Card
+                  padding="none"
+                  className="divide-y divide-line-2 overflow-hidden"
+                >
+                  {[...history].reverse().map((rate) => (
+                    <div
+                      key={rate.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <span className="money flex min-w-0 items-center gap-1.5 text-sm font-medium text-heading">
+                        {fromCode}
+                        <ArrowRight className="size-3 flex-none text-muted" />
+                        {fmtRate(rate.rateScaled)} {toCode}
+                      </span>
+                      <span className="flex-none text-xs text-muted">
+                        {DATE_FMT.format(rate.effectiveAt)}
+                      </span>
+                    </div>
+                  ))}
+                </Card>
+              </section>
+            </div>
           </>
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

@@ -5,7 +5,7 @@
 // (variantes soft y dark) a la paleta de Caja. Recibe las tres series ya
 // calculadas del servidor; el cambio de periodo es solo estado de cliente.
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import { fmtMinor, type DisplayCurrency } from "@/lib/format";
 import { deltaPct } from "@/lib/metrics-core";
 import type { IncomeCardSeries } from "@/lib/income-series";
@@ -44,22 +44,11 @@ const METRIC_LABELS: Record<IncomeCardMetric, string> = {
   net: "Neto",
 };
 
-// Colores del trazo por variante y métrica (la variante dark usa tonos más
-// claros para leerse sobre el navy).
-const LINE_COLORS: Record<
-  IncomeCardVariant,
-  Record<IncomeCardMetric, string>
-> = {
-  soft: {
-    income: "var(--color-brand-light)",
-    expense: "var(--color-danger)",
-    net: "var(--color-gold)",
-  },
-  dark: {
-    income: "var(--color-brand-soft)",
-    expense: "#e79aa7",
-    net: "#eec06b",
-  },
+// Un solo color de trazo por variante (la métrica ya la dicen el título y
+// el pie): acento sobre tarjeta clara y su versión clara sobre la oscura.
+const LINE_COLORS: Record<IncomeCardVariant, string> = {
+  soft: "var(--color-chart-1)",
+  dark: "var(--color-brand-soft)",
 };
 
 const CHART_W = 520;
@@ -105,11 +94,9 @@ export function IncomeCard({
   series: IncomeCardSeries;
   missingRates: string[];
 }) {
-  // Sin ":" (React los incluye): rompen la referencia url(#id) del SVG.
-  const gradientId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [period, setPeriod] = useState<IncomeCardPeriod>(config.defaultPeriod);
   const dark = config.variant === "dark";
-  const line = LINE_COLORS[config.variant][config.metric];
+  const line = LINE_COLORS[config.variant];
 
   const buckets = series[period];
   const metricOf = (b: { incomeMinor: number; expenseMinor: number }) =>
@@ -162,27 +149,29 @@ export function IncomeCard({
             : "text-danger"
           : dark
             ? "text-white"
-            : "text-navy",
+            : "text-heading",
     },
   ].filter((s): s is { label: string; value: number; cls: string } => Boolean(s));
 
   const mutedCls = dark ? "text-white/80" : "text-muted";
-  const strongCls = dark ? "text-white" : "text-navy";
+  const strongCls = dark ? "text-white" : "text-heading";
   const dividerCls = dark ? "border-white/10" : "border-line-2";
 
   return (
     <section
       className={`h-full overflow-hidden rounded-2xl ${
-        dark ? "bg-navy" : "border border-line bg-white"
+        dark ? "bg-inverse" : "border border-line bg-card"
       }`}
     >
-      <div className="px-5 pt-4">
+      <div className="px-4 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <h2 className={`text-base font-bold ${strongCls}`}>{heading}</h2>
+          <h2 className={`text-sm font-semibold ${strongCls}`}>{heading}</h2>
           {config.showTabs && (
             <div
-              className={`flex items-center gap-1 rounded-xl p-1 ${
-                dark ? "bg-white/10" : "bg-app"
+              role="group"
+              aria-label="Período"
+              className={`flex items-center gap-0.5 rounded-lg p-0.5 ${
+                dark ? "bg-white/10" : "bg-subtle"
               }`}
             >
               {PERIOD_TABS.map((tab) => {
@@ -191,15 +180,16 @@ export function IncomeCard({
                   <button
                     key={tab.key}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setPeriod(tab.key)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                    className={`min-h-8 rounded-md px-2.5 text-xs font-medium transition-colors ${
                       active
                         ? dark
                           ? "bg-white/20 text-white"
-                          : "bg-white text-navy shadow-sm"
+                          : "bg-card text-heading ring-1 ring-line"
                         : dark
                           ? "text-white/80 hover:text-white"
-                          : "text-muted hover:text-ink-soft"
+                          : "text-muted hover:text-heading"
                     }`}
                   >
                     {tab.label}
@@ -211,7 +201,7 @@ export function IncomeCard({
         </div>
         <div className="mt-3 flex items-center gap-2.5">
           <div
-            className={`text-[28px] font-bold tracking-[-0.5px] ${
+            className={`money text-[28px] font-semibold tracking-tight ${
               totals[config.metric] < 0 && !dark ? "text-danger" : strongCls
             }`}
           >
@@ -219,7 +209,7 @@ export function IncomeCard({
           </div>
           {config.showDelta && delta !== null && (
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+              className={`money rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
                 deltaGood
                   ? dark
                     ? "bg-brand-soft/20 text-brand-soft"
@@ -239,7 +229,8 @@ export function IncomeCard({
         </div>
       </div>
 
-      <div className="relative mt-3" style={{ height: CHART_H }}>
+      {/* mx-4: la línea y su punto final respiran respecto al borde. */}
+      <div className="relative mx-4 mt-3" style={{ height: CHART_H }}>
         {empty ? (
           <p className={`flex h-full items-center justify-center text-sm ${mutedCls}`}>
             Sin movimientos en este periodo.
@@ -252,18 +243,31 @@ export function IncomeCard({
               className="block h-full w-full"
               aria-hidden="true"
             >
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={line} stopOpacity={dark ? 0.28 : 0.16} />
-                  <stop offset="100%" stopColor={line} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <path d={area} fill={`url(#${gradientId})`} />
+              {/* Rejilla punteada recesiva (tres niveles). */}
+              {[0.25, 0.5, 0.75].map((ratio) => (
+                <line
+                  key={ratio}
+                  x1="0"
+                  x2={CHART_W}
+                  y1={PAD_TOP + ratio * (CHART_H - PAD_TOP - PAD_BOTTOM)}
+                  y2={PAD_TOP + ratio * (CHART_H - PAD_TOP - PAD_BOTTOM)}
+                  stroke={
+                    dark
+                      ? "var(--color-inverse-foreground)"
+                      : "var(--color-line)"
+                  }
+                  strokeOpacity={dark ? 0.12 : 1}
+                  strokeDasharray="2 4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+              {/* Área plana (sin degradado): la misma tinta, muy tenue. */}
+              <path d={area} fill={line} fillOpacity={dark ? 0.14 : 0.08} />
               <path
                 d={d}
                 fill="none"
                 stroke={line}
-                strokeWidth="2.6"
+                strokeWidth="2"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
               />
@@ -285,16 +289,12 @@ export function IncomeCard({
                 left: `${dotLeftPct.toFixed(2)}%`,
                 top: `${dot[1].toFixed(1)}px`,
                 background: line,
-                boxShadow: dark
-                  ? "0 0 0 5px rgba(255,255,255,0.14)"
-                  : "0 0 0 5px color-mix(in srgb, var(--color-brand-light) 22%, transparent)",
+                boxShadow: `0 0 0 4px color-mix(in srgb, ${line} ${dark ? 26 : 18}%, transparent)`,
               }}
             />
             <div
-              className={`absolute min-w-[100px] rounded-xl px-3.5 py-2.5 transition-all duration-300 ${
-                dark
-                  ? "bg-white/10 backdrop-blur-sm"
-                  : "bg-white shadow-popover"
+              className={`absolute min-w-[100px] rounded-lg px-3 py-2 transition-all duration-300 ${
+                dark ? "bg-white/10" : "border border-line bg-card"
               }`}
               style={{
                 left: `${tipLeftPct.toFixed(2)}%`,
@@ -304,7 +304,7 @@ export function IncomeCard({
               <div className={`text-xs font-medium ${mutedCls}`}>
                 {lastBucket.label}
               </div>
-              <div className={`mt-0.5 text-sm font-bold ${strongCls}`}>
+              <div className={`mt-0.5 text-sm font-semibold ${strongCls}`}>
                 {fmtMinor(last, currency)}
               </div>
             </div>
@@ -324,7 +324,7 @@ export function IncomeCard({
                 i > 0 ? `border-l ${dividerCls}` : ""
               }`}
             >
-              <div className={`text-base font-bold ${stat.cls}`}>
+              <div className={`money text-sm font-semibold ${stat.cls}`}>
                 {fmtMinor(stat.value, currency)}
               </div>
               <div className={`mt-0.5 text-xs ${mutedCls}`}>
@@ -336,7 +336,7 @@ export function IncomeCard({
       )}
 
       {missingRates.length > 0 && (
-        <p className={`px-5 pb-3 text-[11px] ${mutedCls}`}>
+        <p className={`px-4 pb-3 text-[11px] ${mutedCls}`}>
           Sin tasa para {missingRates.join(", ")}: esos montos no se incluyen.
         </p>
       )}

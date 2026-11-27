@@ -4,17 +4,23 @@ import {
   ArrowDownLeft,
   ArrowRightLeft,
   ArrowUpRight,
+  ChevronRight,
   HandCoins,
   Pencil,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
-import { fmtMinor, fmtRate, fmtSignedMinor } from "@/lib/format";
+import { fmtMinor, fmtMinorParts, fmtRate } from "@/lib/format";
 import {
   TRANSACTION_KIND_LABELS,
   type TransactionKind,
@@ -29,6 +35,12 @@ const KIND_ICONS: Record<string, LucideIcon> = {
   ADJUSTMENT: SlidersHorizontal,
 };
 
+const DATE_FMT = new Intl.DateTimeFormat("es", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
 const DATE_TIME_FMT = new Intl.DateTimeFormat("es", {
   day: "2-digit",
   month: "long",
@@ -39,17 +51,22 @@ const DATE_TIME_FMT = new Intl.DateTimeFormat("es", {
 
 function DetailRow({
   label,
+  numeric = false,
   children,
 }: {
   label: string;
+  /** Cifras tabulares (montos y tasas). */
+  numeric?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-2.5">
-      <span className="flex-none text-xs font-medium text-muted">
-        {label}
-      </span>
-      <span className="min-w-0 text-right text-sm font-semibold text-navy">
+    <div className="flex items-start justify-between gap-4 px-4 py-3">
+      <span className="flex-none text-sm text-muted">{label}</span>
+      <span
+        className={`min-w-0 text-right text-sm font-medium break-words text-heading ${
+          numeric ? "money" : ""
+        }`}
+      >
         {children}
       </span>
     </div>
@@ -123,6 +140,7 @@ export default async function MovimientoDetallePage({
     tx.kind === "EXPENSE" || tx.kind === "TRANSFER"
       ? -tx.amountMinor
       : tx.amountMinor;
+  const amount = fmtMinorParts(signedMinor, tx.currency);
   const isTransfer = tx.kind === "TRANSFER";
   // INCOME/EXPENSE multi-moneda: el original quedó en counterAmountMinor.
   const crossCurrency =
@@ -132,176 +150,202 @@ export default async function MovimientoDetallePage({
   const linkedDebt = tx.debtPayment?.debt ?? tx.installment?.plan.debt ?? null;
   const linkedPlan = tx.installment?.plan ?? null;
 
+  // Corrección de equivocaciones: editar (salvo ajustes) y eliminar (salvo el
+  // ajuste de un arqueo, que vive ligado a su conteo).
+  const canEdit = tx.kind !== "ADJUSTMENT";
+  const canDelete = tx.kind !== "ADJUSTMENT" || !tx.cashCount;
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Detalle del movimiento" backHref="/movimientos">
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
-              {kindLabel}
-            </div>
-            <div className="mt-0.5 text-[28px] font-bold tracking-[-0.5px]">
-              {fmtSignedMinor(signedMinor, tx.currency)}
-            </div>
-          </div>
-          <Badge variant="neutral" className="mb-1.5 bg-white/15 text-white">
-            <Icon className="h-3 w-3" />
-            {kindLabel}
-          </Badge>
-        </div>
-      </ScreenHeader>
-
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <section className="divide-y divide-line rounded-2xl border border-line bg-white px-4 py-1">
-          <DetailRow label="Fecha">
-            {DATE_TIME_FMT.format(tx.occurredAt)}
-          </DetailRow>
-          <DetailRow label={isTransfer ? "Cuenta de origen" : "Cuenta"}>
+    <Page>
+      <ScreenHeader
+        title="Detalle del movimiento"
+        subtitle={`${kindLabel} · ${DATE_FMT.format(tx.occurredAt)}`}
+        backHref="/movimientos"
+        actions={
+          canEdit && (
             <Link
-              href={`/cuentas/${tx.account.id}`}
-              className="text-brand hover:underline"
+              href={`/movimientos/${tx.id}/editar`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              {tx.account.name}
+              <Pencil className="size-3.5" />
+              Editar
             </Link>
-          </DetailRow>
-          {isTransfer && tx.counterAccount && (
-            <DetailRow label="Cuenta de destino">
-              <Link
-                href={`/cuentas/${tx.counterAccount.id}`}
-                className="text-brand hover:underline"
-              >
-                {tx.counterAccount.name}
-              </Link>
-            </DetailRow>
-          )}
-          <DetailRow label={isTransfer ? "Monto enviado" : "Monto"}>
-            {fmtMinor(tx.amountMinor, tx.currency)}
-          </DetailRow>
-          {isTransfer && tx.counterAmountMinor !== null && (
-            <DetailRow label="Monto recibido">
-              {fmtMinor(
-                tx.counterAmountMinor,
-                tx.counterCurrency ?? tx.currency
-              )}
-            </DetailRow>
-          )}
-          {crossCurrency && (
-            <DetailRow label="Monto original">
-              {fmtMinor(tx.counterAmountMinor!, tx.counterCurrency!)}
-            </DetailRow>
-          )}
-          {tx.rateScaled !== null && tx.counterCurrency && (
-            <DetailRow label="Tasa aplicada">
-              1 {tx.currency.code} = {fmtRate(tx.rateScaled)}{" "}
-              {tx.counterCurrency.code}
-            </DetailRow>
-          )}
-          {tx.category && (
-            <DetailRow label="Categoría">{tx.category.name}</DetailRow>
-          )}
-          {tx.note && <DetailRow label="Nota">{tx.note}</DetailRow>}
-          <DetailRow label="Registrado el">
-            {DATE_TIME_FMT.format(tx.createdAt)}
-          </DetailRow>
-        </section>
+          )
+        }
+      />
 
-        {breakdownSides.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Desglose de denominaciones
-            </h2>
-            <div className="flex flex-col gap-2.5">
-              {breakdownSides.map((side) => {
-                const isOrigin = side.account.id === tx.account.id;
-                const sideCurrency = isOrigin
-                  ? tx.currency
-                  : (tx.counterCurrency ?? tx.currency);
-                const enters = tx.kind === "INCOME" || !isOrigin;
-                return (
-                  <div
-                    key={side.account.id}
-                    className="rounded-2xl border border-line bg-white px-4 py-2"
+      <PageBody>
+        {/* grid-cols-1: en móvil la columna tiene mínimo 0, así ningún hijo
+            suelto la ensancha más allá de la pantalla. */}
+        <div className="grid grid-cols-1 gap-5 @4xl/main:grid-cols-12">
+          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
+            <Card padding="none" className="divide-y divide-line-2">
+              <DetailRow label="Fecha">
+                {DATE_TIME_FMT.format(tx.occurredAt)}
+              </DetailRow>
+              <DetailRow label={isTransfer ? "Cuenta de origen" : "Cuenta"}>
+                <Link
+                  href={`/cuentas/${tx.account.id}`}
+                  className="text-brand-ink hover:text-brand-mid"
+                >
+                  {tx.account.name}
+                </Link>
+              </DetailRow>
+              {isTransfer && tx.counterAccount && (
+                <DetailRow label="Cuenta de destino">
+                  <Link
+                    href={`/cuentas/${tx.counterAccount.id}`}
+                    className="text-brand-ink hover:text-brand-mid"
                   >
-                    <div className="border-b border-line-2 py-2 text-xs font-semibold text-muted">
-                      {enters ? "Entra en" : "Sale de"} «{side.account.name}»
-                    </div>
-                    {side.lines.map((line) => (
-                      <div
-                        key={line.id}
-                        className="flex items-baseline justify-between gap-3 border-b border-line-2 py-2 last:border-b-0"
+                    {tx.counterAccount.name}
+                  </Link>
+                </DetailRow>
+              )}
+              <DetailRow label={isTransfer ? "Monto enviado" : "Monto"} numeric>
+                {fmtMinor(tx.amountMinor, tx.currency)}
+              </DetailRow>
+              {isTransfer && tx.counterAmountMinor !== null && (
+                <DetailRow label="Monto recibido" numeric>
+                  {fmtMinor(
+                    tx.counterAmountMinor,
+                    tx.counterCurrency ?? tx.currency
+                  )}
+                </DetailRow>
+              )}
+              {crossCurrency && (
+                <DetailRow label="Monto original" numeric>
+                  {fmtMinor(tx.counterAmountMinor!, tx.counterCurrency!)}
+                </DetailRow>
+              )}
+              {tx.rateScaled !== null && tx.counterCurrency && (
+                <DetailRow label="Tasa aplicada" numeric>
+                  1 {tx.currency.code} = {fmtRate(tx.rateScaled)}{" "}
+                  {tx.counterCurrency.code}
+                </DetailRow>
+              )}
+              {tx.category && (
+                <DetailRow label="Categoría">{tx.category.name}</DetailRow>
+              )}
+              {tx.note && <DetailRow label="Nota">{tx.note}</DetailRow>}
+              <DetailRow label="Registrado el">
+                {DATE_TIME_FMT.format(tx.createdAt)}
+              </DetailRow>
+            </Card>
+
+            {breakdownSides.length > 0 && (
+              <section>
+                <SectionHeader title="Desglose de denominaciones" />
+                <div className="flex flex-col gap-3">
+                  {breakdownSides.map((side) => {
+                    const isOrigin = side.account.id === tx.account.id;
+                    const sideCurrency = isOrigin
+                      ? tx.currency
+                      : (tx.counterCurrency ?? tx.currency);
+                    const enters = tx.kind === "INCOME" || !isOrigin;
+                    return (
+                      <Card
+                        key={side.account.id}
+                        padding="none"
+                        className="divide-y divide-line-2"
                       >
-                        <span className="text-sm font-semibold text-navy">
-                          {fmtMinor(line.denomination.valueMinor, sideCurrency)}
-                          <span className="font-normal text-muted">
-                            {" "}
-                            × {line.quantity}
-                          </span>
-                        </span>
-                        <span className="text-sm font-semibold text-ink-soft tabular-nums">
-                          {fmtMinor(
-                            line.denomination.valueMinor * line.quantity,
-                            sideCurrency
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {(linkedDebt || linkedPlan) && (
-          <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Vinculado a
-            </h2>
-            <Link
-              href={
-                linkedDebt
-                  ? `/deudas/${linkedDebt.id}`
-                  : `/mensualidades/${linkedPlan!.id}`
-              }
-              className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 transition-colors hover:border-brand-soft"
-            >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                <HandCoins className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-navy">
-                  {linkedDebt
-                    ? `Deuda con ${linkedDebt.contact.name}`
-                    : linkedPlan!.description}
+                        <div className="px-4 py-2.5 text-xs font-medium text-muted">
+                          {enters ? "Entra en" : "Sale de"} «{side.account.name}»
+                        </div>
+                        {side.lines.map((line) => (
+                          <div
+                            key={line.id}
+                            className="flex items-baseline justify-between gap-3 px-4 py-2.5"
+                          >
+                            <span className="money text-sm font-medium text-heading">
+                              {fmtMinor(line.denomination.valueMinor, sideCurrency)}
+                              <span className="font-normal text-muted">
+                                {" "}
+                                × {line.quantity}
+                              </span>
+                            </span>
+                            <span className="money text-sm font-semibold text-heading">
+                              {fmtMinor(
+                                line.denomination.valueMinor * line.quantity,
+                                sideCurrency
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </Card>
+                    );
+                  })}
                 </div>
-                <div className="truncate text-xs text-muted">
-                  {linkedDebt ? linkedDebt.description : "Plan de cuotas"}
-                  {linkedPlan?.contact ? ` · ${linkedPlan.contact.name}` : ""}
-                </div>
-              </div>
-            </Link>
-          </section>
-        )}
-
-        {/* Corrección de equivocaciones: editar (salvo ajustes) y eliminar
-            (salvo el ajuste de un arqueo, que vive ligado a su conteo). */}
-        {(tx.kind !== "ADJUSTMENT" || !tx.cashCount) && (
-          <section className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-            {tx.kind !== "ADJUSTMENT" ? (
-              <Link
-                href={`/movimientos/${tx.id}/editar`}
-                className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-semibold text-brand transition-colors hover:border-brand-soft"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Editar movimiento
-              </Link>
-            ) : (
-              <span />
+              </section>
             )}
-            <DeleteEntityButton kind="transaction" targetId={tx.id} />
-          </section>
-        )}
-      </div>
-    </main>
+          </div>
+
+          {/* En móvil esta columna se «disuelve» (contents) y sus bloques
+              pasan a ser hijos de la rejilla: el monto sube arriba del todo
+              (order-first) y el vínculo y el borrado quedan al final, tras
+              los datos. En escritorio vuelve a ser la columna lateral. */}
+          <div className="contents @4xl/main:col-span-4 @4xl/main:flex @4xl/main:min-w-0 @4xl/main:flex-col @4xl/main:gap-5">
+            {/* El tipo ya es el rótulo de la cifra: la insignia conserva su
+                icono pero dice de qué cuenta sale o a cuál entra, en vez de
+                repetirlo. */}
+            <StatCard
+              size="lg"
+              className="order-first min-w-0 @4xl/main:order-none"
+              label={kindLabel}
+              value={`${signedMinor > 0 ? "+" : ""}${amount.amount}`}
+              unit={amount.code}
+              hint={
+                <Badge className="max-w-full">
+                  <Icon className="size-3 flex-none" />
+                  <span className="truncate">
+                    {tx.account.name}
+                    {isTransfer && tx.counterAccount
+                      ? ` → ${tx.counterAccount.name}`
+                      : ""}
+                  </span>
+                </Badge>
+              }
+            />
+
+            {(linkedDebt || linkedPlan) && (
+              <Card padding="none" className="min-w-0 overflow-hidden">
+                <h2 className="px-4 pt-4 pb-1 text-sm font-semibold text-heading">
+                  Vinculado a
+                </h2>
+                <Link
+                  href={
+                    linkedDebt
+                      ? `/deudas/${linkedDebt.id}`
+                      : `/mensualidades/${linkedPlan!.id}`
+                  }
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle/60"
+                >
+                  <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <HandCoins className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-heading">
+                      {linkedDebt
+                        ? `Deuda con ${linkedDebt.contact.name}`
+                        : linkedPlan!.description}
+                    </div>
+                    <div className="truncate text-xs text-muted">
+                      {linkedDebt ? linkedDebt.description : "Plan de cuotas"}
+                      {linkedPlan?.contact ? ` · ${linkedPlan.contact.name}` : ""}
+                    </div>
+                  </div>
+                  <ChevronRight className="size-4 flex-none text-muted" />
+                </Link>
+              </Card>
+            )}
+
+            {canDelete && (
+              <div className="flex min-w-0 justify-end">
+                <DeleteEntityButton kind="transaction" targetId={tx.id} />
+              </div>
+            )}
+          </div>
+        </div>
+      </PageBody>
+    </Page>
   );
 }

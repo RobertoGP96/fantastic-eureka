@@ -1,4 +1,8 @@
+import Link from "next/link";
+import { ArrowRightLeft } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { CurrencyManager, type CurrencyItem } from "./currency-manager";
@@ -29,15 +33,24 @@ export default async function MonedasPage() {
   }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Monedas" backHref="/mas">
-        <p className="mt-1 text-sm text-white/80">
-          Divisas del sistema y sus denominaciones
-        </p>
-      </ScreenHeader>
-      <div className="anim-fade-up px-5 pt-5 md:max-w-xl md:px-0">
+    <Page>
+      <ScreenHeader
+        title="Monedas"
+        subtitle="Divisas del sistema y sus denominaciones"
+        backHref="/mas"
+        actions={
+          <Link
+            href="/tasas"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <ArrowRightLeft className="size-3.5" />
+            Tasas
+          </Link>
+        }
+      />
+      <PageBody>
         <CurrencyManager currencies={items} />
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

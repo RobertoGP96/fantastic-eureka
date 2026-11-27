@@ -19,6 +19,8 @@ interface AccountOption {
   name: string;
 }
 
+// Abono libre a una deuda. Sin marco propio: lo pone la tarjeta «Registrar
+// abono» del detalle, que además le cuelga debajo la cuenta habitual.
 export function PaymentForm({
   debtId,
   accounts,
@@ -45,7 +47,7 @@ export function PaymentForm({
 
   if (accounts.length === 0) {
     return (
-      <p className="rounded-xl border border-line bg-white px-3.5 py-3 text-sm text-muted">
+      <p className="text-sm text-muted">
         Crea una cuenta en {currencyCode} para poder registrar abonos.
       </p>
     );
@@ -73,16 +75,24 @@ export function PaymentForm({
 
   return (
     <form
-      className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4"
+      className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <div className="flex gap-2.5">
+      {/* Cuenta y monto comparten fila solo si caben (columna ancha); en la
+          columna lateral y en el móvil se apilan a todo el ancho. */}
+      <div className="flex flex-wrap gap-2.5">
         <Select value={accountId} onValueChange={setAccountId}>
-          <SelectTrigger className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
-            <SelectValue placeholder="Cuenta" />
+          <SelectTrigger
+            variant="form"
+            aria-label="Cuenta"
+            className="min-w-48 flex-1"
+          >
+            <span className="truncate">
+              <SelectValue placeholder="Cuenta" />
+            </span>
           </SelectTrigger>
           <SelectContent>
             {accounts.map((account) => (
@@ -97,7 +107,7 @@ export function PaymentForm({
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           placeholder={`Monto (${currencyCode})`}
-          className="w-36"
+          className="min-w-32 flex-1"
           required
         />
       </div>

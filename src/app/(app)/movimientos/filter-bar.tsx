@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -32,6 +33,17 @@ const MONTH_FMT = new Intl.DateTimeFormat("es", {
   month: "long",
   year: "numeric",
 });
+
+// Piezas del selector de mes. Van dentro de un marco con overflow-hidden, así
+// que el foco se pinta hacia dentro (ring-inset) para que no quede recortado.
+const STEP_FOCUS =
+  "transition-colors hover:bg-subtle focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset";
+// Flechas: 44 px en táctil, 32 px con ratón (dense), como los filtros de al lado.
+const STEP_ARROW = `flex h-full w-11 flex-none items-center justify-center text-ink-soft hover:text-heading disabled:pointer-events-none disabled:opacity-50 dense:w-8 ${STEP_FOCUS}`;
+
+// Filtro compacto: si el valor elegido es largo (nombre de cuenta), se trunca
+// en vez de desbordar la barra.
+const FILTER_TRIGGER = "max-w-full min-w-0";
 
 function shiftMonth(mes: string, delta: number): string {
   const match = /^(\d{4})-(\d{2})$/.exec(mes);
@@ -77,100 +89,113 @@ export function FilterBar({
   if (filters.tipo) exportParams.set("tipo", filters.tipo);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between rounded-2xl border border-line bg-white px-2 py-1.5">
+    // Una sola barra: en móvil el selector de mes ocupa su línea y los
+    // filtros se reparten debajo; en escritorio todo cabe en una fila.
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex h-11 w-full items-stretch overflow-hidden rounded-lg border border-line bg-card @2xl/main:w-auto dense:h-8">
         <button
           type="button"
           onClick={() => apply({ mes: shiftMonth(filters.mes, -1) })}
           disabled={isAllTime}
           aria-label="Mes anterior"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
+          className={STEP_ARROW}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="size-4" />
         </button>
         <button
           type="button"
           onClick={() =>
             apply({ mes: isAllTime ? shiftMonth("", 0) : "todos" })
           }
-          className="text-sm font-semibold text-navy capitalize transition-colors hover:text-brand"
+          className={`min-w-40 flex-1 px-2 text-center text-sm font-medium text-heading ${STEP_FOCUS}`}
           title="Alternar entre mes y todo el historial"
         >
-          {monthLabel(filters.mes)}
+          {/* inline-block: ::first-letter no aplica a un contenedor flex. */}
+          <span className="inline-block first-letter:uppercase">
+            {monthLabel(filters.mes)}
+          </span>
         </button>
         <button
           type="button"
           onClick={() => apply({ mes: shiftMonth(filters.mes, 1) })}
           disabled={isAllTime}
           aria-label="Mes siguiente"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-mid transition-colors hover:bg-chip disabled:opacity-40"
+          className={STEP_ARROW}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="size-4" />
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={filters.cuenta || ALL}
-          onValueChange={(value) => apply({ cuenta: value === ALL ? "" : value })}
-        >
-          <SelectTrigger>
+      <Select
+        value={filters.cuenta || ALL}
+        onValueChange={(value) => apply({ cuenta: value === ALL ? "" : value })}
+      >
+        <SelectTrigger className={FILTER_TRIGGER}>
+          <span className="truncate">
             <SelectValue placeholder="Cuenta" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Todas las cuentas</SelectItem>
-            {accounts.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                {account.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>Todas las cuentas</SelectItem>
+          {accounts.map((account) => (
+            <SelectItem key={account.id} value={account.id}>
+              {account.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        <Select
-          value={filters.categoria || ALL}
-          onValueChange={(value) =>
-            apply({ categoria: value === ALL ? "" : value })
-          }
-        >
-          <SelectTrigger>
+      <Select
+        value={filters.categoria || ALL}
+        onValueChange={(value) =>
+          apply({ categoria: value === ALL ? "" : value })
+        }
+      >
+        <SelectTrigger className={FILTER_TRIGGER}>
+          <span className="truncate">
             <SelectValue placeholder="Categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Todas las categorías</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>Todas las categorías</SelectItem>
+          {categories.map((category) => (
+            <SelectItem key={category.id} value={category.id}>
+              {category.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        <Select
-          value={filters.tipo || ALL}
-          onValueChange={(value) => apply({ tipo: value === ALL ? "" : value })}
-        >
-          <SelectTrigger>
+      <Select
+        value={filters.tipo || ALL}
+        onValueChange={(value) => apply({ tipo: value === ALL ? "" : value })}
+      >
+        <SelectTrigger className={FILTER_TRIGGER}>
+          <span className="truncate">
             <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Todos los tipos</SelectItem>
-            {TRANSACTION_KINDS.map((kind) => (
-              <SelectItem key={kind} value={kind}>
-                {TRANSACTION_KIND_LABELS[kind]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>Todos los tipos</SelectItem>
+          {TRANSACTION_KINDS.map((kind) => (
+            <SelectItem key={kind} value={kind}>
+              {TRANSACTION_KIND_LABELS[kind]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        <a
-          href={`/api/export?${exportParams.toString()}`}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-chip px-[11px] py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft/30"
-        >
-          <Download className="h-3.5 w-3.5" />
-          CSV
-        </a>
-      </div>
+      <a
+        href={`/api/export?${exportParams.toString()}`}
+        className={buttonVariants({
+          variant: "outline",
+          size: "sm",
+          className: "ml-auto",
+        })}
+      >
+        <Download className="size-3.5" />
+        CSV
+      </a>
     </div>
   );
 }

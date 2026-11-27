@@ -1,14 +1,15 @@
 import Link from "next/link";
-import {
-  CalendarClock,
-  ChevronRight,
-  HandCoins,
-  Plus,
-  Repeat,
-} from "lucide-react";
+import { CalendarClock, HandCoins, Plus } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatGrid } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
+import { ProgressBar } from "@/components/progress-bar";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor } from "@/lib/format";
@@ -19,16 +20,17 @@ import {
   type DebtStatus,
   type DebtDirection,
 } from "@/lib/domain";
+import { TotalsStatCard, type CurrencyTotal } from "./totals-stat-card";
 
 export const dynamic = "force-dynamic";
 
 const FILTERS = [
-  { value: null, label: "Todas" },
-  { value: "cobrar", label: "Por cobrar" },
-  { value: "pagar", label: "Por pagar" },
+  { value: "todas", label: "Todas", href: "/deudas" },
+  { value: "cobrar", label: "Por cobrar", href: "/deudas?dir=cobrar" },
+  { value: "pagar", label: "Por pagar", href: "/deudas?dir=pagar" },
 ] as const;
 
-/** Iniciales del contacto para el avatar de la tarjeta. */
+/** Iniciales del contacto para el avatar de la fila. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
@@ -82,100 +84,82 @@ export default async function DeudasPage({
   const open = rows.filter((row) => row.debt.status === "OPEN");
   const closed = rows.filter((row) => row.debt.status !== "OPEN");
 
-  // Totales del pendiente por moneda, separados por dirección.
-  const totalsText = (wanted: DebtDirection) => {
-    const totals = new Map<string, { amount: number; currency: typeof debts[number]["currency"] }>();
+  // Pendiente por moneda de una dirección, de mayor a menor.
+  const totalsFor = (wanted: DebtDirection): CurrencyTotal[] => {
+    const totals = new Map<string, CurrencyTotal>();
     for (const row of open) {
       if (row.debt.direction !== wanted) continue;
       const entry = totals.get(row.debt.currencyId);
-      if (entry) entry.amount += row.remaining;
+      if (entry) entry.amountMinor += row.remaining;
       else
         totals.set(row.debt.currencyId, {
-          amount: row.remaining,
+          amountMinor: row.remaining,
           currency: row.debt.currency,
         });
     }
-    return [...totals.values()]
-      .sort((a, b) => b.amount - a.amount)
-      .map((total) => fmtMinor(total.amount, total.currency))
-      .join(" · ");
+    return [...totals.values()].sort((a, b) => b.amountMinor - a.amountMinor);
   };
-  const receivableText = totalsText("RECEIVABLE");
-  const payableText = totalsText("PAYABLE");
+  const receivableTotals = totalsFor("RECEIVABLE");
+  const payableTotals = totalsFor("PAYABLE");
+  // Con una sola dirección (lo normal al filtrar) solo hay un KPI: en móvil
+  // ocupa las dos columnas en vez de dejar media fila vacía.
+  const loneStat =
+    receivableTotals.length === 0 || payableTotals.length === 0
+      ? "col-span-2 @2xl/main:col-span-1"
+      : undefined;
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title="Deudas"
+        subtitle={`${open.length} abierta${open.length === 1 ? "" : "s"}`}
         actions={
-          <Link
-            href="/deudas/nueva"
-            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva
-          </Link>
+          <>
+            <Link
+              href="/mensualidades"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Mensualidades
+            </Link>
+            <Link
+              href="/deudas/nueva"
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Nueva deuda
+            </Link>
+          </>
         }
-      >
-        {(receivableText || payableText) && (
-          <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2.5">
-            {receivableText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Me deben
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {receivableText}
-                </div>
-              </div>
-            )}
-            {payableText && (
-              <div>
-                <div className="text-[11px] tracking-wide text-white/80 uppercase">
-                  Debo
-                </div>
-                <div className="text-[22px] font-bold tracking-[-0.4px]">
-                  {payableText}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="mt-3 text-xs">
-          <span className="rounded-md bg-white/15 px-2 py-[3px] font-semibold text-white">
-            {open.length} abierta{open.length === 1 ? "" : "s"}
-          </span>
-        </div>
-      </ScreenHeader>
+      />
 
-      <div className="anim-fade-up flex flex-1 flex-col gap-5 px-5 pt-5 md:max-w-2xl md:px-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            {FILTERS.map((filter) => {
-              const selected = (dir ?? null) === filter.value;
-              return (
-                <Link
-                  key={filter.label}
-                  href={filter.value ? `/deudas?dir=${filter.value}` : "/deudas"}
-                  className={`rounded-lg px-[11px] py-1.5 text-xs font-semibold transition-colors ${
-                    selected
-                      ? "bg-brand text-white"
-                      : "bg-chip text-brand hover:bg-brand-soft/30"
-                  }`}
-                >
-                  {filter.label}
-                </Link>
-              );
-            })}
-          </div>
-          <Link
-            href="/mensualidades"
-            className="flex items-center gap-1 rounded-lg border border-line bg-white px-[11px] py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-          >
-            <Repeat className="h-3.5 w-3.5" />
-            Mensualidades
-          </Link>
-        </div>
+      <PageBody>
+        {(receivableTotals.length > 0 || payableTotals.length > 0) && (
+          <StatGrid cols={2}>
+            <TotalsStatCard
+              label="Me deben"
+              totals={receivableTotals}
+              className={loneStat}
+            />
+            <TotalsStatCard
+              label="Debo"
+              totals={payableTotals}
+              className={loneStat}
+            />
+          </StatGrid>
+        )}
+
+        <SegmentedLinks
+          ariaLabel="Filtrar deudas"
+          options={FILTERS}
+          current={
+            direction === "PAYABLE"
+              ? "pagar"
+              : direction === "RECEIVABLE"
+                ? "cobrar"
+                : "todas"
+          }
+          className="self-start"
+        />
 
         {open.length === 0 && closed.length === 0 ? (
           <EmptyState
@@ -186,98 +170,115 @@ export default async function DeudasPage({
             ctaHref="/deudas/nueva"
           />
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {open.map(({ debt, paid, remaining, pct, next }) => {
-              const days = next ? daysUntil(next.dueAt) : null;
-              const receivable = debt.direction === "RECEIVABLE";
-              return (
-                <Link
-                  key={debt.id}
-                  href={`/deudas/${debt.id}`}
-                  className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-                >
-                  <div className="flex items-start gap-3.5">
-                    <span
-                      className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-sm font-bold ${
-                        receivable
-                          ? "bg-ok-bg text-ok"
-                          : "bg-warn-bg text-warn"
-                      }`}
-                    >
-                      {initials(debt.contact.name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-sm font-semibold text-navy">
+          open.length > 0 && (
+            <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
+              {open.map(({ debt, paid, remaining, pct, next }) => {
+                const days = next ? daysUntil(next.dueAt) : null;
+                const receivable = debt.direction === "RECEIVABLE";
+                return (
+                  // Cada deuda es UN solo enlace con todo su texto dentro (los
+                  // tests E2E la localizan por el nombre del contacto). Rejilla:
+                  // en móvil, quién + pendiente arriba y el avance debajo; en
+                  // escritorio, tres columnas en una fila. La del pendiente
+                  // tiene un mínimo holgado (9rem): cada fila es su propia
+                  // rejilla y así las columnas coinciden de una fila a otra.
+                  <Link
+                    key={debt.id}
+                    href={`/deudas/${debt.id}`}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 px-4 py-3 transition-colors hover:bg-subtle/60 @4xl/main:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(9rem,auto)] @4xl/main:items-center @4xl/main:gap-x-5"
+                  >
+                    <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-3">
+                      {/* aria-hidden: las iniciales repiten el nombre. */}
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-9 flex-none items-center justify-center rounded-full text-xs font-semibold ${
+                          receivable
+                            ? "bg-ok-bg text-ok"
+                            : "bg-warn-bg text-warn"
+                        }`}
+                      >
+                        {initials(debt.contact.name)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-heading">
                           {debt.contact.name}
-                        </span>
-                        <span className="text-base font-bold whitespace-nowrap text-navy">
-                          {fmtMinor(remaining, debt.currency)}
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-xs text-muted">
+                        </div>
+                        <div className="truncate text-xs text-muted">
                           {debt.description}
-                        </span>
-                        <span className="text-[11px] whitespace-nowrap text-muted">
-                          {receivable ? "por cobrar" : "por pagar"}
-                        </span>
+                        </div>
                       </div>
                     </div>
-                    <ChevronRight className="mt-1 h-4 w-4 flex-none text-muted" />
-                  </div>
 
-                  {paid > 0 && (
-                    <div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-line-2">
-                        <div
-                          className={`h-1.5 rounded-full ${receivable ? "bg-ok" : "bg-brand-mid"}`}
-                          style={{ width: `${pct}%` }}
-                        />
+                    {(paid > 0 || next) && (
+                      <div className="col-span-2 row-start-2 flex min-w-0 flex-col items-start gap-2 pl-12 @4xl/main:col-span-1 @4xl/main:col-start-2 @4xl/main:row-start-1 @4xl/main:pl-0">
+                        {paid > 0 && (
+                          <div className="w-full">
+                            {/* La frase entera en UN elemento: los tests la
+                                buscan tal cual. */}
+                            <div className="text-xs text-muted">
+                              {`Abonado ${fmtMinor(paid, debt.currency)} de ${fmtMinor(debt.totalMinor, debt.currency)} (${pct}%)`}
+                            </div>
+                            <ProgressBar percent={pct} className="mt-1.5" />
+                          </div>
+                        )}
+                        {next && days !== null && (
+                          // whitespace-normal: es la etiqueta más larga de la
+                          // fila («… · Vencida hace 12 días») y en móviles de
+                          // 320 px no cabe en una línea.
+                          <Badge
+                            variant={dueTone(days)}
+                            className="whitespace-normal"
+                          >
+                            <CalendarClock className="size-3 flex-none" />
+                            Próxima cuota · {dueLabel(next.dueAt)}
+                          </Badge>
+                        )}
                       </div>
-                      <div className="mt-1 text-[11px] text-muted">
-                        Abonado {fmtMinor(paid, debt.currency)} de{" "}
-                        {fmtMinor(debt.totalMinor, debt.currency)} ({pct}%)
-                      </div>
-                    </div>
-                  )}
+                    )}
 
-                  {next && days !== null && (
-                    <div>
-                      <Badge variant={dueTone(days)}>
-                        <CalendarClock className="h-3 w-3" />
-                        Próxima cuota · {dueLabel(next.dueAt)}
-                      </Badge>
+                    <div className="col-start-2 row-start-1 text-right @4xl/main:col-start-3">
+                      <div className="money text-[15px] font-semibold whitespace-nowrap text-heading">
+                        {fmtMinor(remaining, debt.currency)}
+                      </div>
+                      {/* En minúsculas en el DOM: los tests lo comprueban así. */}
+                      <div className="text-xs text-muted">
+                        {receivable ? "por cobrar" : "por pagar"}
+                      </div>
                     </div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+                  </Link>
+                );
+              })}
+            </Card>
+          )
         )}
 
         {closed.length > 0 && (
           <section>
-            <h2 className="mb-2.5 text-base font-bold text-navy">
-              Historial
-            </h2>
-            <div className="flex flex-col gap-2">
+            <SectionHeader title="Historial" />
+            <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
               {closed.map(({ debt }) => (
                 <Link
                   key={debt.id}
                   href={`/deudas/${debt.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-white px-3.5 py-3 opacity-80 transition-colors hover:border-brand-soft hover:opacity-100"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle/60"
                 >
+                  {/* Avatar neutro: cerrada ya no hay nada por cobrar ni pagar. */}
+                  <span
+                    aria-hidden="true"
+                    className="flex size-9 flex-none items-center justify-center rounded-full bg-subtle text-xs font-semibold text-ink-soft"
+                  >
+                    {initials(debt.contact.name)}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
+                    <div className="truncate text-sm font-medium text-heading">
                       {debt.contact.name}
                     </div>
                     <div className="truncate text-xs text-muted">
                       {debt.description}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-sm font-bold whitespace-nowrap text-navy">
+                  <div className="flex flex-none flex-col items-end gap-1">
+                    <span className="money text-[15px] font-semibold whitespace-nowrap text-heading">
                       {fmtMinor(debt.totalMinor, debt.currency)}
                     </span>
                     <Badge variant={debt.status === "PAID" ? "ok" : "neutral"}>
@@ -285,13 +286,12 @@ export default async function DeudasPage({
                         debt.status}
                     </Badge>
                   </div>
-                  <ChevronRight className="h-4 w-4 flex-none text-muted" />
                 </Link>
               ))}
-            </div>
+            </Card>
           </section>
         )}
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

@@ -1,5 +1,5 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -9,34 +9,53 @@ import {
   Wallet,
 } from "lucide-react";
 import { getAccountIcon } from "@/lib/account-icons";
+import { BrandMark } from "@/components/brand-mark";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
+import { ProgressBar } from "@/components/progress-bar";
 import { UpcomingInstallments } from "@/components/upcoming-installments";
-import { InstallmentNotifications } from "@/components/installment-notifications";
-import { MonthlyBars } from "@/components/monthly-bars";
+import { toInstallmentNotices } from "@/components/installment-notifications";
+import { NotificationsBell } from "@/components/notifications-bell";
+import { MonthlyBars, MonthlyBarsLegend } from "@/components/monthly-bars";
 import { UserMenu } from "@/components/user-menu";
 import { DashboardCustomizer } from "@/components/dashboard-customizer";
+import { Card } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth";
-import { APP_NAME } from "@/lib/config";
 import { prisma } from "@/lib/db";
-import { listAccountsWithBalances } from "@/lib/balances";
+import {
+  latestRatesByCurrency,
+  listAccountsWithBalances,
+} from "@/lib/balances";
+import { consolidatedTotalMinor } from "@/lib/balances-core";
+import { buildFlowKpis } from "@/lib/dashboard-kpis";
+import {
+  packDashboardRows,
+  SECTION_WIDTH,
+  type RowSpan,
+} from "@/lib/dashboard-layout";
 import {
   parseDashboardPrefs,
   type DashboardSectionKey,
 } from "@/lib/dashboard-prefs";
 import {
   AccountCardWidget,
+  ActivityMapWidget,
   CurrencyTotalsWidget,
   IncomeCardWidget,
   RatePairWidget,
 } from "@/components/dashboard-widgets";
 import { BentoPanel } from "@/components/bento-panel";
+import { upcomingInstallments } from "@/lib/debts";
+import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
 import { dashboardMetrics } from "@/lib/metrics";
-import { deltaPct } from "@/lib/metrics-core";
-import { fmtMinor } from "@/lib/format";
+import { fmtMinor, fmtMinorParts } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
 import { pairRateSeries } from "@/lib/rates";
 import { pairKey } from "@/lib/rate-resolve";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +71,22 @@ const QUICK_ACTIONS = [
   { href: "/calculadora", icon: Calculator, label: "Calcular" },
 ];
 
-// Secciones que en escritorio comparten fila (grid de 2 columnas) cuando
-// quedan consecutivas en el orden elegido por el usuario.
-const HALF_SECTIONS = new Set<DashboardSectionKey>([
-  "monthlyChart",
-  "topCategories",
-]);
+// Columnas de cada celda dentro de una fila de 12 (ver dashboard-layout.ts).
+// Cadenas literales: el escáner de Tailwind no ve clases construidas al vuelo.
+const SPAN: Record<RowSpan, string> = {
+  12: "min-w-0 @4xl/main:col-span-12",
+  8: "min-w-0 @4xl/main:col-span-8",
+  6: "min-w-0 @4xl/main:col-span-6",
+  4: "min-w-0 @4xl/main:col-span-4",
+};
+
+const MONTH_NAME = new Intl.DateTimeFormat("es", {
+  month: "long",
+  year: "numeric",
+});
+
+/** Sección de Inicio: recibe la clase de su celda en la fila. */
+type SectionRender = (className?: string) => ReactNode;
 
 export default async function HomePage() {
   const user = await requireSessionUser();
@@ -67,19 +96,26 @@ export default async function HomePage() {
   const base = await prisma.currency.findFirst({
     where: { isBase: true, userId: user.id },
   });
-  const [accounts, metrics, userRow, currencies] = await Promise.all([
-    listAccountsWithBalances(user.id),
-    base ? dashboardMetrics(user.id, base) : Promise.resolve(null),
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { dashboardPrefs: true },
-    }),
-    prisma.currency.findMany({
-      where: { userId: user.id, active: true },
-      orderBy: [{ isBase: "desc" }, { code: "asc" }],
-      select: { id: true, code: true },
-    }),
-  ]);
+  const [accounts, metrics, userRow, currencies, rates, upcoming] =
+    await Promise.all([
+      listAccountsWithBalances(user.id),
+      base ? dashboardMetrics(user.id, base) : Promise.resolve(null),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { dashboardPrefs: true },
+      }),
+      prisma.currency.findMany({
+        where: { userId: user.id, active: true },
+        orderBy: [{ isBase: "desc" }, { code: "asc" }],
+        select: { id: true, code: true },
+      }),
+      // cache(): dashboardMetrics ya la resolvió por dentro; no repite consulta.
+      latestRatesByCurrency(user.id),
+      // La página carga las cuotas (y no el componente) para saber ANTES de
+      // repartir columnas si «Próximos vencimientos» existe. cache(): la
+      // campana del layout comparte esta misma consulta.
+      upcomingInstallments(user.id, 7),
+    ]);
   const prefs = parseDashboardPrefs(userRow?.dashboardPrefs);
 
   // Serie de tasas solo si algún gadget la usa; si el par no tiene serie
@@ -113,16 +149,14 @@ export default async function HomePage() {
   // Monedas sin tasa: avisa si sus movimientos quedan fuera de las métricas.
   const missingRates = new Set<string>(metrics?.missingRates ?? []);
 
-  const current = metrics?.series.at(-1);
-  const previous = metrics?.series.at(-2);
-  const incomeDelta =
-    current && previous
-      ? deltaPct(current.incomeMinor, previous.incomeMinor)
-      : null;
-  const expenseDelta =
-    current && previous
-      ? deltaPct(current.expenseMinor, previous.expenseMinor)
-      : null;
+  // KPIs: saldo consolidado + flujo del mes (ingresos, gastos, neto).
+  const flow = metrics ? buildFlowKpis(metrics.series) : null;
+  const total = base ? consolidatedTotalMinor(accounts, base, rates) : null;
+  const onlyBase = base
+    ? accounts.every((a) => a.currency.id === base.id)
+    : true;
+  const deltaHint = flow?.previousLabel ? `vs. ${flow.previousLabel}` : null;
+
   const hasSeriesData =
     metrics?.series.some((m) => m.incomeMinor > 0 || m.expenseMinor > 0) ??
     false;
@@ -157,17 +191,24 @@ export default async function HomePage() {
         />
       );
     }
+    if (widget.type === "activityMap") {
+      return (
+        <ActivityMapWidget key={`widget-${widget.id}`} userId={user.id} />
+      );
+    }
+    // Lo que queda es ratePair: un tipo NUEVO necesita su rama arriba.
     const from = currencyById.get(widget.fromCurrencyId ?? "");
     const to = currencyById.get(widget.toCurrencyId ?? "");
     if (!from || !to) {
       return (
-        <div
+        <Card
           key={`widget-${widget.id}`}
-          className="rounded-2xl border border-dashed border-line bg-white p-4 text-xs text-muted"
+          dashed
+          className="text-xs text-muted"
         >
           Este gadget de tasa usa una moneda oculta o eliminada. Edítalo o
           quítalo desde «Personalizar».
-        </div>
+        </Card>
       );
     }
     return (
@@ -180,203 +221,200 @@ export default async function HomePage() {
     );
   });
 
-  // Cada sección personalizable como nodo independiente; null = no aplica
-  // (sin datos) y se omite sin dejar hueco.
-  const sectionNodes: Record<DashboardSectionKey, ReactNode | null> = {
-    widgetPanel:
-      prefs.widgets.length > 0 ? (
-        <BentoPanel key="widgetPanel" prefs={prefs}>
-          {widgetNodes}
-        </BentoPanel>
-      ) : null,
-    quickActions: (
-      <div key="quickActions" className="grid grid-cols-5 gap-2 md:max-w-lg">
-        {QUICK_ACTIONS.map((action) => {
-          const Icon = action.icon;
-          return (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-white py-3 text-[11px] font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-chip text-brand">
-                <Icon className="h-4 w-4" />
-              </span>
-              {action.label}
-            </Link>
-          );
-        })}
-      </div>
-    ),
-    monthlyChart:
-      base && metrics ? (
-        <section
-          key="monthlyChart"
-          className="rounded-2xl border border-line bg-white p-4"
-        >
-          <h2 className="mb-3 text-sm font-bold text-navy">
-            Ingresos vs gastos · últimos 6 meses
-          </h2>
+  // Cada sección personalizable como función que recibe la clase de su celda;
+  // las que no aplican (sin datos) NO se registran, así el empaquetado de
+  // filas nunca reserva columnas para un hueco.
+  const sections: Partial<Record<DashboardSectionKey, SectionRender>> = {};
+
+  if (prefs.widgets.length > 0) {
+    sections.widgetPanel = () => (
+      <BentoPanel prefs={prefs}>{widgetNodes}</BentoPanel>
+    );
+  }
+
+  // Móvil: cinco teselas con icono; escritorio: fila de botones compactos.
+  sections.quickActions = (className) => (
+    <nav
+      aria-label="Accesos rápidos"
+      className={cn(
+        "grid grid-cols-5 gap-2 @3xl/main:flex @3xl/main:flex-wrap",
+        className
+      )}
+    >
+      {QUICK_ACTIONS.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-line bg-card px-1 py-2.5 text-[11px] font-medium text-ink-soft transition-colors hover:bg-subtle hover:text-heading @3xl/main:flex-row @3xl/main:gap-2 @3xl/main:px-3.5 @3xl/main:py-2 @3xl/main:text-sm"
+          >
+            <span className="flex size-8 items-center justify-center rounded-lg bg-chip text-brand-ink @3xl/main:size-auto @3xl/main:bg-transparent">
+              <Icon className="size-4" />
+            </span>
+            {action.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  if (base && metrics) {
+    sections.monthlyChart = (className) => (
+      <Card asChild className={className}>
+        <section>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-heading">
+                Ingresos vs gastos
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">
+                Últimos 6 meses · {base.code}
+              </p>
+            </div>
+            <MonthlyBarsLegend />
+          </div>
           {hasSeriesData ? (
             <MonthlyBars series={metrics.series} currency={base} />
           ) : (
-            <p className="py-6 text-center text-sm text-muted">
+            <p className="py-8 text-center text-sm text-muted">
               Registra movimientos para ver la evolución mensual.
             </p>
           )}
         </section>
-      ) : null,
-    topCategories:
-      base && metrics && metrics.topCategories.length > 0 ? (
-        <section
-          key="topCategories"
-          className="rounded-2xl border border-line bg-white p-4"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-navy">
-              Top gastos del mes
-            </h2>
-            <Link
-              href="/movimientos"
-              className="text-xs font-semibold text-brand-mid hover:text-brand"
-            >
-              Ver todo
-            </Link>
-          </div>
-          <div className="flex flex-col gap-2.5">
+      </Card>
+    );
+  }
+
+  if (base && metrics && metrics.topCategories.length > 0) {
+    sections.topCategories = (className) => (
+      <Card asChild className={className}>
+        <section>
+          <SectionHeader
+            size="sm"
+            title="Top gastos del mes"
+            action={{ href: "/movimientos", label: "Ver todo" }}
+          />
+          <div className="flex flex-col gap-3">
             {metrics.topCategories.map((category) => (
               <div key={category.name}>
-                <div className="flex items-baseline justify-between text-xs">
-                  <span className="font-semibold text-ink-soft">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="truncate text-ink-soft">
                     {category.name}
                   </span>
-                  <span className="font-bold text-navy">
+                  <span className="money flex-none font-semibold text-heading">
                     {fmtMinor(category.totalMinor, base)}
                   </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-app">
-                  <div
-                    className="grad-progress h-2 rounded-full"
-                    style={{
-                      width: `${Math.max(
-                        4,
-                        Math.round(
-                          (category.totalMinor / Math.max(1, maxCategory)) * 100
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
+                <ProgressBar
+                  className="mt-1.5"
+                  percent={(category.totalMinor / Math.max(1, maxCategory)) * 100}
+                  minPercent={4}
+                />
               </div>
             ))}
           </div>
         </section>
-      ) : null,
-    upcomingInstallments: (
-      <UpcomingInstallments key="upcomingInstallments" userId={user.id} />
-    ),
-    accounts: (
-      <section key="accounts">
-        <div className="mb-2.5 flex items-center justify-between">
-          <h2 className="text-base font-bold text-navy">Cuentas</h2>
-          <Link
-            href="/cuentas/nueva"
-            className="text-xs font-semibold text-brand-mid hover:text-brand"
-          >
-            + Nueva cuenta
-          </Link>
-        </div>
-
-        {accounts.length === 0 ? (
-          <EmptyState
-            icon={Wallet}
-            title="Sin cuentas todavía"
-            description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
-            ctaLabel="Crear cuenta"
-            ctaHref="/cuentas/nueva"
-          />
-        ) : visibleAccounts.length === 0 ? (
-          <p className="rounded-2xl border border-line bg-white px-4 py-5 text-center text-sm text-muted">
-            Todas las cuentas están ocultas. Elige cuáles mostrar en
-            «Personalizar Inicio».
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 lg:grid-cols-3">
-            {visibleAccounts.map((account) => {
-              const Icon = getAccountIcon(account.icon, account.type);
-              const negative = account.balanceMinor < 0;
-              return (
-                <Link
-                  key={account.id}
-                  href={`/cuentas/${account.id}`}
-                  className="flex items-center gap-3.5 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-brand-soft"
-                >
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-navy">
-                      {account.name}
-                    </div>
-                    <div className="text-xs text-muted">
-                      {account.currency.code}
-                    </div>
-                  </div>
-                  <div
-                    className={`text-base font-bold whitespace-nowrap ${
-                      negative ? "text-danger" : "text-navy"
-                    }`}
-                  >
-                    {fmtMinor(account.balanceMinor, account.currency)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
-    ),
-  };
-
-  // Renderiza en el orden elegido; las secciones "media" consecutivas
-  // (gráfico y top gastos) comparten fila en escritorio como antes.
-  const blocks: ReactNode[] = [];
-  let halfRun: ReactNode[] = [];
-  let halfRunKey = "";
-  const flushHalfRun = () => {
-    if (halfRun.length === 0) return;
-    blocks.push(
-      halfRun.length === 1 ? (
-        halfRun[0]
-      ) : (
-        <div key={`half-${halfRunKey}`} className="grid gap-6 lg:grid-cols-2">
-          {halfRun}
-        </div>
-      )
+      </Card>
     );
-    halfRun = [];
-    halfRunKey = "";
-  };
-  for (const section of prefs.sections) {
-    if (!section.visible) continue;
-    const node = sectionNodes[section.key as DashboardSectionKey];
-    if (!node) continue;
-    if (HALF_SECTIONS.has(section.key as DashboardSectionKey)) {
-      halfRun.push(node);
-      halfRunKey = halfRunKey ? halfRunKey : section.key;
-    } else {
-      flushHalfRun();
-      blocks.push(node);
-    }
   }
-  flushHalfRun();
+
+  if (upcoming.length > 0) {
+    sections.upcomingInstallments = (className) => (
+      <UpcomingInstallments rows={upcoming} className={className} />
+    );
+  }
+
+  sections.accounts = (className) => (
+    <section className={className}>
+      <SectionHeader
+        title="Cuentas"
+        action={{ href: "/cuentas/nueva", label: "+ Nueva cuenta" }}
+      />
+
+      {accounts.length === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          title="Sin cuentas todavía"
+          description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
+          ctaLabel="Crear cuenta"
+          ctaHref="/cuentas/nueva"
+        />
+      ) : visibleAccounts.length === 0 ? (
+        <Card className="py-5 text-center text-sm text-muted">
+          Todas las cuentas están ocultas. Elige cuáles mostrar en
+          «Personalizar Inicio».
+        </Card>
+      ) : (
+        // Cada cuenta es UN solo enlace (nombre, tipo · moneda y saldo): los
+        // tests E2E la localizan así.
+        <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
+          {visibleAccounts.map((account) => {
+            const Icon = getAccountIcon(account.icon, account.type);
+            const negative = account.balanceMinor < 0;
+            return (
+              <Link
+                key={account.id}
+                href={`/cuentas/${account.id}`}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle/60"
+              >
+                <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                  <Icon className="size-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-heading">
+                    {account.name}
+                  </div>
+                  <div className="truncate text-xs text-muted">
+                    {ACCOUNT_TYPE_LABELS[account.type as AccountType] ??
+                      account.type}{" "}
+                    · {account.currency.code}
+                  </div>
+                </div>
+                <div
+                  className={`money text-[15px] font-semibold whitespace-nowrap ${
+                    negative ? "text-danger" : "text-heading"
+                  }`}
+                >
+                  {fmtMinor(account.balanceMinor, account.currency)}
+                </div>
+              </Link>
+            );
+          })}
+        </Card>
+      )}
+    </section>
+  );
+
+  // Orden y visibilidad del usuario → filas de 12 columnas en escritorio
+  // (8/4, 6/6 o 12). En móvil cada fila es una sola columna.
+  const visibleKeys = prefs.sections
+    .filter((section) => section.visible)
+    .map((section) => section.key as DashboardSectionKey)
+    .filter((key) => sections[key] !== undefined);
+  const rows = packDashboardRows(visibleKeys, (key) => SECTION_WIDTH[key]);
+
+  const totalParts =
+    base && total ? fmtMinorParts(total.totalMinor, base) : null;
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
-        title={APP_NAME}
+        title="Inicio"
+        subtitle={
+          base ? (
+            <span className="inline-block first-letter:uppercase">
+              {MONTH_NAME.format(new Date())} · cifras en {base.code}
+            </span>
+          ) : (
+            "Tu resumen de cuentas, movimientos y compromisos"
+          )
+        }
+        leading={
+          <BrandMark className="size-9 flex-none md:hidden" idPrefix="fe-home" />
+        }
         actions={
-          <div className="flex items-center gap-2.5">
+          <>
             <DashboardCustomizer
               prefs={prefs}
               accounts={accounts.map((account) => ({
@@ -387,97 +425,130 @@ export default async function HomePage() {
               }))}
               currencies={currencies}
             />
-            <InstallmentNotifications userId={user.id} />
-            <div className="md:hidden">
+            {/* En escritorio la campana y el usuario viven en la barra
+                superior y la barra lateral. */}
+            <div className="flex items-center gap-1 md:hidden">
+              <NotificationsBell items={toInstallmentNotices(upcoming)} />
               <UserMenu userName={user.name} userEmail={user.email} />
             </div>
-          </div>
+          </>
         }
-      >
-        <div className="mt-3">
-          {missingRates.size > 0 && (
-            <div className="mt-1 text-xs text-white/80">
-              Sin tasa para {[...missingRates].join(", ")} ·{" "}
-              <Link href="/tasas" className="underline">
-                registrar tasa
-              </Link>
-            </div>
-          )}
-          {base && current && metrics && (
-            <div className="mt-3.5 flex flex-wrap gap-2">
-              {[
-                {
-                  label: "Ingresos mes",
-                  value: fmtMinor(current.incomeMinor, base),
-                  delta: incomeDelta,
-                  deltaGood: incomeDelta !== null && incomeDelta >= 0,
-                },
-                {
-                  label: "Gastos mes",
-                  value: fmtMinor(current.expenseMinor, base),
-                  delta: expenseDelta,
-                  deltaGood: expenseDelta !== null && expenseDelta <= 0,
-                },
-                {
-                  label: "Neto mes",
-                  value: fmtMinor(
-                    current.incomeMinor - current.expenseMinor,
-                    base
-                  ),
-                  delta: null,
-                  deltaGood: true,
-                },
-                ...(metrics.receivableMinor > 0
-                  ? [
-                      {
-                        label: "Por cobrar",
-                        value: fmtMinor(metrics.receivableMinor, base),
-                        delta: null,
-                        deltaGood: true,
-                      },
-                    ]
-                  : []),
-                ...(metrics.payableMinor > 0
-                  ? [
-                      {
-                        label: "Por pagar",
-                        value: fmtMinor(metrics.payableMinor, base),
-                        delta: null,
-                        deltaGood: true,
-                      },
-                    ]
-                  : []),
-              ].map((chip) => (
-                <div
-                  key={chip.label}
-                  className="rounded-xl bg-white/10 px-3 py-1.5 backdrop-blur-sm"
-                >
-                  <div className="text-[11px] font-medium tracking-wide text-white/80 uppercase">
-                    {chip.label}
-                  </div>
-                  <div className="text-sm font-bold whitespace-nowrap">
-                    {chip.value}
-                    {chip.delta !== null && (
-                      <span
-                        className={`ml-1.5 text-[11px] font-semibold ${
-                          chip.deltaGood ? "text-brand-soft" : "text-[#f2a9b4]"
-                        }`}
-                      >
-                        {chip.delta >= 0 ? "+" : ""}
-                        {chip.delta}%
+      />
+
+      <PageBody className="gap-6">
+        {missingRates.size > 0 && (
+          <p className="rounded-xl bg-warn-bg px-3.5 py-2.5 text-xs font-medium text-warn">
+            Sin tasa para {[...missingRates].join(", ")}: sus montos no entran
+            en estas cifras.{" "}
+            <Link href="/tasas" className="underline">
+              Registrar tasa
+            </Link>
+          </p>
+        )}
+
+        {!base && (
+          <Card className="text-sm text-muted">
+            Define una moneda base en{" "}
+            <Link href="/monedas" className="font-semibold text-brand-ink">
+              Monedas
+            </Link>{" "}
+            para ver el saldo total y las métricas del mes.
+          </Card>
+        )}
+
+        {base && total && totalParts && (
+          <StatGrid cols={4}>
+            <StatCard
+              label="Saldo total"
+              value={
+                total.complete
+                  ? `${onlyBase ? "" : "≈ "}${totalParts.amount}`
+                  : "—"
+              }
+              unit={total.complete ? totalParts.code : undefined}
+              tone={total.complete && total.totalMinor < 0 ? "danger" : "default"}
+              hint={
+                !total.complete ? (
+                  <>
+                    Falta la tasa de {total.missing.join(", ")} ·{" "}
+                    <Link href="/tasas" className="font-semibold text-brand-ink">
+                      registrar
+                    </Link>
+                  </>
+                ) : metrics &&
+                  (metrics.receivableMinor > 0 || metrics.payableMinor > 0) ? (
+                  <>
+                    {metrics.receivableMinor > 0 && (
+                      <span className="block">
+                        Por cobrar {fmtMinor(metrics.receivableMinor, base)}
                       </span>
                     )}
-                  </div>
-                </div>
+                    {metrics.payableMinor > 0 && (
+                      <span className="block">
+                        Por pagar {fmtMinor(metrics.payableMinor, base)}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  `${accounts.length} ${accounts.length === 1 ? "cuenta" : "cuentas"}`
+                )
+              }
+            />
+            {flow && (
+              <>
+                <StatCard
+                  label="Ingresos del mes"
+                  value={fmtMinorParts(flow.income.valueMinor, base).amount}
+                  unit={base.code}
+                  delta={flow.income.delta}
+                  deltaGood={flow.income.deltaGood}
+                  hint={flow.income.delta !== null ? deltaHint : null}
+                  sparkline={flow.income.series}
+                />
+                <StatCard
+                  label="Gastos del mes"
+                  value={fmtMinorParts(flow.expense.valueMinor, base).amount}
+                  unit={base.code}
+                  delta={flow.expense.delta}
+                  deltaGood={flow.expense.deltaGood}
+                  hint={flow.expense.delta !== null ? deltaHint : null}
+                  sparkline={flow.expense.series}
+                  sparklineColor="var(--color-chart-2)"
+                />
+                <StatCard
+                  label="Neto del mes"
+                  value={fmtMinorParts(flow.net.valueMinor, base).amount}
+                  unit={base.code}
+                  tone={flow.net.valueMinor < 0 ? "danger" : "default"}
+                  delta={flow.net.delta}
+                  deltaGood={flow.net.deltaGood}
+                  hint={flow.net.delta !== null ? deltaHint : null}
+                  sparkline={flow.net.series}
+                />
+              </>
+            )}
+          </StatGrid>
+        )}
+
+        {rows.map((row) =>
+          row.cells.length === 1 ? (
+            <Fragment key={row.cells[0].key}>
+              {sections[row.cells[0].key]!()}
+            </Fragment>
+          ) : (
+            <div
+              key={row.cells.map((cell) => cell.key).join("+")}
+              className="grid gap-6 @4xl/main:grid-cols-12 @4xl/main:gap-5"
+            >
+              {row.cells.map((cell) => (
+                <Fragment key={cell.key}>
+                  {sections[cell.key]!(SPAN[cell.span])}
+                </Fragment>
               ))}
             </div>
-          )}
-        </div>
-      </ScreenHeader>
-
-      <div className="anim-fade-up flex flex-col gap-6 px-5 pt-5 md:px-0">
-        {blocks}
-      </div>
-    </main>
+          )
+        )}
+      </PageBody>
+    </Page>
   );
 }
