@@ -15,14 +15,10 @@ import {
   Trash2,
 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  FormDrawer,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from "@/components/form-drawer";
 import {
   Select,
   SelectContent,
@@ -32,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { saveDashboardPrefs } from "@/app/actions/dashboard-actions";
+import { runAction } from "@/lib/run-action";
 import {
   DASHBOARD_SECTIONS,
   DEFAULT_WIDGET_SIZE,
@@ -350,7 +347,11 @@ export function DashboardCustomizer({
   const save = async () => {
     setSaving(true);
     setError(null);
-    const result = await saveDashboardPrefs({ sections, widgets, accountIds });
+    // runAction: un fallo de red vuelve como error en vez de dejar el
+    // drawer bloqueado en «Guardando…».
+    const result = await runAction(() =>
+      saveDashboardPrefs({ sections, widgets, accountIds })
+    );
     setSaving(false);
     if (result.success) {
       setOpen(false);
@@ -388,32 +389,29 @@ export function DashboardCustomizer({
   );
 
   return (
-    <Sheet open={open} onOpenChange={openSheet}>
-      <SheetTrigger asChild>
-        <button
-          type="button"
-          aria-label="Personalizar Inicio"
-          className="flex size-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-card text-ink-soft transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:w-auto md:px-3 dense:h-9"
-        >
-          <SlidersHorizontal className="h-[18px] w-[18px]" />
-          <span className="hidden text-sm font-medium md:inline">
-            Personalizar
-          </span>
-        </button>
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="mx-auto max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border-line sm:max-w-md"
+    <>
+      <button
+        type="button"
+        aria-label="Personalizar Inicio"
+        onClick={() => openSheet(true)}
+        className="flex size-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-card text-ink-soft transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:w-auto md:px-3 dense:h-9"
       >
-        <SheetHeader className="pb-0">
-          <SheetTitle className="text-base text-heading">
-            Personalizar Inicio
-          </SheetTitle>
-          <SheetDescription className="text-sm text-muted">
-            Ordena y oculta secciones, y arma tu panel de gadgets.
-          </SheetDescription>
-        </SheetHeader>
-
+        <SlidersHorizontal className="h-[18px] w-[18px]" />
+        <span className="hidden text-sm font-medium md:inline">
+          Personalizar
+        </span>
+      </button>
+      {/* Hoja inferior en móvil y panel lateral en escritorio; `busy` impide
+          cerrarla (overlay, Escape, Atrás) con el guardado en curso. */}
+      <FormDrawer
+        open={open}
+        onClose={() => openSheet(false)}
+        title="Personalizar Inicio"
+        description="Ordena y oculta secciones, y arma tu panel de gadgets."
+        busy={saving}
+      >
+        {/* Los bloques de dentro traen su propio margen lateral (mx-4/px-4). */}
+        <FormDrawerBody className="px-1">
         <div className="flex flex-col gap-2 px-4">
           {sections.map((item, index) => (
             <div
@@ -796,7 +794,8 @@ export function DashboardCustomizer({
           </div>
         )}
 
-        <SheetFooter className="flex-row gap-2 pt-2">
+        </FormDrawerBody>
+        <FormDrawerFooter>
           <Button
             type="button"
             variant="ghost"
@@ -821,8 +820,8 @@ export function DashboardCustomizer({
           >
             {saving ? "Guardando…" : "Guardar"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </FormDrawerFooter>
+      </FormDrawer>
+    </>
   );
 }

@@ -1,16 +1,21 @@
 import { notFound } from "next/navigation";
+import { Plus } from "lucide-react";
+import { SplitLayout } from "@/components/content-grid";
+import { DenominationForm } from "@/components/denomination-form";
+import { PanelDrawer } from "@/components/form-drawer";
 import { Page, PageBody } from "@/components/page";
+import { PanelButton } from "@/components/panel-button";
 import { ScreenHeader } from "@/components/screen-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
-import { cn } from "@/lib/utils";
 import {
-  DenominationForm,
-  DenominationGrid,
+  DenominationManager,
   type DenominationItem,
 } from "./denomination-manager";
 import { CurrencyKindEditor } from "./currency-kind-editor";
+import { NEW_DENOMINATION_PANEL } from "../panels";
 
 export const dynamic = "force-dynamic";
 
@@ -66,38 +71,54 @@ export default async function MonedaDetallePage({
         title={`${currency.code} · ${currency.name}`}
         subtitle={subtitle}
         backHref="/monedas"
+        actions={
+          // Una moneda digital no lleva billetes ni monedas.
+          !isDigital && (
+            <PanelButton
+              panel={NEW_DENOMINATION_PANEL}
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Nueva
+            </PanelButton>
+          )
+        }
       />
-      <PageBody>
-        <div className="grid gap-5 @4xl/main:grid-cols-12">
-          {/* Columna lateral: primera en el DOM (arriba en móvil) y a la
-              derecha en escritorio. En anchos intermedios sus dos tarjetas
-              se ponen lado a lado. */}
-          <div
-            className={cn(
-              "grid min-w-0 content-start gap-5 @4xl/main:order-2 @4xl/main:col-span-4",
-              !isDigital && "@2xl/main:grid-cols-2 @4xl/main:grid-cols-1"
-            )}
-          >
-            <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
-            {!isDigital && <DenominationForm currency={displayCurrency} />}
-          </div>
 
-          <div className="min-w-0 @4xl/main:col-span-8">
-            {isDigital ? (
+      <PageBody>
+        {/* asideFirst: en estrecho la clasificación (compacta) va arriba;
+            con sitio pasa a la columna lateral. */}
+        <SplitLayout
+          asideFirst
+          aside={
+            <CurrencyKindEditor currencyId={currency.id} kind={currency.kind} />
+          }
+          main={
+            isDigital ? (
               <Card dashed className="py-6 text-center text-sm text-muted">
                 Esta moneda es digital: no existe en efectivo, así que no lleva
                 billetes ni monedas. Conviértela a efectivo si necesitas
                 denominaciones.
               </Card>
             ) : (
-              <DenominationGrid
+              <DenominationManager
                 currency={displayCurrency}
                 denominations={items}
               />
-            )}
-          </div>
-        </div>
+            )
+          }
+        />
       </PageBody>
+
+      {!isDigital && (
+        <PanelDrawer
+          panel={NEW_DENOMINATION_PANEL}
+          title="Nueva denominación"
+          description={`Billete o moneda de ${currency.code}`}
+        >
+          <DenominationForm currency={displayCurrency} />
+        </PanelDrawer>
+      )}
     </Page>
   );
 }

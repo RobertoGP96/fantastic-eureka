@@ -3,11 +3,21 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  FORM_DRAWER_FORM,
+  FormDrawerBody,
+  FormDrawerFooter,
+  useFormDrawer,
+} from "@/components/form-drawer";
+import { Field, FormError } from "@/components/form-field";
 import { updatePassword } from "@/app/actions/profile-actions";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
+/** Cambio de contraseña (vive en un drawer de /perfil). */
 export function PasswordForm() {
   const { showToast } = useUI();
+  const { setBusy, close } = useFormDrawer();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -16,82 +26,77 @@ export function PasswordForm() {
 
   const submit = async () => {
     setSaving(true);
+    setBusy(true);
     setError(null);
-    const result = await updatePassword({ current, next, confirm });
-    setSaving(false);
+    const result = await runAction(() =>
+      updatePassword({ current, next, confirm })
+    );
     if (result.success) {
+      // `saving` sigue en true mientras se cierra el drawer: un segundo
+      // toque ya enviaría la contraseña «actual» equivocada.
       showToast("Contraseña actualizada");
-      setCurrent("");
-      setNext("");
-      setConfirm("");
+      close();
     } else {
+      setSaving(false);
+      setBusy(false);
       setError(result.error);
     }
   };
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className={FORM_DRAWER_FORM}
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink-soft">
-          Contraseña actual
-        </span>
-        <Input
-          type="password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-      </label>
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink-soft">
-            Nueva
-          </span>
+      <FormDrawerBody>
+        <Field label="Contraseña actual">
           <Input
             type="password"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
-            placeholder="Mínimo 8"
-            autoComplete="new-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
             required
           />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink-soft">
-            Repetir
-          </span>
-          <Input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-        </label>
-      </div>
+        </Field>
 
-      {error && (
-        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
-          {error}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Nueva">
+            <Input
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder="Mínimo 8"
+              autoComplete="new-password"
+              required
+            />
+          </Field>
+          <Field label="Repetir">
+            <Input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </Field>
         </div>
-      )}
 
-      <Button
-        type="submit"
-        size="lg"
-        className="w-full"
-        disabled={saving || !current || !next || !confirm}
-      >
-        {saving ? "Cambiando…" : "Cambiar contraseña"}
-      </Button>
+        <FormError>{error}</FormError>
+      </FormDrawerBody>
+
+      <FormDrawerFooter>
+        <Button
+          type="submit"
+          size="lg"
+          className="flex-1"
+          disabled={saving || !current || !next || !confirm}
+        >
+          {saving ? "Cambiando…" : "Cambiar contraseña"}
+        </Button>
+      </FormDrawerFooter>
     </form>
   );
 }

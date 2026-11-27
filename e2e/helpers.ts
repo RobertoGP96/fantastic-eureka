@@ -34,7 +34,8 @@ export async function selectOption(
 
 /**
  * Crea una cuenta de efectivo (CASH, tipo por defecto) en CUP vía UI y
- * devuelve su nombre único. Espera la redirección a /cuentas/[id].
+ * devuelve su nombre único. /cuentas/nueva redirige al drawer «Nueva
+ * cuenta» de /cuentas; espera la navegación a /cuentas/[id].
  */
 export async function createCashAccount(
   page: Page,

@@ -1,8 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import {
+  FormDrawer,
+  FormDrawerBody,
+  FormDrawerFooter,
+} from "@/components/form-drawer";
+import { Field } from "@/components/form-field";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -28,6 +41,8 @@ interface Filters {
   categoria: string;
   tipo: string;
 }
+
+type SelectKey = "cuenta" | "categoria" | "tipo";
 
 const MONTH_FMT = new Intl.DateTimeFormat("es", {
   month: "long",
@@ -60,6 +75,13 @@ function monthLabel(mes: string): string {
   return MONTH_FMT.format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
 }
 
+/**
+ * Filtros de /movimientos, en una sola barra. El mes siempre está a la
+ * vista. Cuenta, categoría y tipo van en línea cuando la columna de
+ * contenido es ancha (`@2xl/main`); en estrecho (móvil) pasan a un drawer
+ * que abre «Filtros», y lo que está filtrando se resume en chips que se
+ * quitan de un toque. Todo se aplica al momento (el filtro vive en la URL).
+ */
 export function FilterBar({
   filters,
   accounts,
@@ -70,27 +92,85 @@ export function FilterBar({
   categories: Option[];
 }) {
   const router = useRouter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const isAllTime = filters.mes === "todos";
 
-  const apply = (next: Partial<Filters>) => {
-    const merged = { ...filters, ...next };
+  const query = (source: Filters) => {
     const params = new URLSearchParams();
-    if (merged.mes) params.set("mes", merged.mes);
-    if (merged.cuenta) params.set("cuenta", merged.cuenta);
-    if (merged.categoria) params.set("categoria", merged.categoria);
-    if (merged.tipo) params.set("tipo", merged.tipo);
-    router.replace(`/movimientos?${params.toString()}`);
+    if (source.mes) params.set("mes", source.mes);
+    if (source.cuenta) params.set("cuenta", source.cuenta);
+    if (source.categoria) params.set("categoria", source.categoria);
+    if (source.tipo) params.set("tipo", source.tipo);
+    return params.toString();
   };
 
-  const exportParams = new URLSearchParams();
-  if (filters.mes) exportParams.set("mes", filters.mes);
-  if (filters.cuenta) exportParams.set("cuenta", filters.cuenta);
-  if (filters.categoria) exportParams.set("categoria", filters.categoria);
-  if (filters.tipo) exportParams.set("tipo", filters.tipo);
+  const apply = (next: Partial<Filters>) => {
+    router.replace(`/movimientos?${query({ ...filters, ...next })}`);
+  };
+
+  // Los tres selectores, descritos una vez: se pintan compactos en la barra
+  // (ancho) o como campos dentro del drawer (estrecho).
+  const selects: {
+    key: SelectKey;
+    label: string;
+    allLabel: string;
+    options: { value: string; label: string }[];
+  }[] = [
+    {
+      key: "cuenta",
+      label: "Cuenta",
+      allLabel: "Todas las cuentas",
+      options: accounts.map((a) => ({ value: a.id, label: a.name })),
+    },
+    {
+      key: "categoria",
+      label: "Categoría",
+      allLabel: "Todas las categorías",
+      options: categories.map((c) => ({ value: c.id, label: c.name })),
+    },
+    {
+      key: "tipo",
+      label: "Tipo",
+      allLabel: "Todos los tipos",
+      options: TRANSACTION_KINDS.map((kind) => ({
+        value: kind,
+        label: TRANSACTION_KIND_LABELS[kind],
+      })),
+    },
+  ];
+
+  // Lo que está filtrando ahora mismo (sin contar el mes).
+  const active = selects.flatMap((filter) => {
+    const value = filters[filter.key];
+    if (!value) return [];
+    return [
+      {
+        key: filter.key,
+        label:
+          filter.options.find((option) => option.value === value)?.label ??
+          filter.label,
+      },
+    ];
+  });
+
+  const selectItems = (filter: (typeof selects)[number]) => (
+    <SelectContent>
+      <SelectItem value={ALL}>{filter.allLabel}</SelectItem>
+      {filter.options.map((option) => (
+        <SelectItem key={option.value} value={option.value}>
+          {option.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  );
+
+  const pick = (key: SelectKey) => (value: string) =>
+    apply({ [key]: value === ALL ? "" : value });
 
   return (
-    // Una sola barra: en móvil el selector de mes ocupa su línea y los
-    // filtros se reparten debajo; en escritorio todo cabe en una fila.
+    // Una sola barra: en móvil el selector de mes ocupa su línea y debajo van
+    // «Filtros», los chips activos y el CSV; en escritorio todo cabe en una
+    // fila.
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex h-11 w-full items-stretch overflow-hidden rounded-lg border border-line bg-card @2xl/main:w-auto dense:h-8">
         <button
@@ -126,67 +206,58 @@ export function FilterBar({
         </button>
       </div>
 
-      <Select
-        value={filters.cuenta || ALL}
-        onValueChange={(value) => apply({ cuenta: value === ALL ? "" : value })}
-      >
-        <SelectTrigger className={FILTER_TRIGGER}>
-          <span className="truncate">
-            <SelectValue placeholder="Cuenta" />
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>Todas las cuentas</SelectItem>
-          {accounts.map((account) => (
-            <SelectItem key={account.id} value={account.id}>
-              {account.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Ancho: los selectores van en la propia barra (`contents` los deja
+          como hijos directos de la fila). */}
+      <div className="hidden @2xl/main:contents">
+        {selects.map((filter) => (
+          <Select
+            key={filter.key}
+            value={filters[filter.key] || ALL}
+            onValueChange={pick(filter.key)}
+          >
+            <SelectTrigger aria-label={filter.label} className={FILTER_TRIGGER}>
+              <span className="truncate">
+                <SelectValue placeholder={filter.label} />
+              </span>
+            </SelectTrigger>
+            {selectItems(filter)}
+          </Select>
+        ))}
+      </div>
 
-      <Select
-        value={filters.categoria || ALL}
-        onValueChange={(value) =>
-          apply({ categoria: value === ALL ? "" : value })
-        }
-      >
-        <SelectTrigger className={FILTER_TRIGGER}>
-          <span className="truncate">
-            <SelectValue placeholder="Categoría" />
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>Todas las categorías</SelectItem>
-          {categories.map((category) => (
-            <SelectItem key={category.id} value={category.id}>
-              {category.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Estrecho: los selectores van en un drawer y lo activo queda a la
+          vista en chips. */}
+      <div className="contents @2xl/main:hidden">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <SlidersHorizontal className="size-3.5" />
+          Filtros
+          {active.length > 0 && (
+            <span className="money flex size-4 flex-none items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+              {active.length}
+            </span>
+          )}
+        </button>
 
-      <Select
-        value={filters.tipo || ALL}
-        onValueChange={(value) => apply({ tipo: value === ALL ? "" : value })}
-      >
-        <SelectTrigger className={FILTER_TRIGGER}>
-          <span className="truncate">
-            <SelectValue placeholder="Tipo" />
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>Todos los tipos</SelectItem>
-          {TRANSACTION_KINDS.map((kind) => (
-            <SelectItem key={kind} value={kind}>
-              {TRANSACTION_KIND_LABELS[kind]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        {active.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={() => apply({ [chip.key]: "" })}
+            aria-label={`Quitar filtro ${chip.label}`}
+            className="inline-flex min-h-8 max-w-full min-w-0 items-center gap-1 rounded-lg bg-chip py-1.5 pr-1.5 pl-2.5 text-xs font-medium text-brand-ink transition-colors hover:bg-brand-soft/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <span className="truncate">{chip.label}</span>
+            <X className="size-3.5 flex-none" />
+          </button>
+        ))}
+      </div>
 
       <a
-        href={`/api/export?${exportParams.toString()}`}
+        href={`/api/export?${query(filters)}`}
         className={buttonVariants({
           variant: "outline",
           size: "sm",
@@ -196,6 +267,43 @@ export function FilterBar({
         <Download className="size-3.5" />
         CSV
       </a>
+
+      <FormDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Filtros"
+        description="Se aplican al momento."
+        side="bottom"
+      >
+        <FormDrawerBody>
+          {selects.map((filter) => (
+            <Field key={filter.key} label={filter.label}>
+              <Select
+                value={filters[filter.key] || ALL}
+                onValueChange={pick(filter.key)}
+              >
+                <SelectTrigger variant="form" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                {selectItems(filter)}
+              </Select>
+            </Field>
+          ))}
+        </FormDrawerBody>
+        <FormDrawerFooter>
+          <Button
+            variant="ghost"
+            className="flex-none"
+            disabled={active.length === 0}
+            onClick={() => apply({ cuenta: "", categoria: "", tipo: "" })}
+          >
+            Limpiar
+          </Button>
+          <Button className="flex-1" onClick={() => setDrawerOpen(false)}>
+            Listo
+          </Button>
+        </FormDrawerFooter>
+      </FormDrawer>
     </div>
   );
 }

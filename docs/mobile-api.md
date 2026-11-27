@@ -82,16 +82,25 @@ se usa.
 ### Lápidas
 
 Solo se anotan los borrados **raíz**: `account`, `accountGroup`, `category`,
-`denomination`, `transaction`, `debt` y `paymentPlan`. Al aplicar una lápida
-el cliente borra la fila, y los hijos caen por las **mismas cascadas** que en
-el servidor:
+`denomination`, `transaction`, `debt`, `paymentPlan` y `contact`. Al aplicar
+una lápida el cliente borra la fila, y los hijos caen por las **mismas
+cascadas** que en el servidor:
 
 - cuenta → sus movimientos (de ambos lados), arqueos y abonos;
 - deuda → sus abonos, planes y cuotas;
 - plan → sus cuotas;
 - movimiento → su desglose y su abono. La cuota vinculada conserva su
   estado y solo pierde el vínculo;
-- grupo → las cuentas quedan sin grupo.
+- grupo → las cuentas quedan sin grupo;
+- contacto → sus mensualidades sueltas quedan sin contacto (además llegan
+  por pull con `contactId: null`). Un contacto con deudas no se puede
+  borrar, así que su lápida nunca arrastra deudas.
+
+**Orden al aplicar un pull:** primero `collections`, después `tombstones`.
+En una fusión de contactos (`contact.merge`) las deudas y mensualidades del
+contacto origen llegan en el MISMO pull ya apuntando al destino, junto a la
+lápida del origen: aplicada antes, la lápida se llevaría esas mensualidades
+a «sin contacto» por la cascada local.
 
 ## Push — `POST /sync/push`
 
@@ -181,11 +190,15 @@ payload es **el id como cadena**, no un objeto.
 | `tx.update` | `updateTransactionSchema` | — |
 | `tx.delete` | `idSchema` | — |
 | `cashCount.create` | `cashCountSchema` | `id`, `adjustmentTransactionId` (si se registra ajuste) |
+| `contact.create` | `contactSchema` | `id` |
+| `contact.update` | `updateContactSchema` | — |
+| `contact.delete` | `idSchema` | — |
+| `contact.merge` | `mergeContactsSchema` | — |
 | `debt.create` | `createDebtSchema` | `id`, `contactId` (si crea contacto), `planId`, `installmentId` (si trae plan) |
 | `debt.setAccount` | `setDebtAccountSchema` | — |
 | `debt.payment` | `debtPaymentSchema` | `id` (abono), `transactionId` |
 | `debt.delete` | `idSchema` | — |
-| `plan.create` | `createPlanSchema` | `id`, `installmentId` (primera cuota) |
+| `plan.create` | `createPlanSchema` | `id`, `installmentId` (primera cuota), `contactId` (si crea contacto por `contactName`) |
 | `plan.setAccount` | `setPlanAccountSchema` | — |
 | `plan.settle` | `settleInstallmentSchema` | `transactionId`, `debtPaymentId`, `nextInstallmentId` |
 | `plan.skip` | `idSchema` | `nextInstallmentId` |

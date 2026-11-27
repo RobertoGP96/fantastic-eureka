@@ -33,9 +33,11 @@ import {
  * Ids de cliente de createPlan (solo push móvil):
  *  · `id`            → el PaymentPlan.
  *  · `installmentId` → su primera Installment.
+ *  · `contactId`     → el Contact NUEVO (solo si se crea por `contactName`).
  */
 export interface CreatePlanOptions extends CreateOptions {
   installmentId?: string;
+  contactId?: string;
 }
 
 export async function createPlan(
@@ -99,31 +101,49 @@ export async function createPlan(
       return { success: false, error: "El fin no puede ser antes del inicio" };
     }
 
-    const plan = await db.paymentPlan.create({
-      data: {
-        id: clientIdOrUndefined(options.id),
-        contactId: parsed.data.contactId,
-        userId,
-        kind: parsed.data.kind,
-        description: parsed.data.description,
-        currencyId: currency.id,
-        accountId,
-        amountMinor,
-        frequency: parsed.data.frequency,
-        dayOfMonth:
-          parsed.data.frequency === "MONTHLY"
-            ? parsed.data.firstDueAt.getDate()
-            : null,
-        nextDueAt: parsed.data.firstDueAt,
-        endAt: parsed.data.endAt,
-        installments: {
-          create: {
-            id: clientIdOrUndefined(options.installmentId),
-            dueAt: parsed.data.firstDueAt,
-            amountMinor,
+    const plan = await inTx(db, async (tx) => {
+      // Contacto nuevo por nombre: se crea DENTRO de la transacción (como en
+      // createDebt) para no dejar un contacto huérfano si el plan falla.
+      const contactId =
+        parsed.data.contactId ??
+        (parsed.data.contactName
+          ? (
+              await tx.contact.create({
+                data: {
+                  id: clientIdOrUndefined(options.contactId),
+                  name: parsed.data.contactName,
+                  userId,
+                },
+              })
+            ).id
+          : undefined);
+
+      return tx.paymentPlan.create({
+        data: {
+          id: clientIdOrUndefined(options.id),
+          contactId,
+          userId,
+          kind: parsed.data.kind,
+          description: parsed.data.description,
+          currencyId: currency.id,
+          accountId,
+          amountMinor,
+          frequency: parsed.data.frequency,
+          dayOfMonth:
+            parsed.data.frequency === "MONTHLY"
+              ? parsed.data.firstDueAt.getDate()
+              : null,
+          nextDueAt: parsed.data.firstDueAt,
+          endAt: parsed.data.endAt,
+          installments: {
+            create: {
+              id: clientIdOrUndefined(options.installmentId),
+              dueAt: parsed.data.firstDueAt,
+              amountMinor,
+            },
           },
         },
-      },
+      });
     });
 
     return { success: true, data: { id: plan.id } };

@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { InstallmentNotifications } from "@/components/installment-notifications";
 import { NotificationsBellFallback } from "@/components/notifications-bell";
+import { PanelRouteReset } from "@/components/panel-route-reset";
 import { ScrollReset } from "@/components/scroll-reset";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -58,6 +59,7 @@ export default async function AppLayout({
           className="flex flex-1 flex-col md:min-h-0 md:overflow-y-auto md:[scrollbar-gutter:stable]"
         >
           <ScrollReset targetId="app-scroll" />
+          <PanelRouteReset />
           {/* @container/main: las rejillas de contenido responden al ancho
               REAL de esta columna (`@4xl/main:`), no al del viewport, que
               miente con la barra lateral abierta. Ojo: es contenedor de los

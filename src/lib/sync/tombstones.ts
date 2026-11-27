@@ -18,6 +18,9 @@ export const TOMBSTONE_COLLECTIONS = [
   "transaction",
   "debt",
   "paymentPlan",
+  // Un contacto borrado nunca tiene deudas (se bloquea); sus mensualidades
+  // sueltas quedan sin contacto y llegan además por pull con contactId null.
+  "contact",
 ] as const;
 
 export type TombstoneCollection = (typeof TOMBSTONE_COLLECTIONS)[number];

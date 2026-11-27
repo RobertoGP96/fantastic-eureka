@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { Archive, FolderOpen, Plus, Wallet } from "lucide-react";
+import { AccountForm } from "@/components/account-form";
+import { CardGrid } from "@/components/content-grid";
+import { EmptyState } from "@/components/empty-state";
+import { PanelDrawer } from "@/components/form-drawer";
+import { GroupManager } from "@/components/group-manager";
 import { Page, PageBody } from "@/components/page";
+import { PanelButton } from "@/components/panel-button";
 import { ScreenHeader } from "@/components/screen-header";
 import { SectionHeader } from "@/components/section-header";
-import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requireSessionUser } from "@/lib/auth";
@@ -19,18 +24,16 @@ import { AccountCard } from "./account-card";
 
 export const dynamic = "force-dynamic";
 
-interface Section {
+/** Drawers de la página (`/cuentas#panel=…`). */
+const NEW_ACCOUNT_PANEL = "nueva-cuenta";
+const GROUPS_PANEL = "grupos";
+
+interface AccountSection {
   key: string;
   name: string | null;
   accounts: AccountWithBalance[];
   subtotalMinor: number | null;
 }
-
-// Rejilla de teselas, la misma en cada grupo: 1 columna en móvil, 2 y 3 según
-// el ancho REAL de la columna de contenido. grid-cols-1 explícito: la columna
-// implícita (auto) crecía hasta el nombre más largo y la página desbordaba.
-const TILE_GRID =
-  "grid grid-cols-1 gap-3 @2xl/main:grid-cols-2 @4xl/main:grid-cols-3";
 
 // Las acciones secundarias de la cabecera quedan en solo icono cuando la
 // columna es estrecha (en un móvil los tres botones con texto no caben junto
@@ -42,19 +45,42 @@ const plural = (count: number, one: string, many: string) =>
 
 export default async function CuentasPage() {
   const user = await requireSessionUser();
-  const [accounts, groups, base, rates, archivedCount] = await Promise.all([
-    listAccountsWithBalances(user.id),
-    prisma.accountGroup.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.currency.findFirst({ where: { isBase: true, userId: user.id } }),
-    latestRatesByCurrency(user.id),
-    prisma.account.count({ where: { userId: user.id, archived: true } }),
-  ]);
+  const [accounts, groups, currencies, rates, archivedCount] =
+    await Promise.all([
+      listAccountsWithBalances(user.id),
+      prisma.accountGroup.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { accounts: true } },
+        },
+      }),
+      // Monedas activas: alimentan el formulario de alta (drawer).
+      prisma.currency.findMany({
+        where: { active: true, userId: user.id },
+        orderBy: [{ isBase: "desc" }, { code: "asc" }],
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          kind: true,
+          isBase: true,
+          decimalPlaces: true,
+        },
+      }),
+      latestRatesByCurrency(user.id),
+      prisma.account.count({ where: { userId: user.id, archived: true } }),
+    ]);
+  // La base puede estar oculta (inactiva): se busca aparte si no vino.
+  const base =
+    currencies.find((currency) => currency.isBase) ??
+    (await prisma.currency.findFirst({
+      where: { isBase: true, userId: user.id },
+    }));
 
-  const sections: Section[] =
+  const sections: AccountSection[] =
     groups.length > 0
       ? [
           ...groups.map((group) => ({
@@ -117,16 +143,16 @@ export default async function CuentasPage() {
                 </span>
               </Link>
             )}
-            <Link
-              href="/cuentas/grupos"
+            <PanelButton
+              panel={GROUPS_PANEL}
               title="Grupos"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               <FolderOpen className="size-3.5" />
               <span className={ACTION_LABEL}>Grupos</span>
-            </Link>
-            <Link
-              href="/cuentas/nueva"
+            </PanelButton>
+            <PanelButton
+              panel={NEW_ACCOUNT_PANEL}
               className={buttonVariants({ size: "sm" })}
             >
               {/* Con el botón de archivadas delante, en móvil el «+» se
@@ -139,7 +165,7 @@ export default async function CuentasPage() {
                 }
               />
               Nueva cuenta
-            </Link>
+            </PanelButton>
           </>
         }
       />
@@ -150,8 +176,14 @@ export default async function CuentasPage() {
             icon={Wallet}
             title="Sin cuentas todavía"
             description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
-            ctaLabel="Crear cuenta"
-            ctaHref="/cuentas/nueva"
+            cta={
+              <PanelButton
+                panel={NEW_ACCOUNT_PANEL}
+                className={buttonVariants()}
+              >
+                Crear cuenta
+              </PanelButton>
+            }
           />
         ) : (
           visible.map((section) => {
@@ -161,11 +193,7 @@ export default async function CuentasPage() {
 
             // Sin grupos no hay cabecera que pintar: la rejilla va sola.
             if (!section.name) {
-              return (
-                <div key={section.key} className={TILE_GRID}>
-                  {tiles}
-                </div>
-              );
+              return <CardGrid key={section.key}>{tiles}</CardGrid>;
             }
 
             // Totales por cada divisa usada en el grupo (sin conversión):
@@ -214,12 +242,38 @@ export default async function CuentasPage() {
                     ) : undefined
                   }
                 />
-                <div className={TILE_GRID}>{tiles}</div>
+                <CardGrid>{tiles}</CardGrid>
               </section>
             );
           })
         )}
       </PageBody>
+
+      {/* Los drawers van por portal: no cuentan para el layout de <Page>. */}
+      <PanelDrawer panel={NEW_ACCOUNT_PANEL} title="Nueva cuenta">
+        <AccountForm
+          currencies={currencies.map(({ id, code, name, kind }) => ({
+            id,
+            code,
+            name,
+            kind,
+          }))}
+          groups={groups.map(({ id, name }) => ({ id, name }))}
+        />
+      </PanelDrawer>
+      <PanelDrawer
+        panel={GROUPS_PANEL}
+        title="Grupos de cuentas"
+        description="Organiza tus cuentas. Al eliminar un grupo, sus cuentas pasan a «Sin grupo»."
+      >
+        <GroupManager
+          groups={groups.map((group) => ({
+            id: group.id,
+            name: group.name,
+            accountCount: group._count.accounts,
+          }))}
+        />
+      </PanelDrawer>
     </Page>
   );
 }

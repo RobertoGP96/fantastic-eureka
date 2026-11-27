@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { revalidateDebtFormHosts } from "@/lib/revalidate-paths";
 import type { ActionResult } from "@/lib/schemas";
 import { SESSION_EXPIRED } from "@/lib/services/context";
 import * as accountService from "@/lib/services/account-service";
@@ -23,6 +24,8 @@ export async function createAccount(
   if (result.success) {
     revalidatePath("/");
     revalidatePath("/cuentas");
+    // Las cuentas alimentan los formularios de deuda y mensualidad.
+    revalidateDebtFormHosts();
   }
   return result;
 }
@@ -60,6 +63,7 @@ export async function updateAccount(
     revalidatePath("/");
     revalidatePath("/cuentas");
     revalidatePath(`/cuentas/${result.data.id}`);
+    revalidateDebtFormHosts();
   }
   return result;
 }
@@ -80,7 +84,7 @@ export async function deleteAccount(
     revalidatePath("/cuentas");
     revalidatePath("/conteo");
     revalidatePath("/movimientos");
-    revalidatePath("/deudas");
+    revalidateDebtFormHosts();
   }
   return result;
 }

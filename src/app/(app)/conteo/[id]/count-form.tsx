@@ -62,8 +62,10 @@ export function CountForm({
     if (result.success) {
       // `saving` sigue en true mientras navega: evita un arqueo duplicado.
       showToast("Arqueo guardado");
-      router.push(`/cuentas/${account.id}`);
-      router.refresh();
+      // Diferido: navegar en el mismo tick en que resuelve la action hace
+      // que Next descarte su resultado y vuelva a pedir la página. Sin
+      // `router.refresh()`: la action ya revalida la cuenta y /conteo.
+      setTimeout(() => router.push(`/cuentas/${account.id}`), 0);
     } else {
       setSaving(false);
       setError(result.error);

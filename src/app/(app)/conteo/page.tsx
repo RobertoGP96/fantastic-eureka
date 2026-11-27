@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { fmtMinor, fmtSignedMinor } from "@/lib/format";
 import { isCashLikeType } from "@/lib/domain";
+import { panelHref } from "@/lib/panel-core";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,8 @@ export default async function ConteoPage() {
                 title="Sin cajas de efectivo"
                 description="Crea una cuenta de tipo Efectivo o Caja (denominaciones) para poder hacer arqueos."
                 ctaLabel="Crear cuenta"
-                ctaHref="/cuentas/nueva"
+                // El alta de cuenta es un drawer de /cuentas.
+                ctaHref={panelHref("/cuentas", "nueva-cuenta")}
               />
             </div>
           ) : (

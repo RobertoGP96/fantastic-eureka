@@ -70,7 +70,10 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   (`src/lib/run-action.ts`), que convierte un fallo de red en un
   `ActionResult` de error, y `saving` solo vuelve a false en la rama de
   error: tras un éxito el botón sigue deshabilitado mientras navega (si no,
-  un segundo toque duplicaba el registro).
+  un segundo toque duplicaba el registro). Los formularios que viven en un
+  drawer usan además `useFormDrawer()` (`setBusy` bloquea el cierre mientras
+  guarda; `close()` / `closeAndGo(href)` al terminar) y NO llaman a
+  `router.refresh()`: la action ya revalida y los datos llegan por props.
 - **Errores de servicio**: el `catch` genérico de un servicio devuelve
   `unexpectedFailure(scope, error, mensaje)` (`services/context.ts`), que
   marca `retryable` cuando el fallo es de infraestructura (conexión, pool,
@@ -119,15 +122,17 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
   derivado (PENDING + dueAt pasado), no hay cron. `/deudas` lista TODAS las
-  deudas sin filtro por defecto (chips Todas/Por cobrar/Por pagar vía
+  deudas sin filtro por defecto (filtro Todas/Por cobrar/Por pagar vía
   `?dir=cobrar|pagar`; antes el default RECEIVABLE escondía las por pagar) y
   las saldadas/canceladas NO desaparecen: van a la sección «Historial»
-  (badge Saldada/Cancelada). Cabecera con el pendiente por moneda separado
-  en «Me deben» / «Debo»; cada tarjeta lleva avatar de iniciales, barra de
-  progreso del abonado y badge de la próxima cuota. Deudas y
+  (badge Saldada/Cancelada). Dos KPIs con el pendiente por moneda, «Me
+  deben» / «Debo» (`src/components/totals-stat-card.tsx`), calculados
+  ANTES del filtro: la dirección se filtra en memoria. Cada fila lleva
+  avatar de iniciales, barra de progreso del abonado y badge de la próxima
+  cuota. En el detalle el abono se registra en el drawer `abono`. Deudas y
   planes se pueden ELIMINAR desde su detalle
-  (`src/components/delete-entity-button.tsx`, confirmación inline →
-  `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
+  (`src/components/delete-entity-button.tsx`, confirmación en
+  `ConfirmDrawer` → `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
   vinculados y cuotas — DebtPayment es Restrict y se borra antes; las
   cuotas caen por Cascade) pero los movimientos de las cuentas se
   CONSERVAN (los saldos no cambian; el movimiento solo pierde el vínculo).
@@ -138,9 +143,10 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   NOMBRE DEL CONTACTO (`contact` propio o el de la deuda), frecuencia,
   cuotas saldadas y badge de vencimiento; filtros Todas/Que pago/Que cobro
   (`?tipo=pagar|cobrar`) y sección «Finalizadas» para los inactivos. Si la
-  próxima cuota vence en ≤7 días (o ya venció) la tarjeta trae el
-  `SettleInstallment` embebido: se despachan varias mensualidades sin entrar
-  al detalle. La cabecera suma el compromiso mensual por moneda separando
+  próxima cuota vence en ≤7 días (o ya venció) la fila trae el
+  `SettleInstallment` embebido (`planCanSettle` en `plan-card.tsx`): se
+  despachan varias mensualidades sin entrar al detalle. Los KPIs suman el
+  compromiso mensual por moneda (antes del filtro) separando
   pago/cobro — lógica pura en `src/lib/plans-core.ts` (con tests):
   `monthlyEquivalentMinor` (semanal ×52/12, quincenal ×26/12, ONCE = 0),
   `monthlyCommitmentByCurrency`, `nextPending`, `comparePlansByUrgency` y
@@ -156,8 +162,9 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   (`defaultAccountId`) y llevan `key` por cuenta para re-inicializarse al
   cambiarla.
 - **Grupos de cuentas**: `AccountGroup` (borrar → cuentas a "Sin grupo" vía
-  onDelete: SetNull). Gestión en `/cuentas/grupos`, asignación en el detalle
-  de cuenta y al crearla; el listado `/cuentas` agrupa con subtotal
+  onDelete: SetNull). Gestión en el drawer «Grupos» de `/cuentas`
+  (`src/components/group-manager.tsx`), asignación al crear la cuenta y en
+  el drawer «Editar cuenta» de su detalle; el listado `/cuentas` agrupa con subtotal
   consolidado en base (prefijo «≈») MÁS chips con el total por cada divisa
   usada en el grupo (`totalsByCurrency` en `balances-core.ts`, con tests) —
   los chips se omiten solo si el grupo entero está en la base, y se muestran
@@ -204,8 +211,10 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   NO se re-renderiza al navegar: la campana se refresca con cada acción que
   revalida y al recargar.
 - **Editar/eliminar cuentas**: en el detalle,
-  `src/components/account-editor.tsx` (renombrar, archivar/activar y
-  eliminar con confirmación inline que avisa del borrado del historial).
+  `src/components/account-manage.tsx` (archivar/activar y eliminar con
+  `ConfirmDrawer` que avisa del borrado del historial) y el drawer «Editar
+  cuenta» (`account-edit-form.tsx`: nombre, icono y grupo en un solo
+  formulario que envía solo lo que cambió).
   `deleteAccount` borra en cascada TODO el historial: movimientos por ambos
   lados (incluidas transferencias con otras cuentas), arqueos y los
   DebtPayment de esos movimientos (FK Restrict — se borran antes y el
@@ -277,7 +286,9 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   exige moneda sin denominaciones y sin cuentas de efectivo/caja.
 - **Monedas**: gestionables en `/monedas` (crear con clasificación, ocultar,
   cambiar base, denominaciones por divisa). Denominaciones (`/monedas/[id]`) y categorías
-  (`/categorias`) se editan/renombran y eliminan desde un menú ⋮ por ítem;
+  (`/categorias`) se crean y editan en drawer (`denomination-form.tsx`,
+  `category-form.tsx`) y se eliminan con `ConfirmDrawer`, desde un menú ⋮
+  por ítem (con `modal={false}` para no disputarle el foco al drawer);
   eliminar (y editar denominaciones) solo si no tienen uso (arqueos/
   movimientos) — con uso, ocultar (validado en la action y avisado en el UI).
   `minorToAmountInput()` en `src/lib/money.ts` convierte menores → texto de
@@ -330,8 +341,10 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   iguales = 6/6, sola = 12). Una sección sin datos NO se registra, así no
   deja hueco: por eso la página carga ella misma las cuotas próximas.
 - **Rendimiento de navegación**: skeleton global en
-  `src/app/(app)/loading.tsx` (todas las páginas son force-dynamic: sin él no
-  hay feedback al navegar) y `experimental.staleTimes.dynamic = 30` en
+  `src/app/(app)/loading.tsx` y uno por sección (el `loading.tsx` de cada
+  carpeta, con las siluetas de `src/components/page-skeleton.tsx`: lista en
+  rejilla o detalle en dos columnas). Todas las páginas son force-dynamic:
+  sin ellos no hay feedback al navegar. Además `experimental.staleTimes.dynamic = 30` en
   `next.config.ts` (el router del cliente reusa la página 30 s). Ese cache
   depende de que TODA server action que mute datos llame `revalidatePath` —
   regla existente, ahora obligatoria.
@@ -344,6 +357,75 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   la transparencia), rasterizados con sharp. El matcher de
   `src/middleware.ts` EXCLUYE manifest.webmanifest, apple-icon.png e
   `/icons/` — Safari los pide sin cookie al añadir a inicio.
+- **Contactos** (`/contactos`): las personas de deudas y mensualidades son
+  administrables. Servicio `src/lib/services/contact-service.ts`
+  (crear/editar/eliminar/fusionar) + `src/app/actions/contact-actions.ts`;
+  lógica pura en `src/lib/contacts-core.ts` (con tests: `normalizeContactName`
+  sin acentos ni mayúsculas, `filterContacts`, `resolveContactInput`,
+  `contactBalances` «me debe / le debo» por moneda, `mergeNotes`). Reglas:
+  el nombre no se repite al crear ni al renombrar (comparado en JS con
+  `normalizeContactName`; NO hay unicidad en BD porque existen duplicados
+  antiguos — cada deuda creaba su contacto); un contacto CON DEUDAS no se
+  elimina (FK Restrict: se eliminan antes o se FUSIONA con otro —
+  `mergeContacts` mueve deudas y planes al destino y borra el origen); sus
+  mensualidades sueltas quedan «Sin contacto». Toda fila que cambia de
+  contacto se actualiza con `updatedAt` EXPLÍCITO (el SET NULL de Postgres
+  no lo toca y el pull móvil depende de él) y el borrado anota la lápida
+  `contact`. Lista con buscador (`contacts-browser.tsx`, filtra en cliente)
+  y ficha `/contactos/[id]` con sus deudas, mensualidades e historial y los
+  drawers editar · fusionar · nueva deuda · nueva mensualidad (nombres en
+  `contactos/[id]/panels.ts`). En los formularios de deuda y mensualidad el
+  contacto se elige con `ContactPicker` (`src/components/contact-picker.tsx`):
+  un campo de texto que sugiere los existentes; NO llama a ninguna action —
+  el texto se resuelve con `resolveContactInput` (coincidencia exacta
+  normalizada → existente; si no → `contactName`, que `createDebt` /
+  `createPlan` crean en la MISMA transacción); con el contacto ya fijado
+  (alta desde su ficha) se pinta `FixedContact`. Las filas de deuda y
+  mensualidad son compartidas entre las listas y la ficha (`debt-card.tsx`:
+  `DebtCard`/`ClosedDebtRow`; `plan-card.tsx`: `PlanCard`/`EndedPlanRow`;
+  datos e `include` en `src/lib/debt-cards.ts`): NO traen marco, van
+  dentro de UNA `Card padding="none"` con `divide-y`, y `DebtCard` es UN
+  solo enlace con todo su texto dentro (así la localizan los E2E).
+- **Drawers**: TODO formulario corto vive en un drawer — hoja inferior
+  deslizable en móvil, panel lateral derecho en md+ — salvo `/registrar`,
+  el arqueo `/conteo/[id]` y la edición de movimiento, que siguen siendo
+  páginas. Piezas: `src/components/ui/drawer.tsx` (vaul) →
+  `src/components/form-drawer.tsx` (`FormDrawer` controlado por estado,
+  `PanelDrawer` con nombre, `FormDrawerBody`/`FormDrawerFooter`,
+  `useFormDrawer`) → `confirm-drawer.tsx` (confirmaciones destructivas,
+  siempre hoja inferior). Un `PanelDrawer` se abre con `PanelButton` /
+  `openPanel(nombre)` (`src/hooks/use-panel.ts`, estado de módulo) o
+  llegando por un enlace `…#panel=<nombre>` (`panelHref`,
+  `src/lib/panel-core.ts` con tests): el fragmento es SOLO enlace de entrada
+  y se quita al abrir. Las antiguas rutas `/x/nueva` son `redirects()` de
+  `next.config.ts` hacia esos fragmentos — ningún enlace interno debe
+  apuntar a ellas. El botón Atrás cierra el drawer mediante una entrada
+  centinela del historial con la MISMA URL
+  (`src/hooks/use-dismiss-on-back.ts`). La página que hospeda un drawer
+  carga las opciones de su formulario y se las pasa por props
+  (`src/lib/form-options.ts`); una action que cambie esas opciones debe
+  revalidar la página ANFITRIONA (`src/lib/revalidate-paths.ts`). Las
+  constantes compartidas entre una página servidor y sus componentes
+  cliente (nombres de panel) van en un módulo sin "use client". El
+  drawer se pinta por portal: dentro NO llegan las variantes `@…/main`
+  (maquetación simple, sin rejillas de contenedor).
+- **Rejillas y piezas de página** (sobre los primitivos de «Tema»):
+  `src/components/content-grid.tsx` — `CardGrid` (teselas 1 → 2 → 3
+  columnas; `cols={2}` dentro de un detalle) y `SplitLayout` (principal 8
+  + lateral 4, `asideFirst` si el lateral va antes en móvil), ambos con
+  las container queries `@…/main`. Además `section.tsx` (`Section` =
+  `<section>` + `SectionHeader`, que es como los E2E localizan las
+  secciones), `section-tabs.tsx` (`DebtsTabs`, sobre `SegmentedLinks`),
+  `form-field.tsx` (`Field` con el `<label>` ENVOLVIENDO al control y
+  `FormError`; los Select de formulario son `SelectTrigger variant="form"
+  className="w-full"` y las elecciones excluyentes `Segmented
+  layout="fill"`), `entity-avatar.tsx` (iniciales con
+  `src/lib/initials.ts`) y `page-skeleton.tsx` (`ListSkeleton` /
+  `DetailSkeleton` para los `loading.tsx` de cada sección). `EmptyState`
+  acepta `cta` (nodo) para abrir un drawer en vez de enlazar. Animaciones
+  solo CSS en `globals.css` (`anim-fade-up`, `anim-stagger`,
+  `anim-grow-x`, `press`) con un apagado global para
+  `prefers-reduced-motion`.
 - **Tema (sistema de diseño v3, 2026-11-26)**: estética de panel
   «analytics»: lienzo gris muy claro (`app`), tarjetas blancas (`card`) con
   borde fino (`line`), SIN sombras ni degradados, y el verde-azul (`brand`)
@@ -412,19 +494,20 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   `src/lib/auth.ts`). Actions en `src/app/actions/profile-actions.ts`.
 - **Iconos de cuenta**: set curado de lucide en `src/lib/account-icons.ts`
   (`getAccountIcon(icon, type)` con fallback por tipo). Selector en el form
-  de nueva cuenta y en el detalle (`account-icon-editor`); el nombre kebab se
-  guarda en `Account.icon`.
+  de nueva cuenta y en el drawer «Editar cuenta» de su detalle; el nombre
+  kebab se guarda en `Account.icon`.
 - **shadcn/ui**: infraestructura montada (`components.json`, tokens
   semánticos —background/primary/sidebar-\*— mapeados a la paleta de Caja en
   `@theme`, deps radix-ui/cva/tw-animate-css). Componentes vendorizados:
   sidebar, sheet, tooltip, separator, skeleton, avatar, dropdown-menu,
-  breadcrumb; propios con la misma convención: card y segmented. REGLA: la
-  UI nueva usa esos componentes; los primitivos escritos a mano
+  breadcrumb y drawer (vaul, única dependencia de UI añadida; re-vestido
+  con los tokens); propios con la misma convención: card y segmented.
+  REGLA: la UI nueva usa esos componentes; los primitivos escritos a mano
   (Button/Input/Badge/Select) se mantienen.
 - **UserMenu** (`src/components/user-menu.tsx`): avatar con iniciales +
   dropdown (Mi perfil / Cerrar sesión) en la cabecera de Inicio, solo móvil
   (`md:hidden`); en escritorio el mismo menú cuelga del bloque de usuario del
-  sidebar. Exporta `initials()`.
+  sidebar. Exporta `initials()` (envoltorio de `src/lib/initials.ts`).
 - **Navegación**: escritorio = `src/components/app-sidebar.tsx` (Sidebar
   shadcn colapsable a iconos, estado en cookie `sidebar_state`, atajo
   Ctrl/Cmd+B) con el botón «Registrar» fijo arriba (el único acceso global a
@@ -433,11 +516,26 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   superior con breadcrumb y campana. Móvil = `bottom-nav.tsx` (plana, «+» al
   centro). El layout de `(app)` monta SidebarProvider + SidebarInset (que es
   un `<div>`: el `<main>` lo pone cada página con `<Page>`) y la columna de
-  contenido `@container/main` (`max-w-6xl`). `/mensualidades` tiene entrada
-  propia en el sidebar y en `/mas`; en la barra inferior cuelga de la pestaña
-  Deudas (las dos vistas se enlazan mutuamente).
+  contenido `@container/main` (`max-w-6xl`). `/mensualidades` y
+  `/contactos` tienen entrada propia en el sidebar (grupo Compromisos) y en
+  `/mas`; en la barra inferior cuelgan de la pestaña Deudas, y las tres
+  vistas comparten las pestañas `DebtsTabs`
+  (`src/components/section-tabs.tsx`).
+
 ## Gotchas
 
+- Historial y server actions: NUNCA llames a `history.*` ni a
+  `router.push/replace` en el mismo tick en que resuelve una server action
+  (Next descarta su resultado y vuelve a pedir la página): usa
+  `useFormDrawer().close()/closeAndGo()` o difiere con `setTimeout(…, 0)`.
+  Tampoco guardes nada propio en `history.state` (Next lo reescribe) ni
+  dejes el estado de un drawer en la URL mientras está abierto (`#…` o `?…`
+  hacen que Next repita la petición de la página tras cada action).
+- vaul inyecta su CSS SIN capa y gana a las utilidades de Tailwind: para
+  pisar un estilo suyo (el asa) la clase lleva `!`. `FormDrawer` fija
+  `handleOnly` (sin él vaul captura el puntero y rompe los `Select` y la
+  selección de texto) y el asa lleva `preventCycle` (sin él un toque en el
+  asa cierra con un guardado en curso).
 - Tests de componentes: el setup NO limpia el DOM entre tests; cada archivo
   que renderiza lleva `afterEach(cleanup)` o los renders se acumulan.
 - `@container/main` (layout de (app) y de /compartir) es contenedor de los
@@ -502,4 +600,7 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   un fallo) y se borra al empezar la siguiente. En los specs, los Select de
   Radix se abren con `selectOption` de `e2e/helpers.ts`, que casa el rótulo
   del `<label>` de forma EXACTA (por subcadena, «Cuenta» casaba también con
-  la ayuda del campo Monto).
+  la ayuda del campo Monto). Los specs entran por
+  `/cuentas/nueva` y `/deudas/nueva`, que hoy redirigen al drawer de su
+  lista: por eso los formularios en drawer conservan labels, placeholders y
+  nombres de botón.

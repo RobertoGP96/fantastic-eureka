@@ -1,7 +1,8 @@
 import { Archive } from "lucide-react";
+import { CardGrid } from "@/components/content-grid";
+import { EmptyState } from "@/components/empty-state";
 import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
-import { EmptyState } from "@/components/empty-state";
 import { requireSessionUser } from "@/lib/auth";
 import { listAccountsWithBalances } from "@/lib/balances";
 import { AccountCard } from "../account-card";
@@ -35,13 +36,11 @@ export default async function CuentasArchivadasPage() {
             description="Cuando archives una cuenta desde su detalle, aparecerá aquí con su historial intacto."
           />
         ) : (
-          // grid-cols-1 explícito: la columna implícita (auto) crecía hasta
-          // el nombre más largo y la página desbordaba en móvil.
-          <div className="grid grid-cols-1 gap-3 @2xl/main:grid-cols-2 @4xl/main:grid-cols-3">
+          <CardGrid>
             {accounts.map((account) => (
               <AccountCard key={account.id} account={account} />
             ))}
-          </div>
+          </CardGrid>
         )}
       </PageBody>
     </Page>

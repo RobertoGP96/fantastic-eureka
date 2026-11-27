@@ -15,14 +15,11 @@ import {
 // Etiquetas de segmentos estáticos conocidos (ruta completa → label).
 const STATIC_LABELS: Record<string, string> = {
   "/cuentas": "Cuentas",
-  "/cuentas/nueva": "Nueva cuenta",
-  "/cuentas/grupos": "Grupos",
   "/cuentas/archivadas": "Archivadas",
   "/movimientos": "Movimientos",
   "/deudas": "Deudas",
-  "/deudas/nueva": "Nueva deuda",
   "/mensualidades": "Mensualidades",
-  "/mensualidades/nueva": "Nueva mensualidad",
+  "/contactos": "Contactos",
   "/conteo": "Conteo de efectivo",
   "/calculadora": "Calculadora de efectivo",
   "/tasas": "Tasas de cambio",
@@ -66,6 +63,8 @@ function buildCrumbs(pathname: string): Crumb[] {
         label = "Arqueo";
       } else if (segments[0] === "mensualidades" && i === 1) {
         label = "Mensualidad";
+      } else if (segments[0] === "contactos" && i === 1) {
+        label = "Contacto";
       } else {
         label = "Detalle";
       }

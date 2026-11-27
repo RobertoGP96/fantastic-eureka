@@ -124,7 +124,7 @@ export function Converter({
         </Select>
       </div>
 
-      <div className="border-t border-line-2 pt-3">
+      <div className="border-t border-line-2 pt-3" aria-live="polite">
         {warning ? (
           <div className="text-sm text-muted">{warning}</div>
         ) : result ? (

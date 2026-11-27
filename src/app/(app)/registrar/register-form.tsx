@@ -372,9 +372,11 @@ export function RegisterForm({
             : "Transferencia registrada"
       );
       // Tras guardar se vuelve al detalle de la cuenta afectada (en
-      // transferencias, la de origen), no al Inicio.
-      router.push(`/cuentas/${accountId}`);
-      router.refresh();
+      // transferencias, la de origen), no al Inicio. Diferido: navegar en
+      // el mismo tick en que resuelve la action hace que Next descarte su
+      // resultado y vuelva a pedir la página. Sin `router.refresh()`: la
+      // action ya revalida las rutas afectadas.
+      setTimeout(() => router.push(`/cuentas/${accountId}`), 0);
     } else {
       setSaving(false);
       setError(result.error);

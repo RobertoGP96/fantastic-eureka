@@ -8,13 +8,38 @@ const nextConfig: NextConfig = {
     // cualquier mutación invalida este cache al instante.
     staleTimes: { dynamic: 30 },
   },
-  // Los planes de cuotas dejaron de colgar de /deudas y viven en
-  // /mensualidades; los enlaces viejos (marcadores, PWA) siguen funcionando.
+  // Enlaces viejos (marcadores, PWA) que siguen funcionando:
+  //  · los planes de cuotas dejaron de colgar de /deudas y viven en
+  //    /mensualidades;
+  //  · los formularios ya no tienen página propia: se abren en un drawer de
+  //    su lista (`#panel=…`, ver src/hooks/use-panel.ts). El fragmento solo
+  //    sobrevive a una navegación dura, así que NINGÚN enlace interno debe
+  //    apuntar a estas rutas: usan `panelHref()` o `PanelButton`.
   async redirects() {
     return [
       {
+        source: "/deudas/nueva",
+        destination: "/deudas#panel=nueva-deuda",
+        permanent: false,
+      },
+      {
+        source: "/mensualidades/nueva",
+        destination: "/mensualidades#panel=nueva-mensualidad",
+        permanent: false,
+      },
+      {
+        source: "/cuentas/nueva",
+        destination: "/cuentas#panel=nueva-cuenta",
+        permanent: false,
+      },
+      {
+        source: "/cuentas/grupos",
+        destination: "/cuentas#panel=grupos",
+        permanent: false,
+      },
+      {
         source: "/deudas/plan/nuevo",
-        destination: "/mensualidades/nueva",
+        destination: "/mensualidades#panel=nueva-mensualidad",
         permanent: false,
       },
       {

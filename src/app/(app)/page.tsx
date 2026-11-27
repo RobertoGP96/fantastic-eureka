@@ -54,10 +54,14 @@ import { dashboardMetrics } from "@/lib/metrics";
 import { fmtMinor, fmtMinorParts } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
 import { pairRateSeries } from "@/lib/rates";
+import { panelHref } from "@/lib/panel-core";
 import { pairKey } from "@/lib/rate-resolve";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+// El alta de cuenta ya no tiene página propia: es un drawer de /cuentas.
+const NEW_ACCOUNT_HREF = panelHref("/cuentas", "nueva-cuenta");
 
 const QUICK_ACTIONS = [
   { href: "/registrar?tipo=gasto", icon: ArrowUpRight, label: "Gasto" },
@@ -329,7 +333,7 @@ export default async function HomePage() {
     <section className={className}>
       <SectionHeader
         title="Cuentas"
-        action={{ href: "/cuentas/nueva", label: "+ Nueva cuenta" }}
+        action={{ href: NEW_ACCOUNT_HREF, label: "+ Nueva cuenta" }}
       />
 
       {accounts.length === 0 ? (
@@ -338,7 +342,7 @@ export default async function HomePage() {
           title="Sin cuentas todavía"
           description="Crea tu primera cuenta o caja para empezar a registrar movimientos."
           ctaLabel="Crear cuenta"
-          ctaHref="/cuentas/nueva"
+          ctaHref={NEW_ACCOUNT_HREF}
         />
       ) : visibleAccounts.length === 0 ? (
         <Card className="py-5 text-center text-sm text-muted">

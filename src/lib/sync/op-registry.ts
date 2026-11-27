@@ -16,6 +16,7 @@ import type { ServiceContext } from "@/lib/services/context";
 import * as account from "@/lib/services/account-service";
 import * as cashCount from "@/lib/services/cash-count-service";
 import * as category from "@/lib/services/category-service";
+import * as contact from "@/lib/services/contact-service";
 import * as currency from "@/lib/services/currency-service";
 import * as dashboard from "@/lib/services/dashboard-service";
 import * as debt from "@/lib/services/debt-service";
@@ -76,6 +77,12 @@ export const OP_HANDLERS: Record<string, OpHandler> = {
       adjustmentTransactionId: ids.adjustmentTransactionId,
     }),
 
+  // ── Contactos ─────────────────────────────────────────────────────────────
+  "contact.create": (c, p, ids) => contact.createContact(c, p, { id: ids.id }),
+  "contact.update": (c, p) => contact.updateContact(c, p),
+  "contact.delete": (c, p) => contact.deleteContact(c, p),
+  "contact.merge": (c, p) => contact.mergeContacts(c, p),
+
   // ── Deudas y mensualidades ────────────────────────────────────────────────
   "debt.create": (c, p, ids) =>
     debt.createDebt(c, p, {
@@ -92,7 +99,11 @@ export const OP_HANDLERS: Record<string, OpHandler> = {
     }),
   "debt.delete": (c, p) => debt.deleteDebt(c, p),
   "plan.create": (c, p, ids) =>
-    plan.createPlan(c, p, { id: ids.id, installmentId: ids.installmentId }),
+    plan.createPlan(c, p, {
+      id: ids.id,
+      installmentId: ids.installmentId,
+      contactId: ids.contactId,
+    }),
   "plan.setAccount": (c, p) => plan.setPlanAccount(c, p),
   "plan.settle": (c, p, ids) =>
     plan.settleInstallment(c, p, {

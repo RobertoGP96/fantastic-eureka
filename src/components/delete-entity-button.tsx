@@ -4,39 +4,43 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDrawer } from "@/components/confirm-drawer";
 import { deleteDebt } from "@/app/actions/debt-actions";
 import { deletePlan } from "@/app/actions/plan-actions";
 import { deleteTransaction } from "@/app/actions/transaction-actions";
+import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
 const LABELS = {
   debt: {
     button: "Eliminar deuda",
+    title: "¿Eliminar la deuda?",
     warning:
-      "¿Eliminar la deuda? Se borran sus abonos y planes de cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
+      "Se borran sus abonos y planes de cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
     done: "Deuda eliminada",
     redirect: "/deudas",
   },
   plan: {
     button: "Eliminar mensualidad",
+    title: "¿Eliminar la mensualidad?",
     warning:
-      "¿Eliminar la mensualidad? Se borran todas sus cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
+      "Se borran todas sus cuotas; los movimientos de las cuentas se conservan. No se puede deshacer.",
     done: "Mensualidad eliminada",
     redirect: "/mensualidades",
   },
   transaction: {
     button: "Eliminar movimiento",
+    title: "¿Eliminar el movimiento?",
     warning:
-      "¿Eliminar el movimiento? El saldo de la cuenta se recalcula sin él; si era un abono, la deuda vuelve a mostrar ese pendiente. No se puede deshacer.",
+      "El saldo de la cuenta se recalcula sin él; si era un abono, la deuda vuelve a mostrar ese pendiente. No se puede deshacer.",
     done: "Movimiento eliminado",
     redirect: "/movimientos",
   },
 } as const;
 
 /**
- * Eliminación con confirmación inline para deudas, planes y movimientos
- * (mismo patrón que AccountEditor). La advertencia deja claro el alcance
- * antes de confirmar.
+ * Eliminación de deudas, planes y movimientos con confirmación en drawer.
+ * La advertencia deja claro el alcance antes de confirmar.
  */
 export function DeleteEntityButton({
   kind,
@@ -48,30 +52,26 @@ export function DeleteEntityButton({
   const router = useRouter();
   const { showToast } = useUI();
   const [confirming, setConfirming] = useState(false);
-  const [saving, setSaving] = useState(false);
   const labels = LABELS[kind];
 
   const remove = async () => {
-    setSaving(true);
-    const result =
+    const result = await runAction(() =>
       kind === "debt"
-        ? await deleteDebt(targetId)
+        ? deleteDebt(targetId)
         : kind === "plan"
-          ? await deletePlan(targetId)
-          : await deleteTransaction(targetId);
-    setSaving(false);
-    setConfirming(false);
-    if (result.success) {
-      showToast(labels.done);
-      router.push(labels.redirect);
-      router.refresh();
-    } else {
-      showToast(result.error);
-    }
+          ? deletePlan(targetId)
+          : deleteTransaction(targetId)
+    );
+    if (!result.success) return result.error;
+    showToast(labels.done);
+    // Diferido: navegar en el mismo tick en que resuelve la action hace que
+    // Next descarte su resultado y vuelva a pedir la página.
+    setTimeout(() => router.replace(labels.redirect), 0);
+    return null;
   };
 
-  if (!confirming) {
-    return (
+  return (
+    <>
       <Button
         variant="ghost"
         size="sm"
@@ -81,33 +81,13 @@ export function DeleteEntityButton({
         <Trash2 className="size-3.5" />
         {labels.button}
       </Button>
-    );
-  }
-
-  // La advertencia va en su propia línea a todo el ancho y los botones
-  // debajo: en fila, a 375 px el texto quedaba en una columna de pocas
-  // palabras junto a los botones.
-  return (
-    <div className="flex w-full flex-col gap-2">
-      <p className="text-xs text-ink-soft">{labels.warning}</p>
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="danger"
-          size="sm"
-          disabled={saving}
-          onClick={() => void remove()}
-        >
-          Eliminar
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={saving}
-          onClick={() => setConfirming(false)}
-        >
-          Cancelar
-        </Button>
-      </div>
-    </div>
+      <ConfirmDrawer
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={labels.title}
+        description={labels.warning}
+        onConfirm={remove}
+      />
+    </>
   );
 }

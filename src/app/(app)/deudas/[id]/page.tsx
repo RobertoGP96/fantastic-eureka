@@ -1,15 +1,21 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock } from "lucide-react";
-import { Page, PageBody } from "@/components/page";
-import { ScreenHeader } from "@/components/screen-header";
-import { SectionHeader } from "@/components/section-header";
-import { StatCard } from "@/components/stat-card";
-import { ProgressBar } from "@/components/progress-bar";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { CalendarClock, ChevronRight, HandCoins } from "lucide-react";
+import { DebtPaymentForm } from "@/components/debt-payment-form";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { EntityAvatar } from "@/components/entity-avatar";
+import { PanelDrawer } from "@/components/form-drawer";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
+import { Page, PageBody } from "@/components/page";
+import { PanelButton } from "@/components/panel-button";
+import { ProgressBar } from "@/components/progress-bar";
+import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { SettleInstallment } from "@/components/settle-installment";
+import { StatCard } from "@/components/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtMinor, fmtMinorParts, minorToInput } from "@/lib/format";
@@ -19,9 +25,11 @@ import {
   DEBT_DIRECTION_LABELS,
   type DebtDirection,
 } from "@/lib/domain";
-import { PaymentForm } from "./payment-form";
 
 export const dynamic = "force-dynamic";
+
+/** Nombre del drawer de abono (`/deudas/[id]#panel=abono`). */
+const PAYMENT_PANEL = "abono";
 
 const DATE_FMT = new Intl.DateTimeFormat("es", {
   day: "2-digit",
@@ -31,10 +39,10 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
 
 // En escritorio hay dos columnas (principal + lateral). En móvil las dos se
 // «disuelven» (contents) y sus bloques se intercalan en UNA columna con este
-// orden: resumen → cuotas → abono → historial → eliminar. Es el orden que ya
-// tenía la pantalla: la cuota va antes que el abono libre (quien entra a
-// cobrar la cuota de hoy no debe toparse primero con el otro formulario) y lo
-// destructivo queda al final. Clases literales: Tailwind no ve las compuestas.
+// orden: resumen → cuotas → abono → historial → contacto → eliminar. La cuota
+// va antes que el abono libre (quien entra a cobrar la cuota de hoy no debe
+// toparse primero con la otra acción) y lo destructivo queda al final.
+// Clases literales: Tailwind no ve las compuestas.
 const COLUMN =
   "contents @4xl/main:flex @4xl/main:min-w-0 @4xl/main:flex-col @4xl/main:gap-5";
 const MOBILE_ORDER = {
@@ -42,7 +50,8 @@ const MOBILE_ORDER = {
   installments: "order-2 @4xl/main:order-none",
   payment: "order-3 @4xl/main:order-none",
   history: "order-4 @4xl/main:order-none",
-  remove: "order-5 @4xl/main:order-none",
+  contact: "order-5 @4xl/main:order-none",
+  remove: "order-6 @4xl/main:order-none",
 } as const;
 
 export default async function DeudaDetallePage({
@@ -97,6 +106,7 @@ export default async function DeudaDetallePage({
   });
 
   const isOpen = debt.status === "OPEN";
+  const receivable = debt.direction === "RECEIVABLE";
   const remainingParts = fmtMinorParts(remaining, debt.currency);
 
   return (
@@ -112,23 +122,22 @@ export default async function DeudaDetallePage({
       <PageBody>
         {/* Principal (8) + lateral (4). Las columnas son <div>: los tests
             localizan «Cuotas pendientes» por su <section>, que no puede
-            quedar dentro de otra (la de «Registrar abono», con sus dos
-            selectores, es hermana). Orden en móvil: ver MOBILE_ORDER. */}
+            quedar dentro de otra. Orden en móvil: ver MOBILE_ORDER. */}
         <div className="grid grid-cols-1 gap-5 @4xl/main:grid-cols-12">
           <div className={`${COLUMN} @4xl/main:col-span-8`}>
             {isOpen && pendingInstallments.length > 0 && (
-              <section className={MOBILE_ORDER.installments}>
-                <SectionHeader
-                  title="Cuotas pendientes"
-                  action={
-                    planId
-                      ? {
-                          href: `/mensualidades/${planId}`,
-                          label: "Ver mensualidad",
-                        }
-                      : undefined
-                  }
-                />
+              <Section
+                title="Cuotas pendientes"
+                className={MOBILE_ORDER.installments}
+                action={
+                  planId
+                    ? {
+                        href: `/mensualidades/${planId}`,
+                        label: "Ver mensualidad",
+                      }
+                    : undefined
+                }
+              >
                 <Card
                   padding="none"
                   className="divide-y divide-line-2 overflow-hidden"
@@ -175,13 +184,12 @@ export default async function DeudaDetallePage({
                     );
                   })}
                 </Card>
-              </section>
+              </Section>
             )}
 
             {/* Siempre presente: sin cuotas ni abonos la columna principal
                 quedaría vacía junto a la lateral. */}
-            <section className={MOBILE_ORDER.history}>
-              <SectionHeader title="Historial de abonos" />
+            <Section title="Historial de abonos" className={MOBILE_ORDER.history}>
               {debt.payments.length === 0 ? (
                 <Card className="py-6 text-center text-sm text-muted">
                   Sin abonos todavía.
@@ -206,7 +214,7 @@ export default async function DeudaDetallePage({
                   ))}
                 </Card>
               )}
-            </section>
+            </Section>
           </div>
 
           <div className={`${COLUMN} @4xl/main:col-span-4`}>
@@ -226,31 +234,49 @@ export default async function DeudaDetallePage({
             </StatCard>
 
             {isOpen && (
-              <Card asChild className={MOBILE_ORDER.payment}>
-                <section>
-                  <SectionHeader size="sm" title="Registrar abono" />
-                  {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
-                  <PaymentForm
-                    key={debt.accountId ?? "none"}
-                    debtId={debt.id}
+              <Card className={MOBILE_ORDER.payment}>
+                {/* El abono libre se registra en un drawer. */}
+                <PanelButton
+                  panel={PAYMENT_PANEL}
+                  className={buttonVariants({ className: "w-full" })}
+                >
+                  <HandCoins className="size-4" />
+                  Registrar abono
+                </PanelButton>
+                {/* La cuenta habitual va aquí, pegada a la acción que la
+                    usa, en vez de en una sección propia. */}
+                <div className="mt-3 border-t border-line-2 pt-3">
+                  <LinkedAccountEditor
+                    kind="debt"
+                    targetId={debt.id}
                     accounts={accounts}
+                    currentAccountId={debt.accountId}
                     currencyCode={debt.currency.code}
-                    defaultAccountId={debt.accountId}
                   />
-                  {/* La cuenta habitual va aquí, pegada al form que la usa,
-                      en vez de en una sección propia. */}
-                  <div className="mt-3 border-t border-line-2 pt-3">
-                    <LinkedAccountEditor
-                      kind="debt"
-                      targetId={debt.id}
-                      accounts={accounts}
-                      currentAccountId={debt.accountId}
-                      currencyCode={debt.currency.code}
-                    />
-                  </div>
-                </section>
+                </div>
               </Card>
             )}
+
+            <Card
+              asChild
+              interactive
+              padding="none"
+              className={`flex items-center gap-3 px-4 py-3 ${MOBILE_ORDER.contact}`}
+            >
+              <Link href={`/contactos/${debt.contact.id}`}>
+                <EntityAvatar
+                  name={debt.contact.name}
+                  tone={receivable ? "ok" : "warn"}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted">Contacto</div>
+                  <div className="truncate text-sm font-medium text-heading">
+                    {debt.contact.name}
+                  </div>
+                </div>
+                <ChevronRight className="size-4 flex-none text-muted" />
+              </Link>
+            </Card>
 
             <div className={`flex justify-end ${MOBILE_ORDER.remove}`}>
               <DeleteEntityButton kind="debt" targetId={debt.id} />
@@ -258,6 +284,24 @@ export default async function DeudaDetallePage({
           </div>
         </div>
       </PageBody>
+
+      {isOpen && (
+        <PanelDrawer
+          panel={PAYMENT_PANEL}
+          title="Registrar abono"
+          description={`${receivable ? "Cobro de" : "Pago a"} ${debt.contact.name}`}
+        >
+          {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
+          <DebtPaymentForm
+            key={debt.accountId ?? "none"}
+            debtId={debt.id}
+            accounts={accounts}
+            currencyCode={debt.currency.code}
+            remainingLabel={fmtMinor(remaining, debt.currency)}
+            defaultAccountId={debt.accountId}
+          />
+        </PanelDrawer>
+      )}
     </Page>
   );
 }

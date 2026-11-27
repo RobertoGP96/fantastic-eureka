@@ -9,6 +9,7 @@ import {
   Tags,
   ChevronRight,
   UserRound,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import { Page, PageBody } from "@/components/page";
@@ -32,6 +33,12 @@ const ITEMS: MenuItem[] = [
     icon: CalendarClock,
     title: "Mensualidades",
     description: "Renta, suscripciones y cuotas fijas",
+  },
+  {
+    href: "/contactos",
+    icon: UsersRound,
+    title: "Contactos",
+    description: "Personas de tus deudas y mensualidades",
   },
   {
     href: "/conteo",

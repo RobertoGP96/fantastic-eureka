@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarClock, ChevronRight } from "lucide-react";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { EntityAvatar } from "@/components/entity-avatar";
+import { LinkedAccountEditor } from "@/components/linked-account-editor";
 import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
+import { SettleInstallment } from "@/components/settle-installment";
 import { StatCard, StatGrid } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { LinkedAccountEditor } from "@/components/linked-account-editor";
-import { SettleInstallment } from "@/components/settle-installment";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { debtRemainingMinor } from "@/lib/debts";
@@ -63,7 +65,8 @@ export default async function MensualidadDetallePage({
     plan.debtId ? debtRemainingMinor(plan.debtId) : null,
   ]);
   const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
-  const contactName = plan.contact?.name ?? plan.debt?.contact.name ?? null;
+  // Contacto propio del plan o, si cuelga de una deuda, el de la deuda.
+  const contact = plan.contact ?? plan.debt?.contact ?? null;
 
   const accounts = await prisma.account.findMany({
     where: { userId: user.id, archived: false, currencyId: plan.currencyId },
@@ -77,9 +80,11 @@ export default async function MensualidadDetallePage({
     <Page>
       <ScreenHeader
         title={plan.description}
+        // El contacto, si lo hay, va enlazado en su tarjeta de la columna
+        // lateral: aquí solo se avisa cuando falta.
         subtitle={`${PLAN_KIND_LABELS[plan.kind as PlanKind]} · ${
           FREQUENCY_LABELS[plan.frequency as Frequency]
-        } · ${contactName ?? "Sin contacto"}`}
+        }${contact ? "" : " · Sin contacto"}`}
         backHref="/mensualidades"
       >
         <Badge variant={plan.active ? "accent" : "neutral"}>
@@ -107,13 +112,12 @@ export default async function MensualidadDetallePage({
 
         {/* Principal + lateral. En móvil todo es una sola columna y la
             lateral se «disuelve» (contents) para repartir sus bloques: la
-            próxima cuota y sus ajustes arriba (ASIDE_FIRST) y las acciones
-            de finalizar/eliminar al final, tras el historial. */}
+            próxima cuota, sus ajustes y los enlaces arriba (ASIDE_FIRST) y
+            las acciones de finalizar/eliminar al final, tras el historial. */}
         <div className="grid grid-cols-1 gap-5 @4xl/main:grid-cols-12">
           <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
             {plan.installments.length > 0 && (
-              <section>
-                <SectionHeader title="Historial de cuotas" />
+              <Section title="Historial de cuotas">
                 <Card
                   padding="none"
                   className="divide-y divide-line-2 overflow-hidden"
@@ -143,7 +147,7 @@ export default async function MensualidadDetallePage({
                     </div>
                   ))}
                 </Card>
-              </section>
+              </Section>
             )}
           </div>
 
@@ -208,6 +212,26 @@ export default async function MensualidadDetallePage({
                   />
                 </Card>
               </div>
+            )}
+
+            {contact && (
+              <Card
+                asChild
+                interactive
+                padding="none"
+                className={`flex items-center gap-3 px-4 py-3 ${ASIDE_FIRST}`}
+              >
+                <Link href={`/contactos/${contact.id}`}>
+                  <EntityAvatar name={contact.name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted">Contacto</div>
+                    <div className="truncate text-sm font-medium text-heading">
+                      {contact.name}
+                    </div>
+                  </div>
+                  <ChevronRight className="size-4 flex-none text-muted" />
+                </Link>
+              </Card>
             )}
 
             {plan.debt && (

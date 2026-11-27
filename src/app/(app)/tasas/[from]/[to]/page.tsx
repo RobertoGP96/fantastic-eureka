@@ -1,16 +1,22 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
+import { SplitLayout } from "@/components/content-grid";
+import { PanelDrawer } from "@/components/form-drawer";
 import { Page, PageBody } from "@/components/page";
+import { PanelButton } from "@/components/panel-button";
+import { RateForm } from "@/components/rate-form";
+import { RateLineChart } from "@/components/rate-line-chart";
 import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
 import { StatCard, StatGrid } from "@/components/stat-card";
-import { RateLineChart } from "@/components/rate-line-chart";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtRate } from "@/lib/format";
 import { invertRateScaled } from "@/lib/money";
+import { NEW_RATE_PANEL } from "../../panels";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +36,15 @@ export default async function TasaDetallePage({
   const fromCode = decodeURIComponent(from).toUpperCase();
   const toCode = decodeURIComponent(to).toUpperCase();
 
-  const [fromCurrency, toCurrency] = await Promise.all([
-    prisma.currency.findFirst({ where: { userId: user.id, code: fromCode } }),
-    prisma.currency.findFirst({ where: { userId: user.id, code: toCode } }),
-  ]);
+  // Todas las monedas de una vez: salen el par de la URL y, además, las
+  // opciones del formulario «Registrar tasa» que hospeda esta página.
+  const currencies = await prisma.currency.findMany({
+    where: { userId: user.id },
+    orderBy: [{ isBase: "desc" }, { code: "asc" }],
+    select: { id: true, code: true, active: true },
+  });
+  const fromCurrency = currencies.find((c) => c.code === fromCode);
+  const toCurrency = currencies.find((c) => c.code === toCode);
   if (!fromCurrency || !toCurrency || fromCurrency.id === toCurrency.id) {
     notFound();
   }
@@ -73,6 +84,14 @@ export default async function TasaDetallePage({
     rateScaled: rate.rateScaled,
   }));
 
+  // Opciones del formulario: las activas y, aunque estén ocultas, las dos
+  // de este par (si no, no se podría registrar su tasa desde aquí).
+  const formCurrencies = currencies
+    .filter(
+      (c) => c.active || c.id === fromCurrency.id || c.id === toCurrency.id
+    )
+    .map((c) => ({ id: c.id, code: c.code }));
+
   return (
     <Page>
       <ScreenHeader
@@ -83,19 +102,32 @@ export default async function TasaDetallePage({
             : "Sin tasas registradas para este par."
         }
         backHref="/tasas"
+        actions={
+          <PanelButton
+            panel={NEW_RATE_PANEL}
+            className={buttonVariants({ size: "sm" })}
+          >
+            <Plus className="size-3.5" />
+            Nueva
+          </PanelButton>
+        }
       />
 
       <PageBody>
         {!latest ? (
-          <Card dashed className="py-6 text-center text-sm text-muted">
-            Este par no tiene tasas registradas todavía.{" "}
-            <Link
-              href="/tasas"
-              className="font-semibold text-brand-ink hover:text-brand-mid"
+          <Card
+            dashed
+            className="flex flex-col items-center gap-3 py-6 text-center"
+          >
+            <p className="text-sm text-muted">
+              Este par no tiene tasas registradas todavía.
+            </p>
+            <PanelButton
+              panel={NEW_RATE_PANEL}
+              className={buttonVariants({ size: "sm" })}
             >
-              Registra la primera en Tasas
-            </Link>
-            .
+              Registrar tasa
+            </PanelButton>
           </Card>
         ) : (
           <>
@@ -130,52 +162,66 @@ export default async function TasaDetallePage({
               />
             </StatGrid>
 
-            <div className="grid gap-5 @4xl/main:grid-cols-12">
-              <Card asChild className="min-w-0 self-start @4xl/main:col-span-8">
-                <section>
-                  <SectionHeader size="sm" title="Evolución" />
-                  {history.length === 1 ? (
-                    <p className="py-6 text-center text-sm text-muted">
-                      Solo hay un registro — el gráfico aparecerá cuando el par
-                      tenga al menos dos tasas.
-                    </p>
-                  ) : (
-                    <RateLineChart
-                      points={chartPoints}
-                      fromCode={fromCode}
-                      toCode={toCode}
-                    />
-                  )}
-                </section>
-              </Card>
-
-              <section className="min-w-0 @4xl/main:col-span-4">
-                <SectionHeader title="Histórico del par" />
-                <Card
-                  padding="none"
-                  className="divide-y divide-line-2 overflow-hidden"
-                >
-                  {[...history].reverse().map((rate) => (
-                    <div
-                      key={rate.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <span className="money flex min-w-0 items-center gap-1.5 text-sm font-medium text-heading">
-                        {fromCode}
-                        <ArrowRight className="size-3 flex-none text-muted" />
-                        {fmtRate(rate.rateScaled)} {toCode}
-                      </span>
-                      <span className="flex-none text-xs text-muted">
-                        {DATE_FMT.format(rate.effectiveAt)}
-                      </span>
-                    </div>
-                  ))}
+            <SplitLayout
+              main={
+                <Card asChild>
+                  <section>
+                    <SectionHeader size="sm" title="Evolución" />
+                    {history.length === 1 ? (
+                      <p className="py-6 text-center text-sm text-muted">
+                        Solo hay un registro — el gráfico aparecerá cuando el
+                        par tenga al menos dos tasas.
+                      </p>
+                    ) : (
+                      <RateLineChart
+                        points={chartPoints}
+                        fromCode={fromCode}
+                        toCode={toCode}
+                      />
+                    )}
+                  </section>
                 </Card>
-              </section>
-            </div>
+              }
+              aside={
+                <Section title="Histórico del par">
+                  <Card
+                    padding="none"
+                    className="divide-y divide-line-2 overflow-hidden"
+                  >
+                    {[...history].reverse().map((rate) => (
+                      <div
+                        key={rate.id}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <span className="money flex min-w-0 items-center gap-1.5 text-sm font-medium text-heading">
+                          {fromCode}
+                          <ArrowRight className="size-3 flex-none text-muted" />
+                          {fmtRate(rate.rateScaled)} {toCode}
+                        </span>
+                        <span className="flex-none text-xs text-muted">
+                          {DATE_FMT.format(rate.effectiveAt)}
+                        </span>
+                      </div>
+                    ))}
+                  </Card>
+                </Section>
+              }
+            />
           </>
         )}
       </PageBody>
+
+      <PanelDrawer
+        panel={NEW_RATE_PANEL}
+        title="Registrar tasa"
+        description={`Nueva tasa para ${fromCode} → ${toCode}`}
+      >
+        <RateForm
+          currencies={formCurrencies}
+          defaultFromId={fromCurrency.id}
+          defaultToId={toCurrency.id}
+        />
+      </PanelDrawer>
     </Page>
   );
 }

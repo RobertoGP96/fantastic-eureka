@@ -1,34 +1,39 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Banknote, Plus } from "lucide-react";
+import { AccountActivityChart } from "@/components/account-activity-chart";
+import { AccountEditForm } from "@/components/account-edit-form";
+import { AccountManage } from "@/components/account-manage";
+import { AccountSharePanel } from "@/components/account-share-panel";
+import { SplitLayout } from "@/components/content-grid";
+import { DenominationAvailability } from "@/components/denomination-availability";
+import { PanelDrawer } from "@/components/form-drawer";
 import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
-import { SectionHeader } from "@/components/section-header";
+import { Section } from "@/components/section";
 import { StatCard } from "@/components/stat-card";
+import { TxList } from "@/components/tx-list";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TxList } from "@/components/tx-list";
-import { GroupSelect } from "@/components/group-select";
-import { AccountIconEditor } from "@/components/account-icon-editor";
-import { AccountEditor } from "@/components/account-editor";
-import { AccountSharePanel } from "@/components/account-share-panel";
 import { requireSessionUser } from "@/lib/auth";
 import { activeShareForAccount } from "@/lib/shares";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
+import { getAccountIcon } from "@/lib/account-icons";
 import { fmtMinorParts } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
-import { AccountActivityChart } from "@/components/account-activity-chart";
 import {
   ACCOUNT_TYPE_LABELS,
   isCashLikeType,
   type AccountType,
 } from "@/lib/domain";
-import { DenominationAvailability } from "@/components/denomination-availability";
 
 export const dynamic = "force-dynamic";
+
+/** Drawer de edición (`/cuentas/[id]#panel=editar-cuenta`). */
+const EDIT_ACCOUNT_PANEL = "editar-cuenta";
 
 // Icono de las acciones de cabecera: se oculta cuando la columna es estrecha
 // para que en un móvil quede sitio para el nombre de la cuenta.
@@ -44,7 +49,7 @@ export default async function CuentaDetallePage({
 
   const account = await prisma.account.findFirst({
     where: { id, userId: user.id },
-    include: { currency: true },
+    include: { currency: true, group: { select: { name: true } } },
   });
   if (!account) notFound();
 
@@ -66,6 +71,7 @@ export default async function CuentaDetallePage({
         orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 30,
       }),
+      // Opciones del drawer «Editar cuenta».
       prisma.accountGroup.findMany({
         where: { userId: user.id },
         orderBy: { name: "asc" },
@@ -104,6 +110,7 @@ export default async function CuentaDetallePage({
   const balance = fmtMinorParts(balanceMinor, account.currency);
   const typeLabel =
     ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type;
+  const Icon = getAccountIcon(account.icon, account.type);
 
   return (
     <Page>
@@ -140,101 +147,105 @@ export default async function CuentaDetallePage({
       </ScreenHeader>
 
       <PageBody>
-        {/* Las columnas y las tarjetas son <div>: el único <section> que
-            envuelve «Movimientos recientes» es el suyo (lo exigen los tests). */}
-        <div className="grid gap-5 @4xl/main:grid-cols-12">
-          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
-            {/* «Saldo actual» aparece UNA sola vez y lo pinta StatCard: el
-                helper E2E saldoActual() sube al padre del rótulo y espera
-                encontrar ahí el monto. */}
-            <StatCard
-              size="lg"
-              label="Saldo actual"
-              value={balance.amount}
-              unit={balance.code}
-              tone={balanceMinor < 0 ? "danger" : "default"}
-            />
-
-            {activity.length > 0 && (
-              <AccountActivityChart
-                deltas={activity}
-                currency={{
-                  code: account.currency.code,
-                  decimalPlaces: account.currency.decimalPlaces,
-                }}
+        {/* Las columnas de SplitLayout y las tarjetas son <div>: el único
+            <section> que envuelve «Movimientos recientes» es el suyo (lo
+            exigen los tests). */}
+        <SplitLayout
+          main={
+            <>
+              {/* «Saldo actual» aparece UNA sola vez y lo pinta StatCard: el
+                  helper E2E saldoActual() sube al padre del rótulo y espera
+                  encontrar ahí el monto. */}
+              <StatCard
+                size="lg"
+                label="Saldo actual"
+                value={balance.amount}
+                unit={balance.code}
+                tone={balanceMinor < 0 ? "danger" : "default"}
               />
-            )}
 
-            <section>
-              <SectionHeader title="Movimientos recientes" />
-              {rows.length === 0 ? (
-                <Card className="py-6 text-center text-sm text-muted">
-                  Sin movimientos todavía.
-                </Card>
-              ) : (
-                <TxList rows={rows} />
+              {activity.length > 0 && (
+                <AccountActivityChart
+                  deltas={activity}
+                  currency={{
+                    code: account.currency.code,
+                    decimalPlaces: account.currency.decimalPlaces,
+                  }}
+                />
               )}
-            </section>
-          </div>
 
-          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-4">
-            {account.type === "CASH_BOX" && (
-              <DenominationAvailability
-                userId={user.id}
-                accountId={account.id}
-                currency={account.currency}
-              />
-            )}
-
-            <Card padding="none">
-              <h2 className="px-4 pt-4 pb-1 text-sm font-semibold text-heading">
-                Ajustes de la cuenta
-              </h2>
-              <div className="divide-y divide-line-2">
-                <div className="px-4 py-2">
-                  <AccountIconEditor
-                    accountId={account.id}
-                    icon={account.icon}
-                    type={account.type}
-                  />
-                </div>
-                {groups.length > 0 && (
-                  <div className="flex items-center justify-between gap-3 px-4 py-3">
-                    <span className="flex-none text-sm font-medium text-ink-soft">
-                      Grupo
-                    </span>
-                    <GroupSelect
-                      accountId={account.id}
-                      groups={groups}
-                      currentGroupId={account.groupId}
-                    />
-                  </div>
+              <Section title="Movimientos recientes">
+                {rows.length === 0 ? (
+                  <Card className="py-6 text-center text-sm text-muted">
+                    Sin movimientos todavía.
+                  </Card>
+                ) : (
+                  <TxList rows={rows} />
                 )}
-              </div>
-            </Card>
+              </Section>
+            </>
+          }
+          aside={
+            <>
+              {account.type === "CASH_BOX" && (
+                <DenominationAvailability
+                  userId={user.id}
+                  accountId={account.id}
+                  currency={account.currency}
+                />
+              )}
 
-            <AccountEditor
-              accountId={account.id}
-              name={account.name}
-              archived={account.archived}
-              hasUsage={ledger.length + countCount > 0}
-            />
+              {/* Nombre, icono y grupo se cambian en el drawer «Editar
+                  cuenta»; aquí solo se resume lo que hay. */}
+              <AccountManage
+                accountId={account.id}
+                name={account.name}
+                archived={account.archived}
+                hasUsage={ledger.length + countCount > 0}
+                editPanel={EDIT_ACCOUNT_PANEL}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <Icon className="size-[18px]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-heading">
+                      {account.currency.code} · {account.currency.name}
+                    </div>
+                    <div className="truncate text-xs text-muted">
+                      {account.group?.name ?? "Sin grupo"}
+                    </div>
+                  </div>
+                </div>
+              </AccountManage>
 
-            <AccountSharePanel
-              accountId={account.id}
-              accountName={account.name}
-              share={
-                share
-                  ? {
-                      token: share.token,
-                      expiresAt: share.expiresAt.toISOString(),
-                    }
-                  : null
-              }
-            />
-          </div>
-        </div>
+              <AccountSharePanel
+                accountId={account.id}
+                accountName={account.name}
+                share={
+                  share
+                    ? {
+                        token: share.token,
+                        expiresAt: share.expiresAt.toISOString(),
+                      }
+                    : null
+                }
+              />
+            </>
+          }
+        />
       </PageBody>
+
+      {/* El drawer va por portal: no cuenta para el layout de <Page>. */}
+      <PanelDrawer panel={EDIT_ACCOUNT_PANEL} title="Editar cuenta">
+        <AccountEditForm
+          accountId={account.id}
+          name={account.name}
+          icon={account.icon}
+          groupId={account.groupId}
+          groups={groups}
+        />
+      </PanelDrawer>
     </Page>
   );
 }

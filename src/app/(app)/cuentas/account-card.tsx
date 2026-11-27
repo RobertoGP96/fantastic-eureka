@@ -7,13 +7,14 @@ import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
 
 // Tesela de una cuenta (/cuentas y /cuentas/archivadas). Es UN solo enlace
 // con nombre, tipo · moneda y saldo: los tests E2E localizan la cuenta así.
+// `press` (globals.css) pone la transición y la respuesta al toque.
 export function AccountCard({ account }: { account: AccountWithBalance }) {
   const Icon = getAccountIcon(account.icon, account.type);
   const negative = account.balanceMinor < 0;
   return (
     <Link
       href={`/cuentas/${account.id}`}
-      className="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-card p-4 transition-colors hover:border-brand-soft"
+      className="press flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >
       <span
         className={`flex size-10 flex-none items-center justify-center rounded-xl ${

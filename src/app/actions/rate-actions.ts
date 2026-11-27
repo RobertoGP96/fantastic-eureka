@@ -22,6 +22,9 @@ export async function createExchangeRate(
   if (result.success) {
     revalidatePath("/");
     revalidatePath("/tasas");
+    // El detalle de cada par muestra su histórico y hospeda este mismo
+    // formulario en un drawer.
+    revalidatePath("/(app)/tasas/[from]/[to]", "page");
     revalidatePath("/cuentas");
     revalidatePath("/movimientos");
   }

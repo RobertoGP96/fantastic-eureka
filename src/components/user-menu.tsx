@@ -13,15 +13,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logoutUser } from "@/app/actions/auth-actions";
+import { initials as nameInitials } from "@/lib/initials";
 import { cn } from "@/lib/utils";
 
-/** Iniciales para el avatar: nombre + apellido, o las dos primeras letras. */
+/**
+ * Iniciales para el avatar de usuario: nombre + apellido, o las dos primeras
+ * letras. La lógica es la de `src/lib/initials.ts` (la misma de los
+ * contactos); aquí solo cambia el comodín.
+ */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const second =
-    parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? "");
-  return (first + second).toUpperCase() || "U";
+  return nameInitials(name, "U");
 }
 
 /** Avatar con menú de usuario (cabecera de Inicio en móvil). */
