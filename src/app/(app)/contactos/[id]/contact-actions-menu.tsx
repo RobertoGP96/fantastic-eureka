@@ -130,7 +130,7 @@ export function ContactActionsMenu({
           title="¿Eliminar el contacto?"
           description={
             planCount > 0
-              ? `Se elimina «${contactName}». Sus ${planCount === 1 ? "mensualidad queda" : `${planCount} mensualidades quedan`} «Sin contacto». No se puede deshacer.`
+              ? `Se elimina «${contactName}». ${planCount === 1 ? "Su mensualidad queda" : `Sus ${planCount} mensualidades quedan`} «Sin contacto». No se puede deshacer.`
               : `Se elimina «${contactName}». No se puede deshacer.`
           }
           onConfirm={remove}
