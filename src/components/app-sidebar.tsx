@@ -13,7 +13,6 @@ import {
   History,
   House,
   LogOut,
-  Plus,
   Tags,
   UserRound,
   UsersRound,
@@ -186,25 +185,10 @@ export function AppSidebar({
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {/* Acceso global a «Registrar»: en escritorio no existía (en móvil
-              es el «+» de la barra inferior). Plegada queda como cuadrado «+». */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Registrar movimiento"
-              className="justify-center bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-brand-mid hover:text-sidebar-primary-foreground active:bg-brand-mid active:text-sidebar-primary-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
-            >
-              <Link
-                href="/registrar"
-                aria-current={
-                  pathname.startsWith("/registrar") ? "page" : undefined
-                }
-              >
-                <Plus />
-                <span>Registrar</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Aquí NO va botón ni entrada «Registrar»: se quitó a petición del
+              usuario (2026-11-27) y no debe volver (lo vigila
+              app-sidebar.test.tsx). En escritorio se registra desde los
+              accesos rápidos de Inicio y el detalle de cada cuenta. */}
         </SidebarMenu>
       </SidebarHeader>
 
