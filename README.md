@@ -72,9 +72,29 @@ existieran sin monedas.
 | `pnpm build` / `pnpm start` | Build y servidor de producción |
 | `pnpm lint` / `pnpm typecheck` | ESLint y comprobación de tipos |
 | `pnpm test` / `pnpm test:watch` | Tests unitarios (Vitest) |
+| `pnpm test:e2e` | Tests E2E (Playwright, proyectos desktop y mobile) — ver [Tests E2E](#tests-e2e) |
 | `pnpm db:deploy` | Aplica migraciones pendientes (producción y Neon) |
 | `pnpm db:studio` | Prisma Studio |
 | `pnpm tsx prisma/reset-data.ts --user <correo> --yes` | Borra los datos de trabajo de ESE usuario conservando su configuración (sin `--yes` solo muestra qué borraría) |
+
+## Tests E2E
+
+`pnpm test:e2e` corre los flujos principales (crear cuenta, registrar gasto,
+arqueo, deuda con plan de cuotas) con Playwright en dos proyectos: `desktop`
+y `mobile` (375×812).
+
+- **BD aislada**: usa la misma base de Neon del `.env` pero en el schema
+  `caja_e2e`, nunca en `caja`. `e2e/setup-db.ts` borra y recrea ese schema
+  en cada corrida y aplica las migraciones; aborta si la URL resuelta no
+  apunta exactamente a `caja_e2e`. No hay que configurar nada más: las URLs
+  de test se derivan de `DATABASE_URL` y `DIRECT_URL`.
+- **Puerto 3002 libre**: la suite levanta su propio `pnpm dev` contra la BD
+  de test. Para tu servidor de desarrollo antes de lanzarla (a propósito no
+  reutiliza uno ya abierto, que estaría apuntando a los datos reales).
+- **Chrome instalado**: los proyectos usan el Chrome del sistema
+  (`channel: "chrome"`), no el Chromium empaquetado de Playwright.
+- El informe HTML queda en `playwright-report/` (`pnpm exec playwright
+  show-report`).
 
 ## Deploy en Vercel
 
