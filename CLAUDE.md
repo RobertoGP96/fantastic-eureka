@@ -427,11 +427,15 @@ diseño propio (v3, ver «Tema»). Español para UI/comentarios.
   sidebar. Exporta `initials()`.
 - **Navegación**: escritorio = `src/components/app-sidebar.tsx` (Sidebar
   shadcn colapsable a iconos, estado en cookie `sidebar_state`, atajo
-  Ctrl/Cmd+B) con el botón «Registrar» fijo arriba (el único acceso global a
-  /registrar en escritorio; plegado queda como «+»), los grupos General /
-  Compromisos / Efectivo / Ajustes y el bloque de usuario con menú; barra
-  superior con breadcrumb y campana. Móvil = `bottom-nav.tsx` (plana, «+» al
-  centro). El layout de `(app)` monta SidebarProvider + SidebarInset (que es
+  Ctrl/Cmd+B) con los grupos General / Compromisos / Efectivo / Ajustes y el
+  bloque de usuario con menú; barra superior con breadcrumb y campana. El
+  sidebar NO lleva botón ni entrada «Registrar»: se quitó a petición del
+  usuario (2026-11-27) y está PROHIBIDO volver a añadirlo, ni fijo arriba ni
+  como ítem de un grupo (lo vigila `app-sidebar.test.tsx`). En escritorio se
+  llega a /registrar por los accesos rápidos de Inicio (Gasto / Ingreso /
+  Transferir) y el botón «Registrar» del detalle de cuenta. Móvil =
+  `bottom-nav.tsx` (plana, «+» al centro). El layout de `(app)` monta
+  SidebarProvider + SidebarInset (que es
   un `<div>`: el `<main>` lo pone cada página con `<Page>`) y la columna de
   contenido `@container/main` (`max-w-6xl`). `/mensualidades` tiene entrada
   propia en el sidebar y en `/mas`; en la barra inferior cuelga de la pestaña
