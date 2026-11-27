@@ -1,22 +1,30 @@
 import { redirect } from "next/navigation";
-import { Clock, Eye, UserRound } from "lucide-react";
+import { Eye } from "lucide-react";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { TxList } from "@/components/tx-list";
 import { AccountActivityChart } from "@/components/account-activity-chart";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
-import { fmtMinor } from "@/lib/format";
+import { fmtMinorParts } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
 import { resolveShareToken } from "@/lib/shares";
 import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
-const EXPIRES_FMT = new Intl.DateTimeFormat("es", {
+// «Válido hasta» en dos piezas: el día va como cifra de la tarjeta y la hora
+// como su unidad atenuada (así cabe en media pantalla de móvil).
+const EXPIRES_DAY_FMT = new Intl.DateTimeFormat("es", {
   day: "numeric",
   month: "short",
+});
+const EXPIRES_TIME_FMT = new Intl.DateTimeFormat("es", {
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -79,51 +87,38 @@ export default async function CuentaCompartidaPage({
     toTxRow(tx, account.id, account.currency)
   );
 
+  const balance = fmtMinorParts(balanceMinor, account.currency);
+  const typeLabel =
+    ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type;
+
   return (
-    <main className="flex flex-1 flex-col pb-4">
+    <Page>
       <ScreenHeader
         title={account.name}
+        subtitle={`${typeLabel} · Compartida por ${share.user.name}`}
         actions={
-          <span className="flex items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-[11px] font-semibold">
-            <Eye className="h-3.5 w-3.5" />
+          <Badge>
+            <Eye className="size-3" />
             Solo lectura
-          </span>
-        }
-      >
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
-              Saldo actual
-            </div>
-            <div
-              className={`mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
-                balanceMinor < 0 ? "text-red-300" : ""
-              }`}
-            >
-              {fmtMinor(balanceMinor, account.currency)}
-            </div>
-          </div>
-          <Badge variant="neutral" className="mb-1.5 bg-white/15 text-white">
-            {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}
           </Badge>
-        </div>
-      </ScreenHeader>
+        }
+      />
 
-      <div className="anim-fade-up flex flex-col gap-5 px-5 pt-5 md:px-0">
-        <div className="flex flex-wrap gap-2 text-xs text-muted">
-          <span className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5">
-            <UserRound className="h-3.5 w-3.5 text-brand" />
-            Compartida por{" "}
-            <span className="font-semibold text-navy">{share.user.name}</span>
-          </span>
-          <span className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5">
-            <Clock className="h-3.5 w-3.5 text-gold" />
-            Válido hasta{" "}
-            <span className="font-semibold text-navy">
-              {EXPIRES_FMT.format(share.expiresAt)}
-            </span>
-          </span>
-        </div>
+      <PageBody>
+        <StatGrid cols={2}>
+          <StatCard
+            size="lg"
+            label="Saldo actual"
+            value={balance.amount}
+            unit={balance.code}
+            tone={balanceMinor < 0 ? "danger" : "default"}
+          />
+          <StatCard
+            label="Válido hasta"
+            value={EXPIRES_DAY_FMT.format(share.expiresAt)}
+            unit={EXPIRES_TIME_FMT.format(share.expiresAt)}
+          />
+        </StatGrid>
 
         {activity.length > 0 && (
           <AccountActivityChart
@@ -136,23 +131,23 @@ export default async function CuentaCompartidaPage({
         )}
 
         <section>
-          <h2 className="mb-2.5 text-base font-bold text-navy">
-            Movimientos
-            {transactions.length >= MAX_ROWS && (
-              <span className="ml-2 text-xs font-medium text-muted">
-                últimos {MAX_ROWS}
-              </span>
-            )}
-          </h2>
+          <SectionHeader
+            title="Movimientos"
+            action={
+              transactions.length >= MAX_ROWS ? (
+                <span className="text-xs text-muted">últimos {MAX_ROWS}</span>
+              ) : undefined
+            }
+          />
           {rows.length === 0 ? (
-            <div className="rounded-2xl border border-line bg-white px-4 py-6 text-center text-sm text-muted">
+            <Card className="py-6 text-center text-sm text-muted">
               Sin movimientos todavía.
-            </div>
+            </Card>
           ) : (
             <TxList rows={rows} readOnly />
           )}
         </section>
-      </div>
-    </main>
+      </PageBody>
+    </Page>
   );
 }

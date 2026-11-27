@@ -4,12 +4,12 @@ import { useState } from "react";
 import { EllipsisVertical, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDrawer } from "@/components/confirm-drawer";
 import { DenominationForm } from "@/components/denomination-form";
-import { EMPTY_STATE_CTA } from "@/components/empty-state";
 import { FormDrawer } from "@/components/form-drawer";
 import { PanelButton } from "@/components/panel-button";
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,15 +20,10 @@ import {
   deleteDenomination,
   toggleDenomination,
 } from "@/app/actions/currency-actions";
-import {
-  DENOMINATION_KINDS,
-  DENOMINATION_KIND_LABELS,
-  type DenominationKind,
-} from "@/lib/domain";
+import { DENOMINATION_KINDS, DENOMINATION_KIND_LABELS } from "@/lib/domain";
 import { fmtMinor, type DisplayCurrency } from "@/lib/format";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
-import { cn } from "@/lib/utils";
 import { NEW_DENOMINATION_PANEL } from "../panels";
 
 export interface DenominationItem {
@@ -40,9 +35,9 @@ export interface DenominationItem {
 }
 
 /**
- * Billetes y monedas de una divisa, agrupados por tipo. El alta vive en el
- * drawer de la página; editar y eliminar, en drawers propios. Ocultar/activar
- * es de un toque, en el ⋮.
+ * Billetes y monedas de una divisa, en teselas agrupadas por tipo. El alta
+ * vive en el drawer de la página; editar y eliminar, en drawers propios.
+ * Ocultar/activar es de un toque, en el ⋮.
  */
 export function DenominationManager({
   currency,
@@ -106,17 +101,17 @@ export function DenominationManager({
   return (
     <div className="flex flex-col gap-5">
       {denominations.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-card px-4 py-6 text-center">
+        <Card dashed className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="text-sm text-muted">
             Esta moneda todavía no tiene billetes ni monedas.
           </p>
           <PanelButton
             panel={NEW_DENOMINATION_PANEL}
-            className={EMPTY_STATE_CTA}
+            className={buttonVariants({ size: "sm" })}
           >
             Nueva denominación
           </PanelButton>
-        </div>
+        </Card>
       )}
 
       {groups.map(
@@ -124,68 +119,71 @@ export function DenominationManager({
           group.items.length > 0 && (
             <Section
               key={group.kind}
-              title={`${DENOMINATION_KIND_LABELS[group.kind as DenominationKind]}s`}
+              title={`${DENOMINATION_KIND_LABELS[group.kind]}s`}
             >
-              <div className="anim-stagger grid grid-cols-2 gap-1.5 @lg:grid-cols-3 @3xl:grid-cols-4">
+              <div className="anim-stagger grid grid-cols-2 gap-3 @2xl/main:grid-cols-3 @4xl/main:grid-cols-4">
                 {group.items.map((denomination) => {
                   const label = fmtMinor(denomination.valueMinor, currency);
                   return (
                     <div
                       key={denomination.id}
-                      className={cn(
-                        "flex items-center justify-between gap-1.5 rounded-xl border border-line bg-card py-1 pr-1 pl-3",
-                        !denomination.active && "opacity-55"
-                      )}
+                      className="flex items-start gap-1 rounded-2xl border border-line bg-card py-1 pr-1 pl-3.5"
                     >
-                      <span className="money truncate text-sm font-bold text-heading">
-                        {label}
-                      </span>
-                      <div className="flex flex-none items-center gap-1">
+                      {/* El valor y sus insignias comparten línea si caben y,
+                          si no, las insignias bajan: el valor nunca se
+                          recorta por ellas. `py-2.5` centra la primera línea
+                          con el botón de 40 px. */}
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 py-2.5">
+                        <span className="money min-w-0 truncate text-sm font-semibold text-heading">
+                          {label}
+                        </span>
                         {denomination.usageCount > 0 && (
-                          <Badge variant="neutral">
+                          <Badge variant="neutral" className="money">
                             {denomination.usageCount}
                           </Badge>
                         )}
-                        {/* modal={false}: el menú abre drawers (diálogos
-                            modales). Con el menú también modal, los dos se
-                            disputan el foco y el bloqueo de punteros del
-                            body al cerrarse uno y abrirse el otro. */}
-                        <DropdownMenu modal={false}>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              aria-label={`Opciones de ${label}`}
-                            >
-                              <EllipsisVertical />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="min-w-40 rounded-xl border-line"
-                          >
-                            <DropdownMenuItem
-                              onSelect={() => requestEdit(denomination)}
-                            >
-                              <Pencil />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => void toggle(denomination.id)}
-                            >
-                              {denomination.active ? <EyeOff /> : <Eye />}
-                              {denomination.active ? "Ocultar" : "Activar"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => requestDelete(denomination)}
-                            >
-                              <Trash2 />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Oculta: insignia y contraste normal, no opacidad. */}
+                        {!denomination.active && (
+                          <Badge variant="neutral">Oculta</Badge>
+                        )}
                       </div>
+                      {/* modal={false}: el menú abre drawers (diálogos
+                          modales). Con el menú también modal, los dos se
+                          disputan el foco y el bloqueo de punteros del body
+                          al cerrarse uno y abrirse el otro. */}
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="flex-none"
+                            aria-label={`Opciones de ${label}`}
+                          >
+                            <EllipsisVertical />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-40">
+                          <DropdownMenuItem
+                            onSelect={() => requestEdit(denomination)}
+                          >
+                            <Pencil />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => void toggle(denomination.id)}
+                          >
+                            {denomination.active ? <EyeOff /> : <Eye />}
+                            {denomination.active ? "Ocultar" : "Activar"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => requestDelete(denomination)}
+                          >
+                            <Trash2 />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   );
                 })}

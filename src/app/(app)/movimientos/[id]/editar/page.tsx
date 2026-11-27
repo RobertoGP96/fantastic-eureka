@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
-import { PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
+import { TRANSACTION_KIND_LABELS, type TransactionKind } from "@/lib/domain";
 import { minorToAmountInput } from "@/lib/money";
 import { accountDenominationStock } from "@/lib/denominations";
 import type { BreakdownDenomination } from "@/components/denomination-breakdown-field";
@@ -118,45 +120,58 @@ export default async function EditarMovimientoPage({
       : [];
 
   const cross = !!counterCurrency;
+
+  // Tipo y cuentas no se editan: van de subtítulo en vez de como campos.
+  const kindLabel =
+    TRANSACTION_KIND_LABELS[tx.kind as TransactionKind] ?? tx.kind;
+  const subtitle =
+    isTransfer && tx.counterAccount
+      ? `${kindLabel} · ${tx.account.name} → ${tx.counterAccount.name}`
+      : `${kindLabel} · ${tx.account.name}`;
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Editar movimiento" backHref={`/movimientos/${id}`} />
-      {/* Sigue siendo página (no drawer): el desglose de billetes necesita
-          sitio. `default` le da algo más de ancho que el viejo max-w-md. */}
-      <PageBody width="default">
-        <EditTransactionForm
-          tx={{
-            id: tx.id,
-            kind: tx.kind,
-            accountName: tx.account.name,
-            counterAccountName: tx.counterAccount?.name ?? null,
-            currency: {
-              code: tx.currency.code,
-              decimalPlaces: tx.currency.decimalPlaces,
-            },
-            counterCurrency: counterCurrency
-              ? {
-                  code: counterCurrency.code,
-                  decimalPlaces: counterCurrency.decimalPlaces,
-                }
-              : null,
-            amount: minorToAmountInput(tx.amountMinor, tx.currency),
-            counterAmount:
-              cross && tx.counterAmountMinor !== null
-                ? minorToAmountInput(tx.counterAmountMinor, counterCurrency!)
+    <Page width="form">
+      <ScreenHeader
+        title="Editar movimiento"
+        subtitle={subtitle}
+        backHref={`/movimientos/${id}`}
+      />
+      <PageBody>
+        <Card>
+          <EditTransactionForm
+            tx={{
+              id: tx.id,
+              kind: tx.kind,
+              accountName: tx.account.name,
+              counterAccountName: tx.counterAccount?.name ?? null,
+              currency: {
+                code: tx.currency.code,
+                decimalPlaces: tx.currency.decimalPlaces,
+              },
+              counterCurrency: counterCurrency
+                ? {
+                    code: counterCurrency.code,
+                    decimalPlaces: counterCurrency.decimalPlaces,
+                  }
                 : null,
-            categoryId: tx.categoryId,
-            note: tx.note ?? "",
-            occurredAtISO: tx.occurredAt.toISOString(),
-            isLinked: !!tx.debtPayment || !!tx.installment,
-          }}
-          categories={categories}
-          originDenoms={originDenoms}
-          destDenoms={destDenoms}
-          initialOriginLines={originOldLines}
-          initialDestLines={destOldLines}
-        />
+              amount: minorToAmountInput(tx.amountMinor, tx.currency),
+              counterAmount:
+                cross && tx.counterAmountMinor !== null
+                  ? minorToAmountInput(tx.counterAmountMinor, counterCurrency!)
+                  : null,
+              categoryId: tx.categoryId,
+              note: tx.note ?? "",
+              occurredAtISO: tx.occurredAt.toISOString(),
+              isLinked: !!tx.debtPayment || !!tx.installment,
+            }}
+            categories={categories}
+            originDenoms={originDenoms}
+            destDenoms={destDenoms}
+            initialOriginLines={originOldLines}
+            initialDestLines={destOldLines}
+          />
+        </Card>
       </PageBody>
-    </main>
+    </Page>
   );
 }

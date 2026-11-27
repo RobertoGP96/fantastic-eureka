@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Coins, LineChart, PencilLine, Plus } from "lucide-react";
+import { Coins, LineChart, Plus } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getAccountIcon } from "@/lib/account-icons";
 import type { AccountWithBalance } from "@/lib/balances";
@@ -7,23 +7,26 @@ import { totalsByCurrency } from "@/lib/balances-core";
 import type { DashboardWidget } from "@/lib/dashboard-prefs";
 import { ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/domain";
 import { fmtMinor, fmtRate } from "@/lib/format";
-import { incomeCardData } from "@/lib/metrics";
+import { activityMapData, incomeCardData } from "@/lib/metrics";
 import type { BaseCurrencyInfo } from "@/lib/metrics-core";
 import { toTxRow } from "@/lib/tx-rows";
+import { ActivityMapCard } from "@/components/activity-map";
 import { TxList } from "@/components/tx-list";
 import { DenominationAvailability } from "@/components/denomination-availability";
 import { IncomeCard } from "@/components/income-card";
 import { RateSparkline } from "@/components/rate-sparkline";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
-// Gadgets del dashboard (server components): tarjeta de una cuenta,
-// totales por divisa y tasa de un par. Se instancian desde las
-// preferencias del usuario (src/lib/dashboard-prefs.ts).
+// Gadgets del dashboard (server components): tarjeta de una cuenta, totales
+// por divisa, tasa de un par, resumen de ingresos y mapa de actividad. Se
+// instancian desde las preferencias del usuario (src/lib/dashboard-prefs.ts).
 
 function WidgetPlaceholder({ message }: { message: string }) {
   return (
-    <section className="rounded-2xl border border-dashed border-line bg-white p-4 text-center text-sm text-muted">
+    <Card dashed className="flex h-full items-center justify-center text-center text-sm text-muted">
       {message}
-    </section>
+    </Card>
   );
 }
 
@@ -69,60 +72,62 @@ export async function AccountCardWidget({
     .reverse();
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <section className="rounded-2xl border border-line bg-white p-4">
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-            <Icon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <Link
-              href={`/cuentas/${account.id}`}
-              className="block truncate text-sm font-semibold text-navy hover:text-brand"
-            >
-              {account.name}
-            </Link>
-            <div className="text-xs text-muted">
-              {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}{" "}
-              · {account.currency.code}
+    <div className="flex h-full flex-col gap-3">
+      <Card asChild className="flex-1">
+        <section>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+              <Icon className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/cuentas/${account.id}`}
+                className="block truncate text-sm font-semibold text-heading hover:text-brand-ink"
+              >
+                {account.name}
+              </Link>
+              <div className="truncate text-xs text-muted">
+                {ACCOUNT_TYPE_LABELS[account.type as AccountType] ??
+                  account.type}{" "}
+                · {account.currency.code}
+              </div>
             </div>
           </div>
           <div
-            className={`text-lg font-bold whitespace-nowrap ${
-              negative ? "text-danger" : "text-navy"
+            className={`money mt-3 text-xl font-semibold tracking-tight ${
+              negative ? "text-danger" : "text-heading"
             }`}
           >
             {fmtMinor(account.balanceMinor, account.currency)}
           </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2 border-t border-line-2 pt-2.5">
-          <Link
-            href={`/registrar?cuenta=${account.id}`}
-            className="flex items-center gap-1.5 rounded-lg bg-chip px-[11px] py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft/30"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Registrar aquí
-          </Link>
-          <Link
-            href={`/cuentas/${account.id}`}
-            className="ml-auto flex items-center gap-1.5 rounded-lg px-[11px] py-1.5 text-xs font-semibold text-muted transition-colors hover:text-brand"
-          >
-            <PencilLine className="h-3.5 w-3.5" />
-            Ver cuenta
-          </Link>
-        </div>
-        {widget.showMovements && (
-          <div className="mt-2.5">
-            {rows.length > 0 ? (
-              <TxList rows={rows} />
-            ) : (
-              <p className="py-2 text-center text-xs text-muted">
-                Sin movimientos todavía.
-              </p>
-            )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              href={`/registrar?cuenta=${account.id}`}
+              className={buttonVariants({ variant: "chip", size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Registrar aquí
+            </Link>
+            <Link
+              href={`/cuentas/${account.id}`}
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              Ver cuenta
+            </Link>
           </div>
-        )}
-      </section>
+          {widget.showMovements && (
+            <div className="mt-3 border-t border-line-2 pt-1">
+              {rows.length > 0 ? (
+                <TxList rows={rows} bare />
+              ) : (
+                <p className="py-3 text-center text-xs text-muted">
+                  Sin movimientos todavía.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </Card>
       {widget.showDenominations && account.type === "CASH_BOX" && (
         <DenominationAvailability
           userId={userId}
@@ -147,31 +152,33 @@ export function CurrencyTotalsWidget({
     );
   }
   return (
-    <section className="h-full rounded-2xl border border-line bg-white p-4">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-navy">
-        <Coins className="h-4 w-4 text-brand" />
-        Totales por moneda
-      </h2>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-        {totals.map((total) => (
-          <div
-            key={total.currency.id}
-            className="rounded-xl bg-app px-3 py-2.5"
-          >
-            <div className="text-[11px] font-medium tracking-wide text-muted uppercase">
-              {total.currency.code}
-            </div>
+    <Card asChild className="h-full">
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-heading">
+          <Coins className="size-4 text-brand-ink" />
+          Totales por moneda
+        </h2>
+        <div className="grid grid-cols-2 gap-2 @2xl/main:grid-cols-3">
+          {totals.map((total) => (
             <div
-              className={`mt-0.5 text-base font-bold ${
-                total.totalMinor < 0 ? "text-danger" : "text-navy"
-              }`}
+              key={total.currency.id}
+              className="rounded-xl bg-subtle px-3 py-2.5"
             >
-              {fmtMinor(total.totalMinor, total.currency)}
+              <div className="text-[11px] font-medium text-muted">
+                {total.currency.code}
+              </div>
+              <div
+                className={`money mt-0.5 text-base font-semibold ${
+                  total.totalMinor < 0 ? "text-danger" : "text-heading"
+                }`}
+              >
+                {fmtMinor(total.totalMinor, total.currency)}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </section>
+          ))}
+        </div>
+      </section>
+    </Card>
   );
 }
 
@@ -232,26 +239,34 @@ export function RatePairWidget({
 }) {
   const latest = values.at(-1);
   return (
-    <section className="flex h-full flex-col justify-center rounded-2xl border border-line bg-white p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-chip text-brand">
-          <LineChart className="h-[18px] w-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Link
-            href={`/tasas/${fromCode}/${toCode}`}
-            className="block text-sm font-semibold text-navy hover:text-brand"
-          >
-            {fromCode} → {toCode}
-          </Link>
-          <div className="text-xs text-muted">
-            {latest !== undefined
-              ? `1 ${fromCode} = ${fmtRate(latest)} ${toCode}`
-              : "Sin tasas registradas para este par"}
+    <Card asChild className="flex h-full flex-col justify-center">
+      <section>
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+            <LineChart className="size-[18px]" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Link
+              href={`/tasas/${fromCode}/${toCode}`}
+              className="block text-sm font-semibold text-heading hover:text-brand-ink"
+            >
+              {fromCode} → {toCode}
+            </Link>
+            <div className="text-xs text-muted">
+              {latest !== undefined
+                ? `1 ${fromCode} = ${fmtRate(latest)} ${toCode}`
+                : "Sin tasas registradas para este par"}
+            </div>
           </div>
+          {values.length > 1 && <RateSparkline values={values} />}
         </div>
-        {values.length > 1 && <RateSparkline values={values} />}
-      </div>
-    </section>
+      </section>
+    </Card>
   );
+}
+
+/** «Mapa de actividad»: movimientos por día del último año. */
+export async function ActivityMapWidget({ userId }: { userId: string }) {
+  const map = await activityMapData(userId);
+  return <ActivityMapCard map={map} />;
 }

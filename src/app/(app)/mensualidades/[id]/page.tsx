@@ -1,18 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronRight, HandCoins, UserRound } from "lucide-react";
+import { CalendarClock, ChevronRight } from "lucide-react";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
-import { PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { Section } from "@/components/section";
+import { SectionHeader } from "@/components/section-header";
 import { SettleInstallment } from "@/components/settle-installment";
+import { StatCard, StatGrid } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { debtRemainingMinor } from "@/lib/debts";
-import { fmtMinor, minorToInput } from "@/lib/format";
+import { fmtMinor, fmtMinorParts, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import { dueTone, nextPending } from "@/lib/plans-core";
 import {
@@ -31,8 +34,9 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
-const ASIDE_LINK =
-  "press flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+// Bloques de la columna lateral que en móvil suben por encima de la columna
+// principal (ver la rejilla más abajo).
+const ASIDE_FIRST = "order-first @4xl/main:order-none";
 
 export default async function MensualidadDetallePage({
   params,
@@ -61,6 +65,7 @@ export default async function MensualidadDetallePage({
     plan.debtId ? debtRemainingMinor(plan.debtId) : null,
   ]);
   const settleAccountId = plan.accountId ?? plan.debt?.accountId ?? null;
+  // Contacto propio del plan o, si cuelga de una deuda, el de la deuda.
   const contact = plan.contact ?? plan.debt?.contact ?? null;
 
   const accounts = await prisma.account.findMany({
@@ -69,159 +74,189 @@ export default async function MensualidadDetallePage({
     orderBy: { createdAt: "asc" },
   });
 
+  const amountParts = fmtMinorParts(plan.amountMinor, plan.currency);
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={plan.description} backHref="/mensualidades">
-        <div className="mt-3">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="money text-[28px] font-bold tracking-[-0.5px]">
-                {fmtMinor(plan.amountMinor, plan.currency)}
-              </div>
-              <div className="mt-1 text-sm text-white/80">
-                {PLAN_KIND_LABELS[plan.kind as PlanKind]} ·{" "}
-                {FREQUENCY_LABELS[plan.frequency as Frequency]}
-              </div>
-            </div>
-            <Badge variant="neutral" className="bg-white/15 text-white">
-              {plan.active ? "Activa" : "Finalizada"}
-            </Badge>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
-            <span className="flex items-center gap-1">
-              <UserRound className="size-3" />
-              {contact?.name ?? "Sin contacto"}
-            </span>
-            <span>
-              {paidCount} cuota{paidCount === 1 ? "" : "s"} saldada
-              {paidCount === 1 ? "" : "s"}
-            </span>
-            {plan.endAt && <span>Termina {DATE_FMT.format(plan.endAt)}</span>}
-          </div>
-        </div>
+    <Page>
+      <ScreenHeader
+        title={plan.description}
+        // El contacto, si lo hay, va enlazado en su tarjeta de la columna
+        // lateral: aquí solo se avisa cuando falta.
+        subtitle={`${PLAN_KIND_LABELS[plan.kind as PlanKind]} · ${
+          FREQUENCY_LABELS[plan.frequency as Frequency]
+        }${contact ? "" : " · Sin contacto"}`}
+        backHref="/mensualidades"
+      >
+        <Badge variant={plan.active ? "accent" : "neutral"}>
+          {plan.active ? "Activa" : "Finalizada"}
+        </Badge>
       </ScreenHeader>
 
       <PageBody>
-        <SplitLayout
-          aside={
-            <>
-              {plan.active && (
-                <LinkedAccountEditor
-                  kind="plan"
-                  targetId={plan.id}
-                  accounts={accounts}
-                  currentAccountId={plan.accountId}
-                  currencyCode={plan.currency.code}
-                />
-              )}
+        <StatGrid cols={plan.endAt ? 3 : 2}>
+          <StatCard
+            label="Cuota"
+            value={amountParts.amount}
+            unit={amountParts.code}
+          />
+          <StatCard label="Cuotas saldadas" value={paidCount} />
+          {plan.endAt && (
+            // Tercer KPI: en móvil (rejilla de 2) ocupa la fila entera.
+            <StatCard
+              label="Termina"
+              value={DATE_FMT.format(plan.endAt)}
+              className="col-span-2 @2xl/main:col-span-1"
+            />
+          )}
+        </StatGrid>
 
-              {contact && (
-                <Link href={`/contactos/${contact.id}`} className={ASIDE_LINK}>
-                  <EntityAvatar name={contact.name} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs text-muted">Contacto</div>
-                    <div className="truncate text-sm font-semibold text-heading">
-                      {contact.name}
+        {/* Principal + lateral. En móvil todo es una sola columna y la
+            lateral se «disuelve» (contents) para repartir sus bloques: la
+            próxima cuota, sus ajustes y los enlaces arriba (ASIDE_FIRST) y
+            las acciones de finalizar/eliminar al final, tras el historial. */}
+        <div className="grid grid-cols-1 gap-5 @4xl/main:grid-cols-12">
+          <div className="flex min-w-0 flex-col gap-5 @4xl/main:col-span-8">
+            {plan.installments.length > 0 && (
+              <Section title="Historial de cuotas">
+                <Card
+                  padding="none"
+                  className="divide-y divide-line-2 overflow-hidden"
+                >
+                  {plan.installments.map((inst) => (
+                    <div
+                      key={inst.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <span className="text-sm font-medium text-heading">
+                          {DATE_FMT.format(inst.dueAt)}
+                        </span>
+                        {inst.status === "PAID" ? (
+                          <Badge variant="ok">Saldada</Badge>
+                        ) : inst.status === "SKIPPED" ? (
+                          <Badge variant="neutral">Omitida</Badge>
+                        ) : (
+                          <Badge variant={dueTone(daysUntil(inst.dueAt))}>
+                            {dueLabel(inst.dueAt)}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="money text-[15px] font-semibold whitespace-nowrap text-heading">
+                        {fmtMinor(inst.amountMinor, plan.currency)}
+                      </span>
                     </div>
-                  </div>
-                  <ChevronRight className="size-4 flex-none text-muted" />
-                </Link>
-              )}
+                  ))}
+                </Card>
+              </Section>
+            )}
+          </div>
 
-              {plan.debt && (
-                <Link href={`/deudas/${plan.debt.id}`} className={ASIDE_LINK}>
-                  <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
-                    <HandCoins className="size-[18px]" />
-                  </span>
-                  <div className="min-w-0 flex-1 truncate text-sm font-semibold text-heading">
-                    Ver deuda de {plan.debt.contact.name}
-                  </div>
-                  <ChevronRight className="size-4 flex-none text-muted" />
-                </Link>
-              )}
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {plan.active && <PlanButtons planId={plan.id} />}
-                <DeleteEntityButton kind="plan" targetId={plan.id} />
-              </div>
-            </>
-          }
-          main={
-            <>
-              {plan.active && pending && (
-                <Section title="Próxima cuota">
-                  <div className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="money text-base font-bold text-heading">
+          <div className="contents @4xl/main:col-span-4 @4xl/main:flex @4xl/main:min-w-0 @4xl/main:flex-col @4xl/main:gap-5">
+            {/* La cuenta habitual va pegada (hueco menor) a la tarjeta de la
+                cuota: es la cuenta que su formulario trae preseleccionada. */}
+            {plan.active && (
+              <div className={`flex min-w-0 flex-col gap-2.5 ${ASIDE_FIRST}`}>
+                {pending && (
+                  <Card asChild>
+                    <section>
+                      <SectionHeader
+                        size="sm"
+                        title="Próxima cuota"
+                        action={
+                          <Badge
+                            variant={dueTone(daysUntil(pending.dueAt))}
+                            className="flex-none"
+                          >
+                            <CalendarClock className="size-3" />
+                            {dueLabel(pending.dueAt)}
+                          </Badge>
+                        }
+                      />
+                      <div className="mb-3">
+                        <div className="money text-[15px] font-semibold text-heading">
                           {fmtMinor(pending.amountMinor, plan.currency)}
                         </div>
                         <div className="text-xs text-muted">
                           {DATE_FMT.format(pending.dueAt)}
                         </div>
                       </div>
-                      <Badge variant={dueTone(daysUntil(pending.dueAt))}>
-                        <CalendarClock className="size-3" />
-                        {dueLabel(pending.dueAt)}
-                      </Badge>
-                    </div>
-                    {/* key por cuota y cuenta: re-inicializa el formulario al
-                        llegar la cuota siguiente o cambiar la cuenta vinculada. */}
-                    <SettleInstallment
-                      key={`${pending.id}-${settleAccountId ?? "none"}`}
-                      installmentId={pending.id}
-                      accounts={accounts}
-                      defaultAmount={minorToInput(
-                        debtRemaining === null
-                          ? pending.amountMinor
-                          : Math.min(
-                              pending.amountMinor,
-                              Math.max(debtRemaining, 0)
-                            ),
-                        plan.currency.decimalPlaces
-                      )}
-                      currencyCode={plan.currency.code}
-                      kind={plan.kind}
-                      defaultAccountId={settleAccountId}
-                    />
-                  </div>
-                </Section>
-              )}
+                      {/* key por cuota y cuenta: re-inicializa el formulario al
+                          llegar la cuota siguiente o cambiar la cuenta vinculada. */}
+                      <SettleInstallment
+                        key={`${pending.id}-${settleAccountId ?? "none"}`}
+                        installmentId={pending.id}
+                        accounts={accounts}
+                        defaultAmount={minorToInput(
+                          debtRemaining === null
+                            ? pending.amountMinor
+                            : Math.min(
+                                pending.amountMinor,
+                                Math.max(debtRemaining, 0)
+                              ),
+                          plan.currency.decimalPlaces
+                        )}
+                        currencyCode={plan.currency.code}
+                        kind={plan.kind}
+                        defaultAccountId={settleAccountId}
+                      />
+                    </section>
+                  </Card>
+                )}
+                <Card padding="none" className="px-4 py-3">
+                  <LinkedAccountEditor
+                    kind="plan"
+                    targetId={plan.id}
+                    accounts={accounts}
+                    currentAccountId={plan.accountId}
+                    currencyCode={plan.currency.code}
+                  />
+                </Card>
+              </div>
+            )}
 
-              {plan.installments.length > 0 && (
-                <Section title="Historial de cuotas">
-                  <div className="anim-stagger flex flex-col gap-1.5">
-                    {plan.installments.map((inst) => (
-                      <div
-                        key={inst.id}
-                        className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm"
-                      >
-                        <span className="text-muted">
-                          {DATE_FMT.format(inst.dueAt)}
-                        </span>
-                        <div className="flex items-center gap-2.5">
-                          <span className="money font-semibold text-ink-soft">
-                            {fmtMinor(inst.amountMinor, plan.currency)}
-                          </span>
-                          {inst.status === "PAID" ? (
-                            <Badge variant="ok">Saldada</Badge>
-                          ) : inst.status === "SKIPPED" ? (
-                            <Badge variant="neutral">Omitida</Badge>
-                          ) : (
-                            <Badge variant={dueTone(daysUntil(inst.dueAt))}>
-                              {dueLabel(inst.dueAt)}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+            {contact && (
+              <Card
+                asChild
+                interactive
+                padding="none"
+                className={`flex items-center gap-3 px-4 py-3 ${ASIDE_FIRST}`}
+              >
+                <Link href={`/contactos/${contact.id}`}>
+                  <EntityAvatar name={contact.name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted">Contacto</div>
+                    <div className="truncate text-sm font-medium text-heading">
+                      {contact.name}
+                    </div>
                   </div>
-                </Section>
-              )}
-            </>
-          }
-        />
+                  <ChevronRight className="size-4 flex-none text-muted" />
+                </Link>
+              </Card>
+            )}
+
+            {plan.debt && (
+              <Card
+                asChild
+                interactive
+                padding="none"
+                className={`flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-ink-soft hover:text-heading ${ASIDE_FIRST}`}
+              >
+                <Link href={`/deudas/${plan.debt.id}`}>
+                  <span className="min-w-0 truncate">
+                    Ver deuda de {plan.debt.contact.name}
+                  </span>
+                  <ChevronRight className="size-4 flex-none text-muted" />
+                </Link>
+              </Card>
+            )}
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {plan.active && <PlanButtons planId={plan.id} />}
+              <DeleteEntityButton kind="plan" targetId={plan.id} />
+            </div>
+          </div>
+        </div>
       </PageBody>
-    </main>
+    </Page>
   );
 }

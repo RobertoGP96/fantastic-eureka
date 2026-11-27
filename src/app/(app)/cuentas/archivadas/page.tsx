@@ -1,6 +1,7 @@
 import { Archive } from "lucide-react";
+import { CardGrid } from "@/components/content-grid";
 import { EmptyState } from "@/components/empty-state";
-import { CardGrid, PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { listAccountsWithBalances } from "@/lib/balances";
@@ -15,8 +16,17 @@ export default async function CuentasArchivadasPage() {
   ).filter((account) => account.archived);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Cuentas archivadas" backHref="/cuentas" />
+    <Page>
+      <ScreenHeader
+        title="Cuentas archivadas"
+        // Sin archivadas, el vacío de abajo ya lo explica: no se repite.
+        subtitle={
+          accounts.length > 0
+            ? "Las cuentas archivadas conservan su historial y no aparecen al registrar movimientos. Entra al detalle para activarlas de nuevo."
+            : undefined
+        }
+        backHref="/cuentas"
+      />
 
       <PageBody>
         {accounts.length === 0 ? (
@@ -26,19 +36,13 @@ export default async function CuentasArchivadasPage() {
             description="Cuando archives una cuenta desde su detalle, aparecerá aquí con su historial intacto."
           />
         ) : (
-          <>
-            <p className="text-xs text-muted">
-              Las cuentas archivadas conservan su historial y no aparecen al
-              registrar movimientos. Entra al detalle para activarlas de nuevo.
-            </p>
-            <CardGrid>
-              {accounts.map((account) => (
-                <AccountCard key={account.id} account={account} />
-              ))}
-            </CardGrid>
-          </>
+          <CardGrid>
+            {accounts.map((account) => (
+              <AccountCard key={account.id} account={account} />
+            ))}
+          </CardGrid>
         )}
       </PageBody>
-    </main>
+    </Page>
   );
 }

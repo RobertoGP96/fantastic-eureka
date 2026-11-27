@@ -1,13 +1,17 @@
 import { notFound } from "next/navigation";
-import { ArrowRight, Plus, TrendingDown, TrendingUp } from "lucide-react";
-import { EMPTY_STATE_CTA } from "@/components/empty-state";
+import { ArrowRight, Plus } from "lucide-react";
+import { SplitLayout } from "@/components/content-grid";
 import { PanelDrawer } from "@/components/form-drawer";
-import { PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
 import { RateForm } from "@/components/rate-form";
 import { RateLineChart } from "@/components/rate-line-chart";
-import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
 import { Section } from "@/components/section";
+import { SectionHeader } from "@/components/section-header";
+import { StatCard, StatGrid } from "@/components/stat-card";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { fmtRate } from "@/lib/format";
@@ -57,12 +61,13 @@ export default async function TasaDetallePage({
   const latest = history.at(-1) ?? null;
   const previous = history.at(-2) ?? null;
 
-  // Variación frente al registro anterior (puntos escalados → %).
+  // Variación frente al registro anterior (puntos escalados → %), con dos
+  // decimales como mucho: es el chip de la tarjeta «Tasa vigente».
   const deltaScaled =
     latest && previous ? latest.rateScaled - previous.rateScaled : null;
   const deltaPct =
     deltaScaled !== null && previous && previous.rateScaled > 0
-      ? (deltaScaled / previous.rateScaled) * 100
+      ? Number(((deltaScaled / previous.rateScaled) * 100).toFixed(2))
       : null;
 
   let inverseScaled: number | null = null;
@@ -88,124 +93,121 @@ export default async function TasaDetallePage({
     .map((c) => ({ id: c.id, code: c.code }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title={`${fromCode} → ${toCode}`}
+        subtitle={
+          latest
+            ? `1 ${fromCode} = ${fmtRate(latest.rateScaled)} ${toCode} · ${DATE_FMT.format(latest.effectiveAt)}`
+            : "Sin tasas registradas para este par."
+        }
         backHref="/tasas"
         actions={
-          <PanelButton panel={NEW_RATE_PANEL} className={HEADER_ACTION}>
+          <PanelButton
+            panel={NEW_RATE_PANEL}
+            className={buttonVariants({ size: "sm" })}
+          >
             <Plus className="size-3.5" />
             Nueva
           </PanelButton>
         }
-      >
-        {latest ? (
-          <div className="mt-2">
-            <div className="money text-[28px] font-bold tracking-[-0.5px]">
-              {fmtRate(latest.rateScaled)}{" "}
-              <span className="text-base font-semibold text-white/80">
-                {toCode}
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-white/80">
-              1 {fromCode} = {fmtRate(latest.rateScaled)} {toCode} ·{" "}
-              {DATE_FMT.format(latest.effectiveAt)}
-              {inverseScaled !== null && (
-                <>
-                  {" "}
-                  · inverso: 1 {toCode} = {fmtRate(inverseScaled)} {fromCode}
-                </>
-              )}
-            </p>
-          </div>
-        ) : (
-          <p className="mt-1 text-sm text-white/80">
-            Sin tasas registradas para este par.
-          </p>
-        )}
-      </ScreenHeader>
+      />
 
-      <PageBody className="gap-6">
-        {history.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-card px-4 py-6 text-center">
+      <PageBody>
+        {!latest ? (
+          <Card
+            dashed
+            className="flex flex-col items-center gap-3 py-6 text-center"
+          >
             <p className="text-sm text-muted">
               Este par no tiene tasas registradas todavía.
             </p>
-            <PanelButton panel={NEW_RATE_PANEL} className={EMPTY_STATE_CTA}>
+            <PanelButton
+              panel={NEW_RATE_PANEL}
+              className={buttonVariants({ size: "sm" })}
+            >
               Registrar tasa
             </PanelButton>
-          </div>
+          </Card>
         ) : (
-          <SplitLayout
-            main={
-              <Section
-                title="Evolución"
-                action={
-                  deltaScaled !== null &&
-                  deltaPct !== null && (
-                    <span
-                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        deltaScaled === 0
-                          ? "bg-chip text-ink-soft"
-                          : deltaScaled > 0
-                            ? "bg-ok-bg text-ok"
-                            : "bg-danger-bg text-danger"
-                      }`}
-                    >
-                      {deltaScaled > 0 ? (
-                        <TrendingUp className="size-3.5" />
-                      ) : deltaScaled < 0 ? (
-                        <TrendingDown className="size-3.5" />
-                      ) : null}
-                      {deltaScaled > 0 ? "+" : ""}
-                      {deltaPct.toFixed(2).replace(/\.?0+$/, "")}% vs anterior
-                    </span>
-                  )
+          <>
+            {/* Sin inverso representable (tasa enorme) la tarjeta se omite y
+                la rejilla pasa a dos columnas. Con las tres, en móvil la tasa
+                vigente ocupa la fila entera. */}
+            <StatGrid cols={inverseScaled !== null ? 3 : 2}>
+              <StatCard
+                label="Tasa vigente"
+                value={fmtRate(latest.rateScaled)}
+                unit={toCode}
+                delta={deltaPct}
+                hint={deltaPct !== null ? "vs anterior" : undefined}
+                className={
+                  inverseScaled !== null
+                    ? "col-span-2 @2xl/main:col-span-1"
+                    : undefined
                 }
-              >
-                <div className="rounded-2xl border border-line bg-card p-4">
-                  {history.length === 1 ? (
-                    <p className="py-6 text-center text-sm text-muted">
-                      Solo hay un registro — el gráfico aparecerá cuando el par
-                      tenga al menos dos tasas.
-                    </p>
-                  ) : (
-                    <RateLineChart
-                      points={chartPoints}
-                      fromCode={fromCode}
-                      toCode={toCode}
-                    />
-                  )}
-                  <p className="mt-2 text-center text-[11px] text-muted">
-                    {history.length}{" "}
-                    {history.length === 1 ? "registro" : "registros"} · desde{" "}
-                    {DATE_FMT.format(history[0].effectiveAt)}
-                  </p>
-                </div>
-              </Section>
-            }
-            aside={
-              <Section title="Histórico del par">
-                <div className="anim-stagger flex flex-col gap-1.5">
-                  {[...history].reverse().map((rate) => (
-                    <div
-                      key={rate.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm"
-                    >
-                      <span className="money flex items-center gap-1.5 font-semibold text-ink-soft">
-                        {fromCode}
-                        <ArrowRight className="size-3 text-muted" />
-                        {fmtRate(rate.rateScaled)} {toCode}
-                      </span>
-                      <span className="flex-none text-muted">
-                        {DATE_FMT.format(rate.effectiveAt)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            }
-          />
+              />
+              {inverseScaled !== null && (
+                <StatCard
+                  label="Inverso"
+                  value={fmtRate(inverseScaled)}
+                  unit={fromCode}
+                  hint={`1 ${toCode} = ${fmtRate(inverseScaled)} ${fromCode}`}
+                />
+              )}
+              <StatCard
+                label="Registros"
+                value={history.length}
+                hint={`desde ${DATE_FMT.format(history[0].effectiveAt)}`}
+              />
+            </StatGrid>
+
+            <SplitLayout
+              main={
+                <Card asChild>
+                  <section>
+                    <SectionHeader size="sm" title="Evolución" />
+                    {history.length === 1 ? (
+                      <p className="py-6 text-center text-sm text-muted">
+                        Solo hay un registro — el gráfico aparecerá cuando el
+                        par tenga al menos dos tasas.
+                      </p>
+                    ) : (
+                      <RateLineChart
+                        points={chartPoints}
+                        fromCode={fromCode}
+                        toCode={toCode}
+                      />
+                    )}
+                  </section>
+                </Card>
+              }
+              aside={
+                <Section title="Histórico del par">
+                  <Card
+                    padding="none"
+                    className="divide-y divide-line-2 overflow-hidden"
+                  >
+                    {[...history].reverse().map((rate) => (
+                      <div
+                        key={rate.id}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <span className="money flex min-w-0 items-center gap-1.5 text-sm font-medium text-heading">
+                          {fromCode}
+                          <ArrowRight className="size-3 flex-none text-muted" />
+                          {fmtRate(rate.rateScaled)} {toCode}
+                        </span>
+                        <span className="flex-none text-xs text-muted">
+                          {DATE_FMT.format(rate.effectiveAt)}
+                        </span>
+                      </div>
+                    ))}
+                  </Card>
+                </Section>
+              }
+            />
+          </>
         )}
       </PageBody>
 
@@ -220,6 +222,6 @@ export default async function TasaDetallePage({
           defaultToId={toCurrency.id}
         />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

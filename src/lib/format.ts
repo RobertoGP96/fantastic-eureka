@@ -9,6 +9,19 @@ export interface DisplayCurrency {
 // ambiguo "$" solo. Los decimales se omiten solo cuando son todo ceros
 // ("250 CUP", nunca "250.00 CUP"; "250.50 USD" sí se muestra).
 export function fmtMinor(minor: number, currency: DisplayCurrency): string {
+  const { amount, code } = fmtMinorParts(minor, currency);
+  return `${amount} ${code}`;
+}
+
+/**
+ * Lo mismo que fmtMinor pero en dos piezas, para pintar el código de moneda
+ * con otro estilo (KPIs: cifra grande + unidad atenuada). `amount` ya lleva
+ * el signo: `${amount} ${code}` es exactamente fmtMinor.
+ */
+export function fmtMinorParts(
+  minor: number,
+  currency: DisplayCurrency
+): { amount: string; code: string } {
   const dec = currency.decimalPlaces;
   const negative = minor < 0;
   const abs = Math.abs(minor);
@@ -22,7 +35,7 @@ export function fmtMinor(minor: number, currency: DisplayCurrency): string {
       ? `${withThousands}.${decValue.toString().padStart(dec, "0")}`
       : withThousands;
 
-  return `${negative ? "-" : ""}${amount} ${currency.code}`;
+  return { amount: `${negative ? "-" : ""}${amount}`, code: currency.code };
 }
 
 /** Como fmtMinor pero con "+" explícito para montos positivos (historiales). */

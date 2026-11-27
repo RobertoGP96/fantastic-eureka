@@ -1,10 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-
-/** Clase del botón de llamada a la acción (para un `cta` propio). */
-export const EMPTY_STATE_CTA =
-  "mt-1.5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none";
+import { buttonVariants } from "@/components/ui/button";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -14,12 +11,15 @@ interface EmptyStateProps {
   ctaLabel?: string;
   ctaHref?: string;
   /**
-   * Acción propia en lugar del enlace `ctaLabel`/`ctaHref` (p. ej. un
-   * `PanelButton` que abre un drawer). Usa `EMPTY_STATE_CTA` como clase.
+   * Acción a medida (p. ej. un `PanelButton` que abre el drawer de alta).
+   * Tiene prioridad sobre `ctaLabel`/`ctaHref`.
    */
   cta?: ReactNode;
 }
 
+// Vacío de página o de sección. El título es un <p>, NO un encabezado: los
+// tests buscan encabezados por subcadena («Cuentas») y «Sin cuentas todavía»
+// colisionaría.
 export function EmptyState({
   icon: Icon,
   iconColor = "text-brand-ink",
@@ -30,20 +30,27 @@ export function EmptyState({
   cta,
 }: EmptyStateProps) {
   return (
-    <div className="anim-fade-up flex flex-1 flex-col items-center justify-center gap-3.5 p-10">
+    <div className="anim-fade-up flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line bg-card px-6 py-10 text-center">
       <div
-        className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-chip ${iconColor}`}
+        className={`flex h-12 w-12 items-center justify-center rounded-xl bg-chip ${iconColor}`}
       >
-        <Icon className="h-7 w-7" />
+        <Icon className="h-6 w-6" />
       </div>
-      <div className="text-base font-semibold text-heading">{title}</div>
-      <div className="text-center text-sm text-muted">{description}</div>
-      {cta ??
-        (ctaLabel && ctaHref && (
-          <Link href={ctaHref} className={EMPTY_STATE_CTA}>
+      <p className="text-base font-semibold text-heading">{title}</p>
+      <p className="max-w-sm text-sm text-muted">{description}</p>
+      {cta ? (
+        <div className="mt-1">{cta}</div>
+      ) : (
+        ctaLabel &&
+        ctaHref && (
+          <Link
+            href={ctaHref}
+            className={buttonVariants({ className: "mt-1" })}
+          >
             {ctaLabel}
           </Link>
-        ))}
+        )
+      )}
     </div>
   );
 }

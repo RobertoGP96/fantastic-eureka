@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   balancesFromGroups,
+  consolidatedTotalMinor,
   signedKindMinor,
   totalsByCurrency,
 } from "./balances-core";
@@ -23,6 +24,78 @@ describe("totalsByCurrency", () => {
 
   it("sin cuentas devuelve lista vacía", () => {
     expect(totalsByCurrency([])).toEqual([]);
+  });
+});
+
+describe("consolidatedTotalMinor", () => {
+  const cup = { id: "cup", code: "CUP", decimalPlaces: 0 };
+  const usd = { id: "usd", code: "USD", decimalPlaces: 2 };
+  const mlc = { id: "mlc", code: "MLC", decimalPlaces: 2 };
+  // 1 USD = 400 CUP (tasa ×10 000).
+  const rates = new Map([["usd", { rateScaled: 4_000_000 }]]);
+
+  it("suma directo las cuentas en la moneda base", () => {
+    expect(
+      consolidatedTotalMinor(
+        [
+          { balanceMinor: 4000, currency: cup },
+          { balanceMinor: -1500, currency: cup },
+        ],
+        cup,
+        new Map()
+      )
+    ).toEqual({ totalMinor: 2500, complete: true, missing: [] });
+  });
+
+  it("convierte las demás monedas con su tasa (distintos decimales)", () => {
+    // 250.50 USD × 400 = 100 200 CUP.
+    expect(
+      consolidatedTotalMinor(
+        [
+          { balanceMinor: 1000, currency: cup },
+          { balanceMinor: 25050, currency: usd },
+        ],
+        cup,
+        rates
+      )
+    ).toEqual({ totalMinor: 101_200, complete: true, missing: [] });
+  });
+
+  it("sin tasa y con saldo: queda incompleto y reporta el código una vez", () => {
+    const total = consolidatedTotalMinor(
+      [
+        { balanceMinor: 1000, currency: cup },
+        { balanceMinor: 500, currency: mlc },
+        { balanceMinor: 700, currency: mlc },
+      ],
+      cup,
+      rates
+    );
+    expect(total).toEqual({ totalMinor: 1000, complete: false, missing: ["MLC"] });
+  });
+
+  it("sin tasa pero con saldo 0 no estorba", () => {
+    expect(
+      consolidatedTotalMinor(
+        [
+          { balanceMinor: 1000, currency: cup },
+          { balanceMinor: 0, currency: mlc },
+        ],
+        cup,
+        rates
+      )
+    ).toEqual({ totalMinor: 1000, complete: true, missing: [] });
+  });
+
+  it("admite saldos negativos convertidos y lista vacía", () => {
+    expect(
+      consolidatedTotalMinor([{ balanceMinor: -100, currency: usd }], cup, rates)
+    ).toEqual({ totalMinor: -400, complete: true, missing: [] });
+    expect(consolidatedTotalMinor([], cup, rates)).toEqual({
+      totalMinor: 0,
+      complete: true,
+      missing: [],
+    });
   });
 });
 

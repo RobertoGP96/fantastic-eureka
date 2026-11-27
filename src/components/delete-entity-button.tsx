@@ -75,10 +75,10 @@ export function DeleteEntityButton({
       <Button
         variant="ghost"
         size="sm"
-        className="text-danger hover:text-danger"
+        className="text-danger hover:bg-danger-bg hover:text-danger"
         onClick={() => setConfirming(true)}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="size-3.5" />
         {labels.button}
       </Button>
       <ConfirmDrawer

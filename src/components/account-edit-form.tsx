@@ -17,7 +17,7 @@ import {
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { IconPicker } from "@/components/icon-picker";
 import {
   setAccountIcon,
@@ -115,8 +115,10 @@ export function AccountEditForm({
           />
         </Field>
 
+        {/* <div> + <span>, NO <label>: un label alrededor de un grupo de
+            botones reenvía el clic al primero. */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Icono (sin elegir, se usa el del tipo)
           </span>
           <IconPicker value={icon} onChange={setIcon} />
@@ -125,7 +127,7 @@ export function AccountEditForm({
         {groups.length > 0 && (
           <Field label="Grupo">
             <Select value={groupId} onValueChange={setGroupId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

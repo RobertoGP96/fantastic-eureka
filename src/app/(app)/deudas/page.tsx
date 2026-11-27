@@ -1,30 +1,41 @@
 import { HandCoins, Plus } from "lucide-react";
-import { DebtCard, ClosedDebtRow } from "@/components/debt-card";
+import { ClosedDebtRow, DebtCard } from "@/components/debt-card";
 import { DebtForm } from "@/components/debt-form";
-import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
-import { FilterChips } from "@/components/filter-chips";
+import { EmptyState } from "@/components/empty-state";
 import { PanelDrawer } from "@/components/form-drawer";
-import { CardGrid, PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
-import {
-  HEADER_ACTION,
-  HeaderPill,
-  HeaderStats,
-  ScreenHeader,
-} from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
 import { Section } from "@/components/section";
 import { DebtsTabs } from "@/components/section-tabs";
+import { StatGrid } from "@/components/stat-card";
+import {
+  TotalsStatCard,
+  loneStatClass,
+  type CurrencyTotal,
+} from "@/components/totals-stat-card";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { DEBT_CARD_INCLUDE, toDebtCard } from "@/lib/debt-cards";
 import { type DebtDirection } from "@/lib/domain";
 import { loadDebtFormOptions } from "@/lib/form-options";
-import { fmtMinor } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 /** Nombre del drawer de alta (`/deudas#panel=nueva-deuda`). */
 const NEW_DEBT_PANEL = "nueva-deuda";
+
+const FILTERS = [
+  { value: "todas", label: "Todas", href: "/deudas" },
+  { value: "cobrar", label: "Por cobrar", href: "/deudas?dir=cobrar" },
+  { value: "pagar", label: "Por pagar", href: "/deudas?dir=pagar" },
+] as const;
+
+// Lista como UNA tarjeta con filas divididas (las filas no traen marco).
+const LIST = "divide-y divide-line-2 overflow-hidden";
 
 export default async function DeudasPage({
   searchParams,
@@ -38,8 +49,8 @@ export default async function DeudasPage({
     dir === "pagar" ? "PAYABLE" : dir === "cobrar" ? "RECEIVABLE" : null;
 
   // Sin filtro de estado: las saldadas/canceladas se quedan en el historial.
-  // El filtro de dirección se aplica en memoria para que los totales de la
-  // cabecera («Me deben» / «Debo») no dependan del chip elegido.
+  // El filtro de dirección se aplica en memoria para que los KPIs («Me
+  // deben» / «Debo») no dependan de la opción elegida.
   const [debts, formOptions] = await Promise.all([
     prisma.debt.findMany({
       where: { userId: user.id },
@@ -57,67 +68,59 @@ export default async function DeudasPage({
   const open = visible.filter((debt) => debt.status === "OPEN");
   const closed = visible.filter((debt) => debt.status !== "OPEN");
 
-  // Pendiente por moneda de TODAS las deudas abiertas, por dirección.
-  const totalsText = (wanted: DebtDirection) => {
-    const totals = new Map<string, { amount: number; debt: (typeof all)[number] }>();
+  // Pendiente por moneda de TODAS las deudas abiertas de una dirección, de
+  // mayor a menor.
+  const totalsFor = (wanted: DebtDirection): CurrencyTotal[] => {
+    const totals = new Map<string, CurrencyTotal>();
     for (const debt of allOpen) {
       if (debt.direction !== wanted) continue;
       const entry = totals.get(debt.currencyId);
-      if (entry) entry.amount += debt.remainingMinor;
-      else totals.set(debt.currencyId, { amount: debt.remainingMinor, debt });
+      if (entry) entry.amountMinor += debt.remainingMinor;
+      else
+        totals.set(debt.currencyId, {
+          amountMinor: debt.remainingMinor,
+          currency: debt.currency,
+        });
     }
-    return [...totals.values()]
-      .sort((a, b) => b.amount - a.amount)
-      .map((total) => fmtMinor(total.amount, total.debt.currency))
-      .join(" · ");
+    return [...totals.values()].sort((a, b) => b.amountMinor - a.amountMinor);
   };
-  const receivableText = totalsText("RECEIVABLE");
-  const payableText = totalsText("PAYABLE");
+  const receivableTotals = totalsFor("RECEIVABLE");
+  const payableTotals = totalsFor("PAYABLE");
+  const loneStat = loneStatClass(receivableTotals, payableTotals);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title="Deudas"
+        subtitle={`${allOpen.length} abierta${allOpen.length === 1 ? "" : "s"}`}
         actions={
-          <PanelButton panel={NEW_DEBT_PANEL} className={HEADER_ACTION}>
+          <PanelButton
+            panel={NEW_DEBT_PANEL}
+            className={buttonVariants({ size: "sm" })}
+          >
             <Plus className="size-3.5" />
-            Nueva
+            Nueva deuda
           </PanelButton>
         }
-      >
-        <HeaderStats
-          items={[
-            ...(receivableText
-              ? [{ label: "Me deben", value: receivableText }]
-              : []),
-            ...(payableText ? [{ label: "Debo", value: payableText }] : []),
-          ]}
-        />
-        <div className="mt-3">
-          <HeaderPill>
-            {allOpen.length} abierta{allOpen.length === 1 ? "" : "s"}
-          </HeaderPill>
-        </div>
-      </ScreenHeader>
+      />
 
       <PageBody>
         <DebtsTabs current="/deudas" />
 
-        <FilterChips
-          items={[
-            { href: "/deudas", label: "Todas", active: direction === null },
-            {
-              href: "/deudas?dir=cobrar",
-              label: "Por cobrar",
-              active: direction === "RECEIVABLE",
-            },
-            {
-              href: "/deudas?dir=pagar",
-              label: "Por pagar",
-              active: direction === "PAYABLE",
-            },
-          ]}
-        />
+        {(receivableTotals.length > 0 || payableTotals.length > 0) && (
+          <StatGrid cols={2}>
+            <TotalsStatCard
+              label="Me deben"
+              totals={receivableTotals}
+              className={loneStat}
+            />
+            <TotalsStatCard
+              label="Debo"
+              totals={payableTotals}
+              className={loneStat}
+            />
+          </StatGrid>
+        )}
 
         {all.length === 0 ? (
           <EmptyState
@@ -125,30 +128,53 @@ export default async function DeudasPage({
             title="Sin deudas registradas"
             description="Anota lo que te deben o lo que debes para llevar el control de abonos y vencimientos."
             cta={
-              <PanelButton panel={NEW_DEBT_PANEL} className={EMPTY_STATE_CTA}>
+              <PanelButton
+                panel={NEW_DEBT_PANEL}
+                className={buttonVariants()}
+              >
                 Nueva deuda
               </PanelButton>
             }
           />
-        ) : visible.length === 0 ? (
-          <p className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted">
-            No hay deudas {direction === "PAYABLE" ? "por pagar" : "por cobrar"}.
-          </p>
-        ) : open.length > 0 ? (
-          <CardGrid>
-            {open.map((debt) => (
-              <DebtCard key={debt.id} debt={debt} />
-            ))}
-          </CardGrid>
-        ) : null}
+        ) : (
+          <>
+            <SegmentedLinks
+              ariaLabel="Filtrar deudas"
+              options={FILTERS}
+              current={
+                direction === "PAYABLE"
+                  ? "pagar"
+                  : direction === "RECEIVABLE"
+                    ? "cobrar"
+                    : "todas"
+              }
+              className="self-start"
+            />
+
+            {visible.length === 0 ? (
+              <Card className="py-6 text-center text-sm text-muted">
+                No hay deudas{" "}
+                {direction === "PAYABLE" ? "por pagar" : "por cobrar"}.
+              </Card>
+            ) : (
+              open.length > 0 && (
+                <Card padding="none" className={LIST}>
+                  {open.map((debt) => (
+                    <DebtCard key={debt.id} debt={debt} />
+                  ))}
+                </Card>
+              )
+            )}
+          </>
+        )}
 
         {closed.length > 0 && (
           <Section title="Historial">
-            <CardGrid className="gap-2 @2xl:gap-2.5">
+            <Card padding="none" className={LIST}>
               {closed.map((debt) => (
                 <ClosedDebtRow key={debt.id} debt={debt} />
               ))}
-            </CardGrid>
+            </Card>
           </Section>
         )}
       </PageBody>
@@ -160,6 +186,6 @@ export default async function DeudasPage({
       >
         <DebtForm {...formOptions} />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

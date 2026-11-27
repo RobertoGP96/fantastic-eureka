@@ -20,6 +20,9 @@ const MAX_SUGGESTIONS = 5;
  *   · no coincide               → contacto nuevo, que el servicio crea en la
  *                                 MISMA transacción que la deuda o el plan.
  * Por eso este componente no llama a ninguna action.
+ *
+ * El placeholder «Nombre del contacto» lo usan los tests E2E para localizar
+ * el campo: no cambiarlo.
  */
 export function ContactPicker({
   contacts,
@@ -48,7 +51,7 @@ export function ContactPicker({
   return (
     <div className="flex flex-col gap-2">
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Contacto{optional ? " (opcional)" : ""}
         </span>
         <span className="relative">
@@ -66,7 +69,7 @@ export function ContactPicker({
               type="button"
               aria-label="Borrar contacto"
               onClick={() => onChange("")}
-              className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition-colors hover:bg-chip hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dense:size-7"
             >
               <X className="size-4" />
             </button>
@@ -99,12 +102,12 @@ export function ContactPicker({
               <button
                 type="button"
                 onClick={() => onChange(contact.name)}
-                className="flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-line bg-card py-1 pr-3 pl-1 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-line bg-card py-1 pr-3 pl-1 text-xs font-medium text-ink-soft transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <EntityAvatar
                   name={contact.name}
                   size="sm"
-                  className="size-7 text-[11px]"
+                  className="size-7"
                 />
                 <span className="truncate">{contact.name}</span>
               </button>
@@ -112,6 +115,22 @@ export function ContactPicker({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Contacto ya decidido (el formulario se abrió desde su ficha): se muestra
+ * en el sitio del selector, sin posibilidad de cambiarlo.
+ */
+export function FixedContact({ name }: { name: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5">
+      <EntityAvatar name={name} size="sm" />
+      <div className="min-w-0">
+        <div className="text-xs text-muted">Contacto</div>
+        <div className="truncate text-sm font-medium text-heading">{name}</div>
+      </div>
     </div>
   );
 }

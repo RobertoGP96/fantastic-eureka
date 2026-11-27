@@ -121,13 +121,18 @@ export function MergeContactForm({
                 onClick={() => setTargetId(contact.id)}
                 className={cn(
                   "flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                  // Tinte de acento solo para la opción elegida.
                   selected
                     ? "border-brand-ink bg-chip"
-                    : "border-line bg-card hover:border-brand-soft"
+                    : "border-line bg-card hover:bg-subtle"
                 )}
               >
-                <EntityAvatar name={contact.name} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-heading">
+                <EntityAvatar
+                  name={contact.name}
+                  size="sm"
+                  tone={selected ? "brand" : "neutral"}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-heading">
                   {contact.name}
                 </span>
                 {selected && (

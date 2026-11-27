@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -35,12 +37,9 @@ import {
   DenominationBreakdownField,
   type BreakdownDenomination,
 } from "@/components/denomination-breakdown-field";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
-import { SplitLayout } from "@/components/page-body";
 import { useUI } from "@/lib/ui-store";
 import { toLocalDateISO } from "@/lib/dates";
 import { runAction } from "@/lib/run-action";
-import { cn } from "@/lib/utils";
 
 export interface AccountOption {
   id: string;
@@ -70,6 +69,7 @@ type RateDirection = "AMOUNT_TO_ACCOUNT" | "ACCOUNT_TO_AMOUNT";
 
 type Mode = "gasto" | "ingreso" | "transferencia";
 
+// Opciones del control segmentado (forma {value, label} de <Segmented>).
 const MODES: { value: Mode; label: string }[] = [
   { value: "gasto", label: "Gasto" },
   { value: "ingreso", label: "Ingreso" },
@@ -385,9 +385,9 @@ export function RegisterForm({
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted md:max-w-md">
+      <Card dashed className="py-6 text-center text-sm text-muted">
         Primero crea una cuenta para poder registrar movimientos.
-      </div>
+      </Card>
     );
   }
 
@@ -422,330 +422,280 @@ export function RegisterForm({
     />
   );
 
-  // Resumen de lo que se va a guardar (solo en el lateral de escritorio).
-  // Puramente informativo: reutiliza los montos ya calculados arriba.
-  const typedCurrency =
-    mode !== "transferencia" && crossCurrencyOp ? opCurrency : from?.currency;
-  const typedMinor = safeMinor(amount, typedCurrency);
-  const summaryAmount =
-    typedMinor !== null && typedCurrency
-      ? fmtMinor(typedMinor, typedCurrency)
-      : null;
-  const summaryDetail =
-    mode === "transferencia"
-      ? crossCurrency && destTarget !== null && to
-        ? `Entran ${fmtMinor(destTarget, to.currency)}`
-        : null
-      : convertedPreview
-        ? `Equivale a ${convertedPreview}`
-        : null;
-
-  return (
+  // La tarjeta la pinta este componente (y no la página) porque sin cuentas
+  // se devuelve arriba el aviso discontinuo en su lugar. El formulario va en
+  // una constante y la tarjeta lo envuelve al final.
+  // RESTRICCIONES de los tests E2E sobre este marcado:
+  //  - cada Select vive DENTRO de su <label>, cuyo primer hijo es un único
+  //    elemento con el rótulo exacto («Cuenta», «Categoría (opcional)»);
+  //  - el label del monto EMPIEZA por «Monto» y su <Input> va ANTES del
+  //    selector de moneda (el primer control del label es el que se rellena);
+  //  - «Guardar» es el único control de la pantalla con ese texto.
+  const form = (
     <form
-      // Mientras no cabe en dos columnas, una sola de ancho de lectura; al
-      // partirse (SplitLayout) ocupa todo el panel.
-      className="max-w-xl @4xl:max-w-none"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      {/* Escritorio: campos a la izquierda y, fijo a la derecha, resumen +
-          fecha/nota + Guardar. En móvil el lateral cae al final y el orden
-          es el de siempre (… categoría, fecha, nota, Guardar). */}
-      <SplitLayout
-        main={
-          <>
-            {/* No usa ChoiceGroup: «Transferencia» en tres columnas de móvil
-                solo cabe con el relleno lateral justo (px-2). */}
-            <div
-              role="radiogroup"
-              aria-label="Tipo de movimiento"
-              className="grid grid-cols-3 gap-2"
-            >
-              {MODES.map((option) => {
-                const active = mode === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => switchMode(option.value)}
-                    className={cn(
-                      "min-h-11 rounded-xl border px-2 py-2.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
-                      active
-                        ? "border-brand-ink bg-chip text-brand-ink"
-                        : "border-line bg-card text-ink-soft hover:border-brand-soft"
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              className={cn(
-                "grid gap-4",
-                mode === "transferencia" && "@xl:grid-cols-2"
-              )}
-            >
-              <Field
-                label={mode === "transferencia" ? "Cuenta de origen" : "Cuenta"}
-              >
-                <Select
-                  value={accountId}
-                  onValueChange={(id) => {
-                    setAccountId(id);
-                    setOriginLines({});
-                    // El destino no puede ser la nueva cuenta de origen.
-                    if (id === counterAccountId) {
-                      setCounterAccountId("");
-                      setDestLines({});
-                    }
-                  }}
-                >
-                  <SelectTrigger className={FIELD_SELECT}>
-                    <SelectValue placeholder="Elige cuenta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name} · {account.currency.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {mode === "transferencia" && (
-                <Field label="Cuenta de destino">
-                  <Select
-                    value={counterAccountId}
-                    onValueChange={(id) => {
-                      setCounterAccountId(id);
-                      setDestLines({});
-                    }}
-                  >
-                    <SelectTrigger className={FIELD_SELECT}>
-                      <SelectValue placeholder="Elige cuenta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts
-                        .filter((account) => account.id !== accountId)
-                        .map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.name} · {account.currency.code}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            </div>
-
-            {originDrivesAmount && originBreakdown}
-            {!crossCurrency && destBreakdown}
-
-            <div className="flex flex-col gap-1.5">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-ink-soft">
-                  Monto
-                  {mode === "transferencia" && from
-                    ? ` (${from.currency.code})`
-                    : opCurrency
-                      ? ` (${opCurrency.code})`
-                      : ""}
-                </span>
-                <div className="flex gap-2">
-                  <Input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
-                    required
-                    className="flex-1"
-                  />
-                  {mode !== "transferencia" && currencies.length > 1 && (
-                    <Select
-                      value={opCurrency?.id ?? ""}
-                      onValueChange={setAmountCurrencyId}
-                    >
-                      <SelectTrigger
-                        aria-label="Moneda del monto"
-                        className={cn(FIELD_SELECT, "w-28 flex-none")}
-                      >
-                        <SelectValue placeholder="Moneda" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((currency) => (
-                          <SelectItem key={currency.id} value={currency.id}>
-                            {currency.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              </label>
-              {/* Fuera del <label>: dentro, este texto pasaba a formar parte
-                  del nombre accesible del campo de monto. */}
-              {mode !== "transferencia" &&
-                !crossCurrencyOp &&
-                currencies.length > 1 && (
-                  <span className="text-xs text-muted">
-                    Puedes anotar el monto en otra moneda y se convertirá a la
-                    de la cuenta.
-                  </span>
-                )}
-            </div>
-
-            {crossCurrencyOp && opCurrency && accountCurrency && from && (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-ink-soft">
-                  Tasa (1{" "}
-                  {rateDirection === "AMOUNT_TO_ACCOUNT"
-                    ? `${opCurrency.code} = ? ${accountCurrency.code}`
-                    : `${accountCurrency.code} = ? ${opCurrency.code}`}
-                  )
-                </span>
-                <div className="flex gap-2">
-                  <Input
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
-                    required
-                    className="flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={flipRateDirection}
-                    aria-label="Invertir la dirección de la tasa"
-                    className="flex size-11 flex-none items-center justify-center rounded-xl border border-input bg-card text-ink-soft transition-colors hover:border-brand-ink hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-                  >
-                    <ArrowRightLeft className="size-4" />
-                  </button>
-                </div>
-                <span className="text-xs text-muted">
-                  {convertedPreview
-                    ? `Se registrará ${convertedPreview} en «${from.name}».`
-                    : `La cuenta es en ${accountCurrency.code}: el monto se convertirá con esta tasa.`}
-                </span>
-              </div>
-            )}
-
-            {!originDrivesAmount && originBreakdown}
-
-            {crossCurrency && (
-              <>
-                {destBreakdown}
-                <Field
-                  label={`Monto recibido (${to?.currency.code})`}
-                  hint="Las cuentas usan monedas distintas: indica cuánto entra en destino."
-                >
-                  <Input
-                    value={counterAmount}
-                    onChange={(e) => setCounterAmount(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
-                    required
-                  />
-                </Field>
-              </>
-            )}
-
-            {mode !== "transferencia" && (
-              <Field label="Categoría (opcional)">
-                <Select
-                  value={categoryId}
-                  onValueChange={(value) =>
-                    setCategoryId(value === NO_CATEGORY ? "" : value)
-                  }
-                >
-                  <SelectTrigger className={FIELD_SELECT}>
-                    <SelectValue placeholder="Sin categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Sin este ítem, una vez elegida una categoría no había
-                        forma de quitarla (Radix no admite value ""). */}
-                    <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
-                    {modeCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-          </>
-        }
-        aside={
-          <>
-            {/* Solo en dos columnas: en móvil el monto ya queda a la vista
-                junto al botón y el flujo es el de siempre. */}
-            <div className="hidden flex-col gap-1 rounded-2xl border border-line bg-card p-4 @4xl:flex">
-              <span className="text-[11px] font-medium tracking-wide text-muted uppercase">
-                {MODES.find((option) => option.value === mode)?.label}
-              </span>
-              <span className="money text-[22px] font-bold tracking-[-0.4px] text-heading">
-                {summaryAmount ?? "—"}
-              </span>
-              <span className="truncate text-xs text-muted">
-                {from?.name ?? "Sin cuenta"}
-                {mode === "transferencia" ? ` → ${to?.name ?? "…"}` : ""}
-              </span>
-              {summaryDetail && (
-                <span className="text-xs font-medium text-brand-ink">
-                  {summaryDetail}
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @4xl:grid-cols-1">
-              <Field label="Fecha">
-                <Input
-                  type="date"
-                  value={date}
-                  max={todayISO()}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
-              </Field>
-              <Field label="Nota (opcional)">
-                <Input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  maxLength={200}
-                  placeholder="Detalle"
-                />
-              </Field>
-            </div>
-
-            <FormError>{error}</FormError>
-
-            <Button
-              type="submit"
-              size="lg"
-              disabled={
-                saving ||
-                !accountId ||
-                !amount.trim() ||
-                (crossCurrencyOp && !rate.trim()) ||
-                (mode === "transferencia" &&
-                  (!counterAccountId ||
-                    (crossCurrency && !counterAmount.trim()))) ||
-                !originBreakdownOk ||
-                !destBreakdownOk
-              }
-            >
-              {saving ? "Guardando…" : "Guardar"}
-            </Button>
-          </>
-        }
+      <Segmented
+        layout="fill"
+        ariaLabel="Tipo de movimiento"
+        options={MODES}
+        value={mode}
+        onValueChange={switchMode}
       />
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink-soft">
+          {mode === "transferencia" ? "Cuenta de origen" : "Cuenta"}
+        </span>
+        <Select
+          value={accountId}
+          onValueChange={(id) => {
+            setAccountId(id);
+            setOriginLines({});
+            // El destino no puede ser la nueva cuenta de origen.
+            if (id === counterAccountId) {
+              setCounterAccountId("");
+              setDestLines({});
+            }
+          }}
+        >
+          <SelectTrigger variant="form" className="w-full">
+            <SelectValue placeholder="Elige cuenta" />
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.name} · {account.currency.code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+
+      {mode === "transferencia" && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Cuenta de destino
+          </span>
+          <Select
+            value={counterAccountId}
+            onValueChange={(id) => {
+              setCounterAccountId(id);
+              setDestLines({});
+            }}
+          >
+            <SelectTrigger variant="form" className="w-full">
+              <SelectValue placeholder="Elige cuenta" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter((account) => account.id !== accountId)
+                .map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name} · {account.currency.code}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </label>
+      )}
+
+      {originDrivesAmount && originBreakdown}
+      {!crossCurrency && destBreakdown}
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink-soft">
+          Monto
+          {mode === "transferencia" && from
+            ? ` (${from.currency.code})`
+            : opCurrency
+              ? ` (${opCurrency.code})`
+              : ""}
+        </span>
+        <div className="flex gap-2">
+          <Input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder="0"
+            required
+            className="flex-1"
+          />
+          {mode !== "transferencia" && currencies.length > 1 && (
+            <Select
+              value={opCurrency?.id ?? ""}
+              onValueChange={setAmountCurrencyId}
+            >
+              <SelectTrigger
+                aria-label="Moneda del monto"
+                variant="form"
+                className="w-28 flex-none"
+              >
+                <SelectValue placeholder="Moneda" />
+              </SelectTrigger>
+              <SelectContent>
+                {currencies.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.id}>
+                    {currency.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        {mode !== "transferencia" && !crossCurrencyOp && currencies.length > 1 && (
+          <span className="text-xs text-muted">
+            Puedes anotar el monto en otra moneda y se convertirá a la de la
+            cuenta.
+          </span>
+        )}
+      </label>
+
+      {crossCurrencyOp && opCurrency && accountCurrency && from && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Tasa (1{" "}
+            {rateDirection === "AMOUNT_TO_ACCOUNT"
+              ? `${opCurrency.code} = ? ${accountCurrency.code}`
+              : `${accountCurrency.code} = ? ${opCurrency.code}`}
+            )
+          </span>
+          <div className="flex gap-2">
+            <Input
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+              required
+              className="flex-1"
+            />
+            {/* Mismo alto que el campo de al lado: 44 px en táctil, 36 px
+                en escritorio. */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={flipRateDirection}
+              aria-label="Invertir la dirección de la tasa"
+              className="size-11 flex-none dense:size-9"
+            >
+              <ArrowRightLeft />
+            </Button>
+          </div>
+          <span className="text-xs text-muted">
+            {convertedPreview
+              ? `Se registrará ${convertedPreview} en «${from.name}».`
+              : `La cuenta es en ${accountCurrency.code}: el monto se convertirá con esta tasa.`}
+          </span>
+        </div>
+      )}
+
+      {!originDrivesAmount && originBreakdown}
+
+      {crossCurrency && (
+        <>
+          {destBreakdown}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink-soft">
+              Monto recibido ({to?.currency.code})
+            </span>
+            <Input
+              value={counterAmount}
+              onChange={(e) => setCounterAmount(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+              required
+            />
+            <span className="text-xs text-muted">
+              Las cuentas usan monedas distintas: indica cuánto entra en
+              destino.
+            </span>
+          </label>
+        </>
+      )}
+
+      {mode !== "transferencia" && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Categoría (opcional)
+          </span>
+          <Select
+            value={categoryId}
+            onValueChange={(value) =>
+              setCategoryId(value === NO_CATEGORY ? "" : value)
+            }
+          >
+            <SelectTrigger variant="form" className="w-full">
+              <SelectValue placeholder="Sin categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {/* Sin este ítem, una vez elegida una categoría no había
+                  forma de quitarla (Radix no admite value ""). */}
+              <SelectItem value={NO_CATEGORY}>Sin categoría</SelectItem>
+              {modeCategories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Fecha
+          </span>
+          <Input
+            type="date"
+            value={date}
+            max={todayISO()}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-soft">
+            Nota (opcional)
+          </span>
+          <Input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={200}
+            placeholder="Detalle"
+          />
+        </label>
+      </div>
+
+      {error && (
+        <div className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-medium text-danger">
+          {error}
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={
+          saving ||
+          !accountId ||
+          !amount.trim() ||
+          (crossCurrencyOp && !rate.trim()) ||
+          (mode === "transferencia" &&
+            (!counterAccountId || (crossCurrency && !counterAmount.trim()))) ||
+          !originBreakdownOk ||
+          !destBreakdownOk
+        }
+      >
+        {saving ? "Guardando…" : "Guardar"}
+      </Button>
     </form>
   );
+
+  return <Card>{form}</Card>;
 }

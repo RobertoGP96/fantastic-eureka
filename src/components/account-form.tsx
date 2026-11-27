@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { IconPicker } from "@/components/icon-picker";
 import { createAccount } from "@/app/actions/account-actions";
 import {
@@ -27,7 +28,6 @@ import {
 } from "@/lib/domain";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
-import { cn } from "@/lib/utils";
 
 export interface AccountCurrencyOption {
   id: string;
@@ -42,6 +42,11 @@ export interface AccountGroupOption {
 }
 
 const NO_GROUP = "__none__";
+
+const TYPE_OPTIONS = ACCOUNT_TYPES.map((accountType) => ({
+  value: accountType as string,
+  label: ACCOUNT_TYPE_LABELS[accountType],
+}));
 
 /** Alta de cuenta (vive en el drawer «nueva-cuenta» de /cuentas). */
 export function AccountForm({
@@ -134,40 +139,28 @@ export function AccountForm({
           />
         </Field>
 
+        {/* Tipo e Icono son <div> + <span>, NO <label>: un label alrededor de
+            un grupo de botones reenvía el clic al primero. */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">Tipo</span>
-          <div
-            role="radiogroup"
-            aria-label="Tipo de cuenta"
-            className="grid grid-cols-2 gap-2"
-          >
-            {ACCOUNT_TYPES.map((accountType) => (
-              <button
-                key={accountType}
-                type="button"
-                role="radio"
-                aria-checked={type === accountType}
-                onClick={() => pickType(accountType)}
-                className={cn(
-                  "min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
-                  type === accountType
-                    ? "border-brand-ink bg-chip text-brand-ink"
-                    : "border-line bg-card text-ink-soft hover:border-brand-soft"
-                )}
-              >
-                {ACCOUNT_TYPE_LABELS[accountType]}
-              </button>
-            ))}
-          </div>
+          <span className="text-sm font-medium text-ink-soft">Tipo</span>
+          <Segmented
+            layout="grid"
+            ariaLabel="Tipo de cuenta"
+            options={TYPE_OPTIONS}
+            value={type}
+            onValueChange={pickType}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Icono (opcional; si no eliges, se usa el del tipo)
           </span>
           <IconPicker value={icon} onChange={setIcon} />
         </div>
 
+        {/* El rótulo del label es SOLO «Moneda»: el test E2E abre el selector
+            buscando ese texto exacto dentro del label. */}
         <Field
           label="Moneda"
           hint={
@@ -177,7 +170,7 @@ export function AccountForm({
           }
         >
           <Select value={currencyId} onValueChange={setCurrencyId}>
-            <SelectTrigger className={FIELD_SELECT}>
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue placeholder="Elige moneda" />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +186,7 @@ export function AccountForm({
         {groups.length > 0 && (
           <Field label="Grupo (opcional)">
             <Select value={groupId} onValueChange={setGroupId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

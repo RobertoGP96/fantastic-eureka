@@ -1,5 +1,6 @@
-import { DetailSkeleton } from "@/components/page-skeleton";
+import { ListSkeleton } from "@/components/page-skeleton";
 
+// /movimientos: barra de filtros, totales y la lista en una tarjeta.
 export default function Loading() {
-  return <DetailSkeleton asideFirst />;
+  return <ListSkeleton filters stats />;
 }

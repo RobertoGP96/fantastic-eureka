@@ -12,10 +12,10 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { CardGrid, PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
-import { Card } from "@/components/section";
 import { LogoutButton } from "@/components/logout-button";
+import { Card } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -82,59 +82,59 @@ export default async function MasPage() {
   const user = await requireSessionUser();
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader title="Más opciones" />
       <PageBody>
-        {/* gap-3 en móvil como la lista de siempre; CardGrid la reparte en
-            2 y 3 columnas cuando hay ancho. */}
-        <CardGrid className="gap-3">
+        <div className="grid grid-cols-1 gap-3 @2xl/main:grid-cols-2 @4xl/main:grid-cols-3">
           {ITEMS.map((item) => {
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="press flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-              >
-                <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
-                  <Icon className="size-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-heading">
-                    {item.title}
+              // Cada opción es UN solo enlace (tesela entera).
+              <Card key={item.href} asChild interactive>
+                <Link href={item.href} className="flex items-center gap-3">
+                  <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <Icon className="size-5" />
                   </span>
-                  <span className="block text-xs text-muted">
-                    {item.description}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-heading">
+                      {item.title}
+                    </span>
+                    <span className="block text-xs text-muted">
+                      {item.description}
+                    </span>
                   </span>
-                </span>
-                <ChevronRight className="size-4 flex-none text-muted" />
-              </Link>
+                  <ChevronRight className="size-4 flex-none text-muted" />
+                </Link>
+              </Card>
             );
           })}
-        </CardGrid>
+        </div>
 
-        {/* El bloque de usuario no crece con el panel: es una sola tarjeta. */}
-        <Card className="@2xl:max-w-md">
-          <Link
-            href="/perfil"
-            className="mb-3 flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none"
-          >
-            <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
-              <UserRound className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-heading">
-                {user.name}
+        {user && (
+          // Perfil y cierre de sesión: apilados en móvil, en una fila cuando
+          // hay ancho. El enlace y el botón son hermanos.
+          <Card className="flex flex-col gap-3 @2xl/main:flex-row @2xl/main:items-center">
+            <Link
+              href="/perfil"
+              className="group flex min-w-0 flex-1 items-center gap-3"
+            >
+              <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                <UserRound className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-heading transition-colors group-hover:text-brand-ink">
+                  {user.name}
+                </div>
+                <div className="truncate text-xs text-muted">
+                  Editar perfil · {user.email}
+                </div>
               </div>
-              <div className="truncate text-xs text-muted">
-                Editar perfil · {user.email}
-              </div>
-            </div>
-            <ChevronRight className="size-4 flex-none text-muted" />
-          </Link>
-          <LogoutButton />
-        </Card>
+              <ChevronRight className="size-4 flex-none text-muted" />
+            </Link>
+            <LogoutButton />
+          </Card>
+        )}
       </PageBody>
-    </main>
+    </Page>
   );
 }

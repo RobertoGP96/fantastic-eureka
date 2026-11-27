@@ -18,7 +18,7 @@ import {
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { createExchangeRate } from "@/app/actions/rate-actions";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
@@ -62,7 +62,7 @@ export function RateForm({
           Añade o activa otra en{" "}
           <Link
             href="/monedas"
-            className="font-semibold text-brand-ink hover:underline"
+            className="font-semibold text-brand-ink hover:text-brand-mid"
           >
             Monedas
           </Link>
@@ -106,7 +106,7 @@ export function RateForm({
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
           <Field label="De">
             <Select value={fromCurrencyId} onValueChange={setFromCurrencyId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue placeholder="De" />
               </SelectTrigger>
               <SelectContent>
@@ -118,20 +118,22 @@ export function RateForm({
               </SelectContent>
             </Select>
           </Field>
-          <button
-            type="button"
+          {/* Misma altura que los selectores: 44 px táctil, 36 px escritorio. */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11 flex-none dense:size-9"
             aria-label="Invertir el par"
             onClick={() => {
               setFromCurrencyId(toCurrencyId);
               setToCurrencyId(fromCurrencyId);
             }}
-            className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-90"
           >
-            <ArrowLeftRight className="size-4" />
-          </button>
+            <ArrowLeftRight />
+          </Button>
           <Field label="A">
             <Select value={toCurrencyId} onValueChange={setToCurrencyId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue placeholder="A" />
               </SelectTrigger>
               <SelectContent>
@@ -161,6 +163,7 @@ export function RateForm({
             inputMode="decimal"
             placeholder="435.5"
             autoComplete="off"
+            className="money"
             required
           />
         </Field>

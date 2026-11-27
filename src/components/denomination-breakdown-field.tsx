@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   DenominationCounter,
   type CounterDenomination,
@@ -84,46 +86,60 @@ export function DenominationBreakdownField({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-app/60 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-ink-soft">
+    // Panel interior neutro dentro de la tarjeta del formulario (sin borde ni
+    // tinte de acento). En móvil (`max-sm:`) va A SANGRE: `-mx-4` compensa el
+    // p-4 de la <Card> que lo contiene y la lista pierde su marco lateral.
+    // Con panel + lista + fila anidados, a 375 px quedaban ~70 px para la
+    // denominación y el «quedan N» de las salidas se cortaba.
+    <div className="flex flex-col gap-2.5 rounded-xl bg-subtle p-3.5 max-sm:-mx-4 max-sm:rounded-none max-sm:border-y max-sm:border-line max-sm:px-0">
+      {/* flex-wrap: si no caben en una línea, el botón baja bajo el título
+          en vez de estrujarlo. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 max-sm:px-4">
+        <span className="text-sm font-medium text-ink-soft">
           {title}
         </span>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={suggest}
           disabled={targetMinor === null || targetMinor <= 0}
-          className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-mid transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
         >
-          <Wand2 className="h-3.5 w-3.5" />
+          <Wand2 className="size-3.5" />
           Sugerir distribución
-        </button>
+        </Button>
       </div>
 
-      <DenominationCounter
-        denominations={rows}
-        quantities={quantities}
-        onQtyChange={(id, qty) => {
-          setSuggestError(null);
-          onQtyChange({ ...quantities, [id]: qty });
-        }}
-        currency={currency}
-      />
+      {/* Las filas del contador no traen marco propio: lo pone quien las usa. */}
+      <Card
+        padding="none"
+        className="overflow-hidden max-sm:rounded-none max-sm:border-x-0"
+      >
+        <DenominationCounter
+          denominations={rows}
+          quantities={quantities}
+          onQtyChange={(id, qty) => {
+            setSuggestError(null);
+            onQtyChange({ ...quantities, [id]: qty });
+          }}
+          currency={currency}
+        />
+      </Card>
 
-      <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
+      <div className="flex items-center justify-between gap-2 max-sm:px-4">
         <div className="flex flex-col">
           <span className="text-[11px] text-muted">Total del desglose</span>
-          <span className="text-lg font-bold tabular-nums text-navy">
+          <span className="money text-xl font-semibold text-heading">
             {fmtMinor(totalMinor, currency)}
           </span>
           {targetMinor !== null && !matches && (
-            <span className="text-[11px] text-muted">
+            <span className="money text-[11px] text-muted">
               Monto: {fmtMinor(targetMinor, currency)}
             </span>
           )}
         </div>
         {targetMinor === null ? (
-          <Badge variant="neutral">
+          // bg-card: la insignia neutra es del mismo gris que este panel.
+          <Badge variant="neutral" className="bg-card">
             {drivesAmount ? "Cuenta las piezas" : "Escribe el monto"}
           </Badge>
         ) : matches ? (
@@ -138,14 +154,14 @@ export function DenominationBreakdownField({
       </div>
 
       {drivesAmount && (
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted max-sm:px-4">
           El monto se rellena solo con lo que cuentes aquí. También puedes
           escribir el monto y usar «Sugerir distribución».
         </span>
       )}
 
       {suggestError && (
-        <div className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-medium text-danger">
+        <div className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-medium text-danger max-sm:mx-4">
           {suggestError}
         </div>
       )}

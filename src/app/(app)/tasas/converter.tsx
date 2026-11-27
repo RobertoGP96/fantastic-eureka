@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
-import { FIELD_SELECT } from "@/components/form-field";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,6 +25,9 @@ interface ConverterCurrency {
   decimalPlaces: number;
 }
 
+// Conversor sin marco: la tarjeta y el título «Conversor rápido» los pone la
+// página. El monto va en su propia fila: junto a los dos selectores y el
+// botón de intercambio se quedaba sin sitio en la columna lateral.
 export function Converter({
   currencies,
   pairs,
@@ -64,66 +67,73 @@ export function Converter({
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-card p-4">
-      {/* Dos filas (monto arriba, par abajo): cabe igual en el móvil que en
-          la columna lateral estrecha de escritorio. */}
-      <div className="flex flex-col gap-2.5">
-        <Input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          inputMode="decimal"
-          placeholder="0"
-          aria-label="Monto a convertir"
-        />
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-          <Select value={fromId} onValueChange={setFromId}>
-            <SelectTrigger className={FIELD_SELECT} aria-label="Moneda de origen">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies.map((currency) => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <button
-            type="button"
-            onClick={() => {
-              setFromId(toId);
-              setToId(fromId);
-            }}
-            aria-label="Intercambiar monedas"
-            className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-90"
+    <div className="flex flex-col gap-3">
+      <Input
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        inputMode="decimal"
+        placeholder="0"
+        aria-label="Monto a convertir"
+        className="money"
+      />
+      <div className="flex items-center gap-2">
+        <Select value={fromId} onValueChange={setFromId}>
+          <SelectTrigger
+            variant="form"
+            className="min-w-0 flex-1"
+            aria-label="Moneda de origen"
           >
-            <ArrowLeftRight className="size-4" />
-          </button>
-          <Select value={toId} onValueChange={setToId}>
-            <SelectTrigger className={FIELD_SELECT} aria-label="Moneda de destino">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies.map((currency) => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {currencies.map((currency) => (
+              <SelectItem key={currency.id} value={currency.id}>
+                {currency.code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {/* Misma altura que los selectores: 44 px táctil, 36 px escritorio. */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-11 flex-none dense:size-9"
+          onClick={() => {
+            setFromId(toId);
+            setToId(fromId);
+          }}
+          aria-label="Intercambiar monedas"
+        >
+          <ArrowLeftRight />
+        </Button>
+        <Select value={toId} onValueChange={setToId}>
+          <SelectTrigger
+            variant="form"
+            className="min-w-0 flex-1"
+            aria-label="Moneda de destino"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {currencies.map((currency) => (
+              <SelectItem key={currency.id} value={currency.id}>
+                {currency.code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="mt-3.5 border-t border-line-2 pt-3" aria-live="polite">
+      <div className="border-t border-line-2 pt-3" aria-live="polite">
         {warning ? (
           <div className="text-sm text-muted">{warning}</div>
         ) : result ? (
           <>
-            <div className="money text-[22px] font-bold tracking-[-0.5px] text-brand-ink">
+            <div className="money text-[22px] font-semibold tracking-tight break-words text-heading">
               {result}
             </div>
             {rateInfo && (
-              <div className="mt-0.5 text-xs text-muted">{rateInfo}</div>
+              <div className="money mt-0.5 text-xs text-muted">{rateInfo}</div>
             )}
           </>
         ) : (

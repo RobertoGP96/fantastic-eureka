@@ -1,15 +1,24 @@
 import { notFound } from "next/navigation";
-import { CalendarClock, HandCoins, NotebookPen, Phone } from "lucide-react";
+import { CalendarClock, NotebookPen, Phone, Plus } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
+import { SplitLayout } from "@/components/content-grid";
 import { ClosedDebtRow, DebtCard } from "@/components/debt-card";
 import { DebtForm } from "@/components/debt-form";
 import { PanelDrawer } from "@/components/form-drawer";
-import { CardGrid, PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
 import { EndedPlanRow, PlanCard } from "@/components/plan-card";
 import { PlanForm } from "@/components/plan-form";
-import { HeaderStats, ScreenHeader } from "@/components/screen-header";
-import { Card, Section } from "@/components/section";
+import { ScreenHeader } from "@/components/screen-header";
+import { Section } from "@/components/section";
+import { StatGrid } from "@/components/stat-card";
+import {
+  TotalsStatCard,
+  loneStatClass,
+  type CurrencyTotal,
+} from "@/components/totals-stat-card";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { contactBalances } from "@/lib/contacts-core";
@@ -20,7 +29,6 @@ import {
   toPlanCard,
 } from "@/lib/debt-cards";
 import { loadDebtFormOptions } from "@/lib/form-options";
-import { fmtMinor } from "@/lib/format";
 import { comparePlansByUrgency } from "@/lib/plans-core";
 import { ContactActionsMenu } from "./contact-actions-menu";
 import { MergeContactForm } from "./merge-contact-form";
@@ -33,10 +41,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const PRIMARY_ACTION =
-  "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none";
-const SECONDARY_ACTION =
-  "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-input bg-card px-4 text-sm font-semibold whitespace-nowrap text-ink-soft transition-colors hover:border-brand-ink hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none";
+// Lista como UNA tarjeta con filas divididas (las filas no traen marco).
+const LIST = "divide-y divide-line-2 overflow-hidden";
+// Tesela de icono de la tarjeta de datos.
+const INFO_ICON = "flex size-9 flex-none items-center justify-center rounded-xl";
+
+/** «2 deudas abiertas», «1 mensualidad»… */
+const countLabel = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
 
 export default async function ContactoDetallePage({
   params,
@@ -81,119 +93,143 @@ export default async function ContactoDetallePage({
   // con deudas no se puede eliminar).
   const loosePlanCount = planRows.filter((plan) => !plan.debtId).length;
 
+  // Saldo pendiente por moneda, separado en «me debe» y «le debo».
   const currencyById = new Map(debts.map((d) => [d.currencyId, d.currency]));
   const balances = contactBalances(debts);
-  const stat = (label: string, pick: (b: (typeof balances)[number]) => number) => {
-    const value = balances
-      .filter((balance) => pick(balance) > 0)
-      .map((balance) =>
-        fmtMinor(pick(balance), currencyById.get(balance.currencyId)!)
-      )
-      .join(" · ");
-    return value ? [{ label, value }] : [];
-  };
+  const totalsFor = (
+    pick: (balance: (typeof balances)[number]) => number
+  ): CurrencyTotal[] =>
+    balances.flatMap((balance) => {
+      const currency = currencyById.get(balance.currencyId);
+      const amountMinor = pick(balance);
+      return currency && amountMinor > 0 ? [{ amountMinor, currency }] : [];
+    });
+  const receivableTotals = totalsFor((b) => b.receivableMinor);
+  const payableTotals = totalsFor((b) => b.payableMinor);
+  const loneStat = loneStatClass(receivableTotals, payableTotals);
 
   const self = { id: contact.id, name: contact.name };
   const others = formOptions.contacts.filter((c) => c.id !== contact.id);
   const isEmpty = debts.length === 0 && plans.length === 0;
 
+  const summary = [
+    openDebts.length > 0 &&
+      countLabel(openDebts.length, "deuda abierta", "deudas abiertas"),
+    activePlans.length > 0 &&
+      countLabel(activePlans.length, "mensualidad", "mensualidades"),
+  ].filter(Boolean);
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={contact.name} backHref="/contactos">
-        <HeaderStats
-          items={[
-            ...stat("Te debe", (b) => b.receivableMinor),
-            ...stat("Le debes", (b) => b.payableMinor),
-          ]}
-        />
-        {balances.length === 0 && (
-          <div className="mt-3 text-sm text-white/80">Sin saldo pendiente</div>
-        )}
-      </ScreenHeader>
+    <Page>
+      <ScreenHeader
+        title={contact.name}
+        subtitle={
+          summary.length > 0 ? summary.join(" · ") : "Sin saldo pendiente"
+        }
+        backHref="/contactos"
+        actions={
+          <>
+            <PanelButton
+              panel={NEW_PLAN_PANEL}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <CalendarClock className="size-3.5" />
+              Mensualidad
+            </PanelButton>
+            <PanelButton
+              panel={NEW_DEBT_PANEL}
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Nueva deuda
+            </PanelButton>
+          </>
+        }
+      />
 
       <PageBody>
+        {(receivableTotals.length > 0 || payableTotals.length > 0) && (
+          <StatGrid cols={2}>
+            <TotalsStatCard
+              label="Te debe"
+              totals={receivableTotals}
+              className={loneStat}
+            />
+            <TotalsStatCard
+              label="Le debes"
+              totals={payableTotals}
+              className={loneStat}
+            />
+          </StatGrid>
+        )}
+
         <SplitLayout
           asideFirst
           aside={
-            <>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <PanelButton panel={NEW_DEBT_PANEL} className={PRIMARY_ACTION}>
-                    <HandCoins className="size-4" />
-                    Nueva deuda
-                  </PanelButton>
-                  <PanelButton
-                    panel={NEW_PLAN_PANEL}
-                    className={SECONDARY_ACTION}
-                  >
-                    <CalendarClock className="size-4" />
-                    Mensualidad
-                  </PanelButton>
+            <Card className="flex flex-col gap-3">
+              {contact.phone ? (
+                <a
+                  href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
+                  className="flex items-center gap-3 text-sm font-medium text-brand-ink hover:text-brand-mid"
+                >
+                  <span className={`${INFO_ICON} bg-chip`}>
+                    <Phone className="size-4" />
+                  </span>
+                  <span className="min-w-0 truncate">{contact.phone}</span>
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 text-sm text-muted">
+                  <span className={`${INFO_ICON} bg-subtle`}>
+                    <Phone className="size-4" />
+                  </span>
+                  Sin teléfono
                 </div>
+              )}
+              {contact.note && (
+                <div className="flex items-start gap-3 text-sm text-ink-soft">
+                  <span className={`${INFO_ICON} bg-subtle`}>
+                    <NotebookPen className="size-4" />
+                  </span>
+                  <p className="min-w-0 pt-2 break-words whitespace-pre-line">
+                    {contact.note}
+                  </p>
+                </div>
+              )}
+              <div className="border-t border-line-2 pt-2">
+                <ContactActionsMenu
+                  contactId={contact.id}
+                  contactName={contact.name}
+                  debtCount={debts.length}
+                  planCount={loosePlanCount}
+                  canMerge={others.length > 0}
+                />
               </div>
-
-              <Card className="flex flex-col gap-3">
-                {contact.phone ? (
-                  <a
-                    href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
-                    className="flex items-center gap-3 text-sm font-semibold text-brand-ink hover:underline"
-                  >
-                    <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-chip">
-                      <Phone className="size-4" />
-                    </span>
-                    <span className="min-w-0 truncate">{contact.phone}</span>
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-3 text-sm text-muted">
-                    <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-app">
-                      <Phone className="size-4" />
-                    </span>
-                    Sin teléfono
-                  </div>
-                )}
-                {contact.note && (
-                  <div className="flex items-start gap-3 text-sm text-ink-soft">
-                    <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-app text-muted">
-                      <NotebookPen className="size-4" />
-                    </span>
-                    <p className="min-w-0 pt-1.5 break-words whitespace-pre-line">
-                      {contact.note}
-                    </p>
-                  </div>
-                )}
-                <div className="border-t border-line-2 pt-2">
-                  <ContactActionsMenu
-                    contactId={contact.id}
-                    contactName={contact.name}
-                    debtCount={debts.length}
-                    planCount={loosePlanCount}
-                    canMerge={others.length > 0}
-                  />
-                </div>
-              </Card>
-            </>
+            </Card>
           }
           main={
             <>
               {isEmpty && (
-                <p className="rounded-2xl border border-line bg-card px-4 py-8 text-center text-sm text-muted">
+                <Card className="py-8 text-center text-sm text-muted">
                   Todavía no hay deudas ni mensualidades con {contact.name}.
-                </p>
+                </Card>
               )}
 
+              {/* Las filas van en la columna principal (más estrecha que la
+                  página): `stacked` las deja en dos líneas y el formulario
+                  de saldar de cada mensualidad queda debajo de su fila. */}
               {openDebts.length > 0 && (
                 <Section title="Deudas abiertas">
-                  <CardGrid className="@5xl:grid-cols-2">
+                  <Card padding="none" className={LIST}>
                     {openDebts.map((debt) => (
-                      <DebtCard key={debt.id} debt={debt} hideContact />
+                      <DebtCard key={debt.id} debt={debt} hideContact stacked />
                     ))}
-                  </CardGrid>
+                  </Card>
                 </Section>
               )}
 
               {activePlans.length > 0 && (
                 <Section title="Mensualidades">
-                  <CardGrid className="@5xl:grid-cols-2">
+                  <Card padding="none" className={LIST}>
                     {activePlans.map((plan) => (
                       <PlanCard
                         key={plan.id}
@@ -202,20 +238,20 @@ export default async function ContactoDetallePage({
                         hideContact
                       />
                     ))}
-                  </CardGrid>
+                  </Card>
                 </Section>
               )}
 
               {closedDebts.length + endedPlans.length > 0 && (
                 <Section title="Historial">
-                  <CardGrid className="gap-2 @2xl:gap-2.5 @5xl:grid-cols-2">
+                  <Card padding="none" className={LIST}>
                     {closedDebts.map((debt) => (
                       <ClosedDebtRow key={debt.id} debt={debt} hideContact />
                     ))}
                     {endedPlans.map((plan) => (
                       <EndedPlanRow key={plan.id} plan={plan} hideContact />
                     ))}
-                  </CardGrid>
+                  </Card>
                 </Section>
               )}
             </>
@@ -254,6 +290,6 @@ export default async function ContactoDetallePage({
       >
         <MergeContactForm source={self} candidates={others} />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

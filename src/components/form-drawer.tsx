@@ -189,7 +189,7 @@ export function FormDrawer({
               type="button"
               aria-label="Cerrar"
               disabled={busy}
-              className="-mt-1 -mr-1.5 flex size-10 flex-none items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-chip hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+              className="-mt-1 -mr-1.5 flex size-10 flex-none items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
             >
               <X className="size-[18px]" />
             </button>

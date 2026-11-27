@@ -1,46 +1,30 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { SectionHeader } from "@/components/section-header";
 import { cn } from "@/lib/utils";
 
 /**
- * Sección con título. Es un `<section>` con `<h2>` a propósito: los tests
- * E2E localizan las secciones por su encabezado.
+ * Sección con título: el `<section>` + `SectionHeader` que casi todas las
+ * vistas repiten. Es un `<section>` con encabezado real a propósito: los
+ * tests E2E localizan las secciones así (no anidar una dentro de otra).
  */
 export function Section({
   title,
+  description,
   action,
   className,
   children,
 }: {
   title: string;
-  /** Acción alineada a la derecha del título (enlace, botón pequeño). */
-  action?: ReactNode;
+  description?: ReactNode;
+  /** Enlace estándar ({href,label}) o cualquier nodo. */
+  action?: ComponentProps<typeof SectionHeader>["action"];
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className={cn("flex min-w-0 flex-col", className)}>
-      <div className="mb-2.5 flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-heading">{title}</h2>
-        {action}
-      </div>
+    <section className={cn("min-w-0", className)}>
+      <SectionHeader title={title} description={description} action={action} />
       {children}
     </section>
-  );
-}
-
-/** Tarjeta base del contenido (superficie blanca con borde). */
-export function Card({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={cn("rounded-2xl border border-line bg-card p-4", className)}
-    >
-      {children}
-    </div>
   );
 }

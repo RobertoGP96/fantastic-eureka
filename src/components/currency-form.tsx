@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -16,18 +17,22 @@ import {
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { createCurrency } from "@/app/actions/currency-actions";
 import { type CurrencyKind } from "@/lib/domain";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
-import { cn } from "@/lib/utils";
 
 const DECIMAL_OPTIONS = ["0", "2", "3", "4"];
 
-const KIND_OPTIONS: { key: CurrencyKind; label: string; hint: string }[] = [
-  { key: "CASH", label: "Efectivo", hint: "con billetes y monedas" },
-  { key: "DIGITAL", label: "Digital", hint: "solo saldo, sin denominaciones" },
+// `hint` describe la opción elegida bajo el control segmentado.
+const KIND_OPTIONS: { value: CurrencyKind; label: string; hint: string }[] = [
+  { value: "CASH", label: "Efectivo", hint: "Con billetes y monedas." },
+  {
+    value: "DIGITAL",
+    label: "Digital",
+    hint: "Solo saldo, sin denominaciones.",
+  },
 ];
 
 /** Alta de moneda (vive en el drawer de `/monedas`). */
@@ -65,6 +70,8 @@ export function CurrencyForm() {
       setError(result.error);
     }
   };
+
+  const kindHint = KIND_OPTIONS.find((option) => option.value === kind)?.hint;
 
   return (
     <form
@@ -110,42 +117,15 @@ export function CurrencyForm() {
           />
         </Field>
 
-        {/* Dos opciones con explicación: por eso no usa ChoiceGroup. */}
-        <div
-          role="radiogroup"
-          aria-label="Clasificación"
-          className="grid grid-cols-2 gap-2"
-        >
-          {KIND_OPTIONS.map((option) => {
-            const active = kind === option.key;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setKind(option.key)}
-                className={cn(
-                  "min-h-11 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
-                  active
-                    ? "border-brand-ink bg-chip"
-                    : "border-line bg-card hover:border-brand-soft"
-                )}
-              >
-                <span
-                  className={cn(
-                    "block text-sm font-semibold",
-                    active ? "text-brand-ink" : "text-ink-soft"
-                  )}
-                >
-                  {option.label}
-                </span>
-                <span className="block text-[11px] text-muted">
-                  {option.hint}
-                </span>
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-1.5">
+          <Segmented
+            layout="fill"
+            ariaLabel="Clasificación"
+            options={KIND_OPTIONS}
+            value={kind}
+            onValueChange={setKind}
+          />
+          {kindHint && <p className="text-xs text-muted">{kindHint}</p>}
         </div>
 
         <Field
@@ -153,7 +133,7 @@ export function CurrencyForm() {
           hint="Cuántas cifras lleva tras la coma (los céntimos son 2)."
         >
           <Select value={decimals} onValueChange={setDecimals}>
-            <SelectTrigger className={FIELD_SELECT}>
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

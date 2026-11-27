@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -10,20 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ContactPicker } from "@/components/contact-picker";
-import { EntityAvatar } from "@/components/entity-avatar";
+import { ContactPicker, FixedContact } from "@/components/contact-picker";
 import {
   FORM_DRAWER_FORM,
   FormDrawerBody,
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import {
-  ChoiceGroup,
-  Field,
-  FIELD_SELECT,
-  FormError,
-} from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { createDebt } from "@/app/actions/debt-actions";
 import { resolveContactInput } from "@/lib/contacts-core";
 import { toLocalDateISO } from "@/lib/dates";
@@ -51,6 +46,10 @@ const DIRECTION_OPTIONS = DEBT_DIRECTIONS.map((direction) => ({
 /**
  * Alta de deuda (vive en un drawer). Con `fixedContact` el contacto viene
  * dado —se abre desde la ficha de ese contacto— y no se puede cambiar.
+ *
+ * Los tests E2E localizan los campos por su rótulo («Descripción», «Monto
+ * total», «Moneda», «Cuota» exacto) y por el placeholder «Nombre del
+ * contacto»: no cambiarlos ni añadir ayudas dentro de esos <label>.
  */
 export function DebtForm({
   contacts,
@@ -130,23 +129,16 @@ export function DebtForm({
       }}
     >
       <FormDrawerBody>
-        <ChoiceGroup
-          label="Tipo de deuda"
+        <Segmented
+          layout="fill"
+          ariaLabel="Tipo de deuda"
           options={DIRECTION_OPTIONS}
           value={direction}
-          onChange={setDirection}
+          onValueChange={setDirection}
         />
 
         {fixedContact ? (
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5">
-            <EntityAvatar name={fixedContact.name} size="sm" />
-            <div className="min-w-0">
-              <div className="text-xs text-muted">Contacto</div>
-              <div className="truncate text-sm font-semibold text-heading">
-                {fixedContact.name}
-              </div>
-            </div>
-          </div>
+          <FixedContact name={fixedContact.name} />
         ) : (
           <ContactPicker
             contacts={contacts}
@@ -177,7 +169,7 @@ export function DebtForm({
           </Field>
           <Field label="Moneda">
             <Select value={currencyId} onValueChange={changeCurrency}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -197,7 +189,7 @@ export function DebtForm({
             hint="Se preseleccionará al registrar abonos y cuotas."
           >
             <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -212,12 +204,14 @@ export function DebtForm({
           </Field>
         )}
 
-        <label className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-card px-3.5 py-3">
+        {/* Checkbox NATIVO dentro de su <label>: el test E2E lo marca con
+            getByRole("checkbox") a través del label (un Switch lo rompería). */}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-card px-3.5 py-2.5 transition-colors hover:bg-subtle/60">
           <input
             type="checkbox"
             checked={withPlan}
             onChange={(e) => setWithPlan(e.target.checked)}
-            className="size-4 accent-primary"
+            className="size-4 flex-none accent-brand focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
           <span className="text-sm font-medium text-ink-soft">
             Con plan de cuotas (recordatorios periódicos)
@@ -225,11 +219,12 @@ export function DebtForm({
         </label>
 
         {withPlan && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-brand-soft/50 bg-chip/40 p-4">
+          // Panel interior neutro: los campos del plan cuelgan del checkbox.
+          <div className="flex flex-col gap-3 rounded-xl bg-subtle p-4">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Frecuencia">
                 <Select value={frequency} onValueChange={setFrequency}>
-                  <SelectTrigger className={FIELD_SELECT}>
+                  <SelectTrigger variant="form" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -241,6 +236,8 @@ export function DebtForm({
                   </SelectContent>
                 </Select>
               </Field>
+              {/* El texto de este label es EXACTAMENTE «Cuota» (el test E2E
+                  usa getByLabel exacto): sin ayuda, unidad ni asterisco. */}
               <Field label="Cuota">
                 <Input
                   value={installmentAmount}

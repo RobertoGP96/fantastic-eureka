@@ -1,5 +1,5 @@
 import { DetailSkeleton } from "@/components/page-skeleton";
 
 export default function Loading() {
-  return <DetailSkeleton />;
+  return <DetailSkeleton asideFirst />;
 }

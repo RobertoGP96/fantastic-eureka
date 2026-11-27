@@ -1,15 +1,12 @@
 import { Plus, UsersRound } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
-import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
+import { EmptyState } from "@/components/empty-state";
 import { PanelDrawer } from "@/components/form-drawer";
-import { PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
-import {
-  HEADER_ACTION,
-  HeaderPill,
-  ScreenHeader,
-} from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
 import { DebtsTabs } from "@/components/section-tabs";
+import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { contactBalances } from "@/lib/contacts-core";
@@ -93,25 +90,22 @@ export default async function ContactosPage() {
   ).length;
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title="Contactos"
+        subtitle={`${rows.length} contacto${rows.length === 1 ? "" : "s"}${
+          withBalance > 0 ? ` · ${withBalance} con saldo pendiente` : ""
+        }`}
         actions={
-          <PanelButton panel={NEW_CONTACT_PANEL} className={HEADER_ACTION}>
+          <PanelButton
+            panel={NEW_CONTACT_PANEL}
+            className={buttonVariants({ size: "sm" })}
+          >
             <Plus className="size-3.5" />
-            Nuevo
+            Nuevo contacto
           </PanelButton>
         }
-      >
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <HeaderPill>
-            {rows.length} contacto{rows.length === 1 ? "" : "s"}
-          </HeaderPill>
-          {withBalance > 0 && (
-            <HeaderPill>{withBalance} con saldo pendiente</HeaderPill>
-          )}
-        </div>
-      </ScreenHeader>
+      />
 
       <PageBody>
         <DebtsTabs current="/contactos" />
@@ -124,7 +118,7 @@ export default async function ContactosPage() {
             cta={
               <PanelButton
                 panel={NEW_CONTACT_PANEL}
-                className={EMPTY_STATE_CTA}
+                className={buttonVariants()}
               >
                 Nuevo contacto
               </PanelButton>
@@ -138,6 +132,6 @@ export default async function ContactosPage() {
       <PanelDrawer panel={NEW_CONTACT_PANEL} title="Nuevo contacto">
         <ContactForm />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

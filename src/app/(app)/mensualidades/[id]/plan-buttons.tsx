@@ -22,7 +22,7 @@ export function PlanButtons({ planId }: { planId: string }) {
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+      <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
         Finalizar mensualidad
       </Button>
       <ConfirmDrawer

@@ -6,6 +6,8 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/app/actions/auth-actions";
 
+// Solo se usa en /mas: a todo el ancho en móvil y con su ancho natural
+// cuando la tarjeta de perfil pasa a una fila (`@2xl/main`).
 export function LogoutButton() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -20,11 +22,11 @@ export function LogoutButton() {
   return (
     <Button
       variant="outline"
-      className="w-full"
+      className="w-full flex-none @2xl/main:w-auto"
       disabled={saving}
       onClick={() => void logout()}
     >
-      <LogOut className="h-4 w-4" />
+      <LogOut className="size-4" />
       {saving ? "Cerrando sesión…" : "Cerrar sesión"}
     </Button>
   );

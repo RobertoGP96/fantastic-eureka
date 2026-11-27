@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Link2, RefreshCw, Share2, ShieldOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   createAccountShare,
   revokeAccountShare,
@@ -120,48 +122,52 @@ export function AccountSharePanel({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-white px-4 py-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-ink-soft">
-          Compartir cuenta
-        </span>
+    <Card className="flex flex-col gap-3">
+      {/* flex-wrap: en la columna lateral estrecha la insignia baja bajo el
+          título en vez de partirlo. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <h2 className="text-sm font-semibold text-heading">Compartir cuenta</h2>
         {share && now && (
-          <span className="rounded-md bg-gold/15 px-2 py-[3px] text-[11px] font-semibold text-navy">
+          <Badge variant="warn">
             Vence en {shareRemainingLabel(new Date(share.expiresAt), now)}
-          </span>
+          </Badge>
         )}
       </div>
 
       {share ? (
         <>
-          <div className="flex items-center gap-2 rounded-xl bg-chip/60 px-3 py-2">
-            <Link2 className="h-4 w-4 flex-none text-brand" />
-            <span className="min-w-0 flex-1 truncate font-mono text-xs text-navy">
+          <div className="flex items-center gap-2 rounded-xl bg-subtle px-3 py-2">
+            <Link2 className="size-4 flex-none text-muted" />
+            <span className="min-w-0 flex-1 truncate font-mono text-xs text-heading">
               {url ?? sharePath(share.token)}
             </span>
           </div>
           {confirmRevoke ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 flex-1 text-xs text-muted">
+            // basis-52: el aviso ocupa su línea y la pareja de botones baja
+            // junta cuando no caben a su lado.
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="min-w-0 grow basis-52 text-xs text-muted">
                 ¿Revocar el código? Quien tenga el enlace dejará de ver la
                 cuenta al instante.
               </span>
-              <Button
-                size="sm"
-                variant="danger"
-                disabled={busy}
-                onClick={() => void revoke()}
-              >
-                Revocar
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => setConfirmRevoke(false)}
-              >
-                Cancelar
-              </Button>
+              <div className="flex flex-none items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={busy}
+                  onClick={() => void revoke()}
+                >
+                  Revocar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => setConfirmRevoke(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
@@ -172,9 +178,9 @@ export function AccountSharePanel({
                 onClick={() => void copy()}
               >
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-ok" />
+                  <Check className="size-3.5 text-ok" />
                 ) : (
-                  <Copy className="h-3.5 w-3.5" />
+                  <Copy className="size-3.5" />
                 )}
                 Copiar
               </Button>
@@ -184,7 +190,7 @@ export function AccountSharePanel({
                 disabled={busy || !url}
                 onClick={() => void nativeShare()}
               >
-                <Share2 className="h-3.5 w-3.5" />
+                <Share2 className="size-3.5" />
                 Compartir
               </Button>
               <Button
@@ -193,7 +199,7 @@ export function AccountSharePanel({
                 disabled={busy}
                 onClick={() => void generate()}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="size-3.5" />
                 Nuevo código
               </Button>
               <Button
@@ -203,15 +209,17 @@ export function AccountSharePanel({
                 disabled={busy}
                 onClick={() => setConfirmRevoke(true)}
               >
-                <ShieldOff className="h-3.5 w-3.5" />
+                <ShieldOff className="size-3.5" />
                 Revocar
               </Button>
             </div>
           )}
         </>
       ) : (
+        // basis-28: en la columna lateral estrecha el botón baja a su propia
+        // línea en vez de partir el aviso en dos.
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-xs text-muted">
+          <span className="min-w-0 grow basis-28 text-xs text-muted">
             Sin código vigente.
           </span>
           <Button
@@ -220,17 +228,17 @@ export function AccountSharePanel({
             disabled={busy}
             onClick={() => void generate()}
           >
-            <Share2 className="h-3.5 w-3.5" />
+            <Share2 className="size-3.5" />
             Generar código de 24 h
           </Button>
         </div>
       )}
 
-      <p className="text-[11px] text-muted">
+      <p className="text-xs text-muted">
         El código abre una vista de solo lectura con el saldo y los
         movimientos de esta cuenta, sin necesidad de usuario. Caduca a las
         24 h; generar uno nuevo anula el anterior.
       </p>
-    </div>
+    </Card>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   Select,
   SelectContent,
@@ -10,20 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ContactPicker } from "@/components/contact-picker";
-import { EntityAvatar } from "@/components/entity-avatar";
+import { ContactPicker, FixedContact } from "@/components/contact-picker";
 import {
   FORM_DRAWER_FORM,
   FormDrawerBody,
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import {
-  ChoiceGroup,
-  Field,
-  FIELD_SELECT,
-  FormError,
-} from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { createPlan } from "@/app/actions/plan-actions";
 import { resolveContactInput } from "@/lib/contacts-core";
 import { toLocalDateISO } from "@/lib/dates";
@@ -43,7 +38,8 @@ import { useUI } from "@/lib/ui-store";
 
 const NO_ACCOUNT = "__none_account__";
 
-// «Pago» primero: es lo habitual (renta, suscripciones).
+// «Pago» primero: es lo habitual (renta, suscripciones). El paréntesis
+// aclara desde qué lado se mira el plan.
 const KIND_OPTIONS = [...PLAN_KINDS].reverse().map((kind) => ({
   value: kind,
   label: `${PLAN_KIND_LABELS[kind]} ${kind === "COLLECT" ? "(me pagan)" : "(yo pago)"}`,
@@ -126,11 +122,12 @@ export function PlanForm({
       }}
     >
       <FormDrawerBody>
-        <ChoiceGroup
-          label="Tipo de mensualidad"
+        <Segmented
+          layout="fill"
+          ariaLabel="Tipo de mensualidad"
           options={KIND_OPTIONS}
           value={kind}
-          onChange={setKind}
+          onValueChange={setKind}
         />
 
         <Field label="Descripción">
@@ -144,15 +141,7 @@ export function PlanForm({
         </Field>
 
         {fixedContact ? (
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5">
-            <EntityAvatar name={fixedContact.name} size="sm" />
-            <div className="min-w-0">
-              <div className="text-xs text-muted">Contacto</div>
-              <div className="truncate text-sm font-semibold text-heading">
-                {fixedContact.name}
-              </div>
-            </div>
-          </div>
+          <FixedContact name={fixedContact.name} />
         ) : (
           <ContactPicker
             contacts={contacts}
@@ -174,7 +163,7 @@ export function PlanForm({
           </Field>
           <Field label="Moneda">
             <Select value={currencyId} onValueChange={changeCurrency}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -194,7 +183,7 @@ export function PlanForm({
             hint="Se usará por defecto al pagar o cobrar cada cuota."
           >
             <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -212,7 +201,7 @@ export function PlanForm({
         <div className="grid grid-cols-2 gap-3">
           <Field label="Frecuencia">
             <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger className={FIELD_SELECT}>
+              <SelectTrigger variant="form" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

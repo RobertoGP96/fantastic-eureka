@@ -42,7 +42,7 @@ export function ProfileForm({
 
   return (
     <form
-      className="flex flex-col gap-3.5"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -72,6 +72,8 @@ export function ProfileForm({
 
       <Button
         type="submit"
+        size="lg"
+        className="w-full"
         disabled={saving || !dirty || !name.trim() || !email.trim()}
       >
         {saving ? "Guardando…" : "Guardar cambios"}

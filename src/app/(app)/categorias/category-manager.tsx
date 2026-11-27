@@ -15,7 +15,8 @@ import { FormDrawer } from "@/components/form-drawer";
 import { PanelButton } from "@/components/panel-button";
 import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,6 @@ import { usePanel } from "@/hooks/use-panel";
 import { type CategoryKind } from "@/lib/domain";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
-import { cn } from "@/lib/utils";
 import { KIND_PARAM, NEW_CATEGORY_PANEL } from "./panels";
 
 export interface CategoryItem {
@@ -42,9 +42,10 @@ export interface CategoryItem {
 }
 
 /**
- * Columna con las categorías de UN tipo (gastos o ingresos). Crear se hace
- * en el drawer de la página (`NewCategoryDrawer`); renombrar y eliminar, en
- * drawers propios de la columna. Ocultar/activar es de un toque, en el ⋮.
+ * Columna con las categorías de UN tipo (gastos o ingresos): una tarjeta con
+ * filas divididas. Crear se hace en el drawer de la página
+ * (`NewCategoryDrawer`); renombrar y eliminar, en drawers propios de la
+ * columna. Ocultar/activar es de un toque, en el ⋮.
  */
 export function CategoryManager({
   kind,
@@ -105,24 +106,25 @@ export function CategoryManager({
           panel={NEW_CATEGORY_PANEL}
           params={{ tipo: KIND_PARAM[kind] }}
           aria-label={`Añadir categoría de ${title.toLowerCase()}`}
-          className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-chip px-3 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-soft/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          className={buttonVariants({
+            variant: "outline",
+            size: "sm",
+            className: "flex-none",
+          })}
         >
           <Plus className="size-3.5" />
           Añadir
         </PanelButton>
       }
     >
-      <div className="anim-stagger flex flex-col gap-1.5">
+      <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
         {categories.map((category) => (
           <div
             key={category.id}
-            className={cn(
-              "flex items-center justify-between gap-2 rounded-xl border border-line bg-card py-1 pr-1 pl-3.5",
-              !category.active && "opacity-55"
-            )}
+            className="flex items-center gap-2 py-1.5 pr-2 pl-4"
           >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="min-w-0 truncate text-sm font-semibold text-heading">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="min-w-0 truncate text-sm font-medium text-heading">
                 {category.name}
               </span>
               {category.usageCount > 0 && (
@@ -130,6 +132,7 @@ export function CategoryManager({
                   {category.usageCount} mov.
                 </Badge>
               )}
+              {/* Oculta: insignia y contraste normal, no opacidad. */}
               {!category.active && (
                 <Badge variant="neutral" className="flex-none">
                   Oculta
@@ -150,10 +153,7 @@ export function CategoryManager({
                   <EllipsisVertical />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="min-w-44 rounded-xl border-line"
-              >
+              <DropdownMenuContent align="end" className="min-w-44">
                 <DropdownMenuItem
                   onSelect={() => {
                     setEditing(category);
@@ -179,11 +179,11 @@ export function CategoryManager({
           </div>
         ))}
         {categories.length === 0 && (
-          <div className="rounded-xl border border-line bg-card px-3.5 py-4 text-center text-sm text-muted">
+          <div className="px-4 py-6 text-center text-sm text-muted">
             Sin categorías de este tipo.
           </div>
         )}
-      </div>
+      </Card>
 
       <FormDrawer
         open={editOpen}

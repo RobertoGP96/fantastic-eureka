@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { FolderOpen, Plus } from "lucide-react";
+import { FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { FormDrawerBody } from "@/components/form-drawer";
 import { FormError } from "@/components/form-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   createAccountGroup,
@@ -20,6 +21,15 @@ export interface GroupItem {
   name: string;
   accountCount: number;
 }
+
+// Alto mínimo común a los tres estados de una fila (ver, renombrar y
+// confirmar el borrado): así la lista no salta al pasar de uno a otro.
+const ROW = "flex min-h-11 items-center dense:min-h-9";
+
+// Acciones de fila: solo icono (el drawer es estrecho y los dos rótulos no
+// dejan sitio al nombre); el texto sigue en el DOM para lectores de
+// pantalla. En táctil el área de toque sube a 44 px.
+const ROW_ACTION = "min-h-11 min-w-11 dense:min-h-8 dense:min-w-8";
 
 /**
  * Gestión de los grupos de cuentas (vive en el drawer «grupos» de /cuentas).
@@ -74,7 +84,7 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
   return (
     <FormDrawerBody>
       <form
-        className="flex gap-2.5"
+        className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           void add();
@@ -88,7 +98,11 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
           maxLength={40}
           required
         />
-        <Button type="submit" disabled={saving || !name.trim()}>
+        <Button
+          type="submit"
+          className="flex-none"
+          disabled={saving || !name.trim()}
+        >
           <Plus className="size-4" />
           Crear
         </Button>
@@ -96,106 +110,128 @@ export function GroupManager({ groups }: { groups: GroupItem[] }) {
 
       <FormError>{error}</FormError>
 
-      <div className="flex flex-col gap-1.5">
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            className="rounded-xl border border-line bg-card px-3.5 py-2.5"
-          >
-            {editingId === group.id ? (
-              <form
-                className="flex items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void rename(group.id);
-                }}
-              >
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  aria-label="Nombre del grupo"
-                  maxLength={40}
-                  autoFocus
-                  required
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={saving || !editName.trim()}
+      {groups.length === 0 ? (
+        <Card dashed className="py-6 text-center text-sm text-muted">
+          Sin grupos todavía. Crea el primero para organizar tus cuentas.
+        </Card>
+      ) : (
+        // UNA tarjeta con una fila por grupo.
+        <Card padding="none" className="divide-y divide-line-2">
+          {groups.map((group) => (
+            <div key={group.id} className="px-4 py-2.5">
+              {editingId === group.id ? (
+                <form
+                  className={`${ROW} flex-wrap justify-end gap-2`}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void rename(group.id);
+                  }}
                 >
-                  Guardar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={saving}
-                  onClick={() => setEditingId(null)}
-                >
-                  Cancelar
-                </Button>
-              </form>
-            ) : confirmDeleteId === group.id ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="min-w-0 flex-1 text-xs text-muted">
-                  ¿Eliminar «{group.name}»? Sus cuentas pasan a «Sin grupo».
-                </span>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  disabled={saving}
-                  onClick={() => void remove(group.id)}
-                >
-                  Eliminar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={saving}
-                  onClick={() => setConfirmDeleteId(null)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="flex size-8 flex-none items-center justify-center rounded-lg bg-chip text-brand-ink">
-                  <FolderOpen className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-heading">
-                  {group.name}
-                </span>
-                {group.accountCount > 0 && (
-                  <Badge variant="neutral">{group.accountCount} cuentas</Badge>
-                )}
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingId(group.id);
-                      setEditName(group.name);
-                    }}
-                  >
-                    Renombrar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setConfirmDeleteId(group.id)}
-                  >
-                    Eliminar
-                  </Button>
+                  {/* basis-40: si campo y botones no caben en una línea, la
+                      pareja de botones baja junta. */}
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    aria-label="Nombre del grupo"
+                    maxLength={40}
+                    className="grow basis-40"
+                    autoFocus
+                    required
+                  />
+                  <div className="flex flex-none items-center gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={saving || !editName.trim()}
+                    >
+                      Guardar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={saving}
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              ) : confirmDeleteId === group.id ? (
+                // basis-52: si el aviso no cabe junto a los botones, ocupa su
+                // propia línea y la pareja de botones baja junta (truncado no
+                // se leía qué pasa con las cuentas).
+                <div className={`${ROW} flex-wrap justify-end gap-2`}>
+                  <span className="min-w-0 grow basis-52 text-xs break-words text-muted">
+                    ¿Eliminar «{group.name}»? Sus cuentas pasan a «Sin grupo».
+                  </span>
+                  <div className="flex flex-none items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={saving}
+                      onClick={() => void remove(group.id)}
+                    >
+                      Eliminar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={saving}
+                      onClick={() => setConfirmDeleteId(null)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {groups.length === 0 && (
-          <div className="rounded-xl border border-line bg-card px-3.5 py-4 text-center text-sm text-muted">
-            Sin grupos todavía. Crea el primero para organizar tus cuentas.
-          </div>
-        )}
-      </div>
+              ) : (
+                <div className={`${ROW} gap-3`}>
+                  <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <FolderOpen className="size-4" />
+                  </span>
+                  {/* Nombre e insignia comparten línea si caben; si no, la
+                      insignia baja y el nombre se trunca. */}
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="max-w-full min-w-0 truncate text-sm font-medium text-heading">
+                      {group.name}
+                    </span>
+                    {group.accountCount > 0 && (
+                      <Badge variant="neutral" className="flex-none">
+                        {group.accountCount}{" "}
+                        {group.accountCount === 1 ? "cuenta" : "cuentas"}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-none items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Renombrar"
+                      className={ROW_ACTION}
+                      onClick={() => {
+                        setEditingId(group.id);
+                        setEditName(group.name);
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                      <span className="sr-only">Renombrar</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Eliminar"
+                      className={`${ROW_ACTION} text-danger hover:text-danger`}
+                      onClick={() => setConfirmDeleteId(group.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span className="sr-only">Eliminar</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
     </FormDrawerBody>
   );
 }

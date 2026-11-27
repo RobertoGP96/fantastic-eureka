@@ -1,7 +1,7 @@
 # Caja — App de cuentas y registros contables
 
-App Next.js 15 (App Router) mobile-first, estética portada de
-`M:\Projects\mareyreg\apps\tienda`. Español para UI/comentarios.
+App Next.js 15 (App Router) para móvil Y escritorio, con sistema de
+diseño propio (v3, ver «Tema»). Español para UI/comentarios.
 
 ## Comandos
 
@@ -17,8 +17,9 @@ App Next.js 15 (App Router) mobile-first, estética portada de
 - Deploy: Vercel (build = `prisma generate && next build`); env vars
   DATABASE_URL, DIRECT_URL y ALLOW_REGISTRATION=true (registro abierto;
   app multi-tenant, `false` solo para cerrar el alta en instancias privadas)
-- `pnpm test:e2e` — Playwright E2E (levanta su propio dev server; requiere
-  puerto 3002 LIBRE — parar `pnpm dev` antes)
+- `pnpm test:e2e` — Playwright E2E (levanta su propio dev server contra el
+  schema `caja_e2e` de Neon, que recrea en cada corrida; requiere puerto
+  3002 LIBRE — parar `pnpm dev` antes)
 
 ## Arquitectura
 
@@ -121,12 +122,14 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   cuota genera la siguiente vía `advancePlan` (recurrencia en
   `src/lib/dates.ts`, con clamp de fin de mes). Cuota VENCIDA es estado
   derivado (PENDING + dueAt pasado), no hay cron. `/deudas` lista TODAS las
-  deudas sin filtro por defecto (chips Todas/Por cobrar/Por pagar vía
+  deudas sin filtro por defecto (filtro Todas/Por cobrar/Por pagar vía
   `?dir=cobrar|pagar`; antes el default RECEIVABLE escondía las por pagar) y
   las saldadas/canceladas NO desaparecen: van a la sección «Historial»
-  (badge Saldada/Cancelada). Cabecera con el pendiente por moneda separado
-  en «Me deben» / «Debo»; cada tarjeta lleva avatar de iniciales, barra de
-  progreso del abonado y badge de la próxima cuota. Deudas y
+  (badge Saldada/Cancelada). Dos KPIs con el pendiente por moneda, «Me
+  deben» / «Debo» (`src/components/totals-stat-card.tsx`), calculados
+  ANTES del filtro: la dirección se filtra en memoria. Cada fila lleva
+  avatar de iniciales, barra de progreso del abonado y badge de la próxima
+  cuota. En el detalle el abono se registra en el drawer `abono`. Deudas y
   planes se pueden ELIMINAR desde su detalle
   (`src/components/delete-entity-button.tsx`, confirmación en
   `ConfirmDrawer` → `deleteDebt`/`deletePlan`): se borra el seguimiento (abonos, planes
@@ -140,9 +143,10 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   NOMBRE DEL CONTACTO (`contact` propio o el de la deuda), frecuencia,
   cuotas saldadas y badge de vencimiento; filtros Todas/Que pago/Que cobro
   (`?tipo=pagar|cobrar`) y sección «Finalizadas» para los inactivos. Si la
-  próxima cuota vence en ≤7 días (o ya venció) la tarjeta trae el
-  `SettleInstallment` embebido: se despachan varias mensualidades sin entrar
-  al detalle. La cabecera suma el compromiso mensual por moneda separando
+  próxima cuota vence en ≤7 días (o ya venció) la fila trae el
+  `SettleInstallment` embebido (`planCanSettle` en `plan-card.tsx`): se
+  despachan varias mensualidades sin entrar al detalle. Los KPIs suman el
+  compromiso mensual por moneda (antes del filtro) separando
   pago/cobro — lógica pura en `src/lib/plans-core.ts` (con tests):
   `monthlyEquivalentMinor` (semanal ×52/12, quincenal ×26/12, ONCE = 0),
   `monthlyCommitmentByCurrency`, `nextPending`, `comparePlansByUrgency` y
@@ -194,11 +198,18 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   arqueo (`/conteo/[id]`) y la calculadora `/calculadora` (contar efectivo
   por moneda SIN cuenta ni escritura en BD; accesos con icono calculadora en
   Inicio, /conteo, /mas y el sidebar).
-- **Notificaciones de cuotas**: campana en el header de Inicio
-  (`src/components/installment-notifications.tsx` server →
-  `notifications-bell.tsx` client, dropdown shadcn): cuotas PENDING vencidas
-  o que vencen en ≤7 días (`upcomingInstallments`, máx 8), badge dorado o
-  rojo si hay vencidas.
+- **Notificaciones de cuotas**: campana con las cuotas PENDING vencidas o
+  que vencen en ≤7 días (`upcomingInstallments`, máx 8; contador ámbar, rojo
+  si hay vencidas). `src/components/installment-notifications.tsx` (server) →
+  `notifications-bell.tsx` (client, dropdown shadcn). En escritorio vive en la
+  barra superior del layout de `(app)`, dentro de `<Suspense>` y con
+  `try/catch` (el `error.tsx` de (app) no cubre a su propio layout: un fallo
+  de BD deja la campana vacía en vez de tumbar la app); en móvil, en la
+  cabecera de Inicio, alimentada por las filas que la página ya carga
+  (`toInstallmentNotices`). `upcomingInstallments` va con `cache()` de React:
+  campana y sección «Próximos vencimientos» comparten una consulta. El layout
+  NO se re-renderiza al navegar: la campana se refresca con cada acción que
+  revalida y al recargar.
 - **Editar/eliminar cuentas**: en el detalle,
   `src/components/account-manage.tsx` (archivar/activar y eliminar con
   `ConfirmDrawer` que avisa del borrado del historial) y el drawer «Editar
@@ -295,8 +306,14 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   consulta: `pairRateSeries()` en `src/lib/rates.ts`.
 - **Dashboard**: métricas en `src/lib/metrics.ts` (Prisma) sobre la lógica
   pura testeable de `src/lib/metrics-core.ts` (agrupación mensual y conversión
-  a base). Gráficos con barras CSS (`src/components/monthly-bars.tsx`), sin
-  librería de charts.
+  a base). Inicio abre con 4 KPIs (`StatCard`): «Saldo total ≈ base»
+  (`consolidatedTotalMinor` en `balances-core.ts`, con tests; se muestra «—»
+  si falta una tasa; el subtotal por grupo de `/cuentas` usa la misma
+  función) e ingresos, gastos y neto del mes con variación y mini-gráfico
+  (`buildFlowKpis` en `src/lib/dashboard-kpis.ts`, sobre la serie mensual ya
+  cargada: sin consultas nuevas). `latestRatesByCurrency` va con `cache()`
+  (Inicio y `dashboardMetrics` la piden en el mismo render). Gráfico mensual
+  con barras CSS (`src/components/monthly-bars.tsx`), sin librería de charts.
 - **Dashboard personalizable**: preferencias por usuario en
   `User.dashboardPrefs` (JSON serializado; null = defaults). Lógica pura en
   `src/lib/dashboard-prefs.ts` (con tests): secciones fijas + gadgets
@@ -304,16 +321,25 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   fuera, secciones nuevas se añaden al final) — SIEMPRE pasar por
   `normalizeDashboardPrefs` antes de guardar/renderizar. Gadgets:
   `accountCard` (una cuenta, con últimos movimientos y denominaciones de
-  caja opcionales), `currencyTotals` (reusa `totalsByCurrency`) y `ratePair`
-  (sparkline del par; si no hay serie directa se invierte la inversa).
+  caja opcionales), `currencyTotals` (reusa `totalsByCurrency`), `ratePair`
+  (sparkline del par; si no hay serie directa se invierte la inversa),
+  `incomeCard` (resumen con gráfico de línea y tabs Día/Semana/Mes) y
+  `activityMap` («Mapa de actividad»: rejilla de puntos semana × día con
+  los movimientos de cada día del último año; lógica pura en
+  `src/lib/activity-map.ts` con tests, consulta `activityMapData` — solo
+  `occurredAt` — y render de servidor en `src/components/activity-map.tsx`,
+  que recorta las semanas antiguas según el ancho). Un tipo de gadget NUEVO
+  necesita su rama en `page.tsx` ANTES del caso final, que asume `ratePair`.
   Render en `src/components/dashboard-widgets.tsx` (server), edición en
   `src/components/dashboard-customizer.tsx` (sheet «Personalizar Inicio»:
   orden/visibilidad, alta/baja de gadgets y qué cuentas lista la sección
   Cuentas — `accountIds` null = todas; los gadgets NO se filtran por eso).
   `saveDashboardPrefs` valida propiedad de cuentas/monedas referenciadas y
-  descarta en silencio las ajenas. El gráfico y el top de gastos comparten
-  fila en escritorio solo si quedan consecutivos (HALF_SECTIONS en
-  `page.tsx`).
+  descarta en silencio las ajenas. En escritorio las secciones se reparten en
+  filas de 12 columnas respetando el orden del usuario (`packDashboardRows`
+  en `src/lib/dashboard-layout.ts`, con tests: ancha + estrecha = 8/4, dos
+  iguales = 6/6, sola = 12). Una sección sin datos NO se registra, así no
+  deja hueco: por eso la página carga ella misma las cuotas próximas.
 - **Rendimiento de navegación**: skeleton global en
   `src/app/(app)/loading.tsx` y uno por sección (el `loading.tsx` de cada
   carpeta, con las siluetas de `src/components/page-skeleton.tsx`: lista en
@@ -323,7 +349,7 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   depende de que TODA server action que mute datos llame `revalidatePath` —
   regla existente, ahora obligatoria.
 - **PWA/iOS (añadir a inicio)**: `src/app/manifest.ts` genera
-  `/manifest.webmanifest` (standalone, theme/background `#c3d6d3`);
+  `/manifest.webmanifest` (standalone, theme/background `#f6f8f8`, el color del lienzo);
   `appleWebApp` + `viewport.themeColor` en `src/app/layout.tsx`. Iconos PNG:
   `src/app/apple-icon.png` (180, Next lo enlaza como apple-touch-icon) y
   `public/icons/icon-{192,512}.png` (manifest, 512 también maskable) — son
@@ -353,9 +379,13 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   un campo de texto que sugiere los existentes; NO llama a ninguna action —
   el texto se resuelve con `resolveContactInput` (coincidencia exacta
   normalizada → existente; si no → `contactName`, que `createDebt` /
-  `createPlan` crean en la MISMA transacción). Las tarjetas de deuda y
-  mensualidad son compartidas (`debt-card.tsx`, `plan-card.tsx`, datos e
-  `include` en `src/lib/debt-cards.ts`).
+  `createPlan` crean en la MISMA transacción); con el contacto ya fijado
+  (alta desde su ficha) se pinta `FixedContact`. Las filas de deuda y
+  mensualidad son compartidas entre las listas y la ficha (`debt-card.tsx`:
+  `DebtCard`/`ClosedDebtRow`; `plan-card.tsx`: `PlanCard`/`EndedPlanRow`;
+  datos e `include` en `src/lib/debt-cards.ts`): NO traen marco, van
+  dentro de UNA `Card padding="none"` con `divide-y`, y `DebtCard` es UN
+  solo enlace con todo su texto dentro (así la localizan los E2E).
 - **Drawers**: TODO formulario corto vive en un drawer — hoja inferior
   deslizable en móvil, panel lateral derecho en md+ — salvo `/registrar`,
   el arqueo `/conteo/[id]` y la edición de movimiento, que siguen siendo
@@ -376,45 +406,85 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   (`src/lib/form-options.ts`); una action que cambie esas opciones debe
   revalidar la página ANFITRIONA (`src/lib/revalidate-paths.ts`). Las
   constantes compartidas entre una página servidor y sus componentes
-  cliente (nombres de panel) van en un módulo sin "use client".
-- **Layout de página**: `src/components/page-body.tsx` — `PageBody`
-  (`@container`, anchos `narrow|default|wide`), `CardGrid` (1 → 2 → 3
-  columnas) y `SplitLayout` (principal + lateral fijo de 20rem). Las
-  rejillas usan CONTAINER QUERIES (`@2xl:`, `@4xl:`, `@5xl:`), no
-  `md:`/`lg:`: con el sidebar plegable el viewport no dice cuánto mide el
-  contenido. Además `section.tsx` (`Section` = `<section>` + `<h2>`, que es
-  como los E2E localizan las secciones; `Card`), `filter-chips.tsx`,
-  `form-field.tsx` (`Field` con el `<label>` ENVOLVIENDO al control,
-  `FIELD_SELECT`, `FormError`, `ChoiceGroup`), `entity-avatar.tsx`
-  (iniciales con `src/lib/initials.ts`) y, en `screen-header.tsx`,
-  `HEADER_ACTION` / `HeaderStats` / `HeaderPill`. Animaciones solo CSS en
-  `globals.css` (`anim-fade-up`, `anim-stagger`, `anim-grow-x`, `press`) con
-  un apagado global para `prefers-reduced-motion`.
-- **Tema**: identidad propia de Caja (ya NO es la paleta de la tienda):
-  petróleo/esmeralda + acento dorado, fuente Outfit. Tokens Tailwind 4 en
-  `@theme` de `src/app/globals.css` — se conservan los NOMBRES heredados
-  (navy/brand/chip/ok/warn/danger + nuevo `gold`) con valores nuevos, así el
-  UI entero se re-viste sin tocar componentes. Gradientes `.grad-*` (+
-  `.grad-gold`). Desde el rework v2 (2026-11-12) rigen estas reglas:
-  texto secundario/placeholder en `text-muted` (4,5:1; `muted-2` es SOLO
-  borde de campos vía `border-input`, nunca texto); tamaños de texto solo
-  `text-[11px]`, `text-xs`, `text-sm`, `text-[15px]` (montos de fila),
-  `text-base`, `text-xl`, `text-[22px]`, `text-[28px]` — sin medios
-  píxeles; radios solo `rounded-md|lg|xl|2xl|3xl|full` (sin `rounded-[Npx]`);
-  sombras `shadow-popover|toast|nav|fab|modal`; foco con `ring-ring` +
-  `ring-offset-2`; controles táctiles de 44px (`min-h-11`, Input `h-11` con
-  `text-base` para que iOS no haga zoom). Tokens nuevos `heading`,
-  `brand-ink`, `primary-hover`, `inverse`, `gold-soft`, `danger-soft`: en
-  código nuevo usar `text-heading`/`text-brand-ink`/`bg-card` en vez de
-  `text-navy`/`text-brand`/`bg-white` (prepara el tema oscuro; el código
-  viejo aún no está migrado). Texto sobre `grad-header`: blanco o
-  `text-white/80` como mínimo. Componentes base en `src/components/ui/`. Logotipo FE
+  cliente (nombres de panel) van en un módulo sin "use client". El
+  drawer se pinta por portal: dentro NO llegan las variantes `@…/main`
+  (maquetación simple, sin rejillas de contenedor).
+- **Rejillas y piezas de página** (sobre los primitivos de «Tema»):
+  `src/components/content-grid.tsx` — `CardGrid` (teselas 1 → 2 → 3
+  columnas; `cols={2}` dentro de un detalle) y `SplitLayout` (principal 8
+  + lateral 4, `asideFirst` si el lateral va antes en móvil), ambos con
+  las container queries `@…/main`. Además `section.tsx` (`Section` =
+  `<section>` + `SectionHeader`, que es como los E2E localizan las
+  secciones), `section-tabs.tsx` (`DebtsTabs`, sobre `SegmentedLinks`),
+  `form-field.tsx` (`Field` con el `<label>` ENVOLVIENDO al control y
+  `FormError`; los Select de formulario son `SelectTrigger variant="form"
+  className="w-full"` y las elecciones excluyentes `Segmented
+  layout="fill"`), `entity-avatar.tsx` (iniciales con
+  `src/lib/initials.ts`) y `page-skeleton.tsx` (`ListSkeleton` /
+  `DetailSkeleton` para los `loading.tsx` de cada sección). `EmptyState`
+  acepta `cta` (nodo) para abrir un drawer en vez de enlazar. Animaciones
+  solo CSS en `globals.css` (`anim-fade-up`, `anim-stagger`,
+  `anim-grow-x`, `press`) con un apagado global para
+  `prefers-reduced-motion`.
+- **Tema (sistema de diseño v3, 2026-11-26)**: estética de panel
+  «analytics»: lienzo gris muy claro (`app`), tarjetas blancas (`card`) con
+  borde fino (`line`), SIN sombras ni degradados, y el verde-azul (`brand`)
+  como ÚNICO color de acento. La barra lateral sigue en petróleo oscuro (la
+  única superficie oscura; pasarla a clara es cambiar solo el bloque
+  `--color-sidebar-*`). Fuente Outfit, expuesta como `--font-app` desde
+  `src/app/fonts/index.ts` (cambiar de fuente = tocar ese archivo; la variable
+  va en `<html>`, no en `<body>`). Tokens Tailwind 4 en `@theme` de
+  `src/app/globals.css` — se conservan los NOMBRES heredados con valores
+  nuevos. Reglas:
+  - **Color**: `text-heading` (títulos y cifras), `text-ink`/`text-ink-soft`
+    (cuerpo), `text-muted` (secundario, 4,5:1; `muted-2` es SOLO borde de
+    campos vía `border-input`), `text-brand-ink` (acento y enlaces),
+    `bg-card`, `bg-subtle` (relleno NEUTRO: pistas, paneles interiores, hover),
+    `bg-chip` (tinte de acento: teselas de icono, estados activos),
+    `border-line`/`border-line-2`. PROHIBIDO en código nuevo: `bg-white`,
+    `text-navy`, `text-brand`, `font-bold`, `bg-muted` (muted es tinta, no
+    relleno), degradados, hex a mano y atenuar texto con `opacity-*` (usar
+    `Badge`). El dorado ya no decora: ámbar solo en avisos y contadores.
+  - **Escala**: tamaños de texto solo `text-[11px]`, `text-xs`, `text-sm`,
+    `text-[15px]`, `text-base`, `text-xl`, `text-[22px]`, `text-[28px]`; pesos
+    `font-medium` (etiquetas, títulos de fila) y `font-semibold` (encabezados
+    y montos); montos con `.money` (cifras tabulares). Radios solo
+    `rounded-md|lg|xl|2xl|3xl|full`, y OJO: la escala está REMAPEADA en
+    `@theme` (xl = 10 px, 2xl = 12 px, 3xl = 16 px). Foco con `ring-ring`.
+  - **Sombras** solo para lo que flota (`shadow-popover|toast|modal`); una
+    tarjeta se separa con borde. No poner un token de sombra a `none`
+    (invalida el box-shadow entero, anillos incluidos).
+  - **Responsive, tres mecanismos con un papel cada uno**: `md:` cambia el
+    SHELL (barra lateral vs barra inferior); `dense:` (variante propia: ≥768 px
+    Y puntero fino) baja los controles de 44 a 36 px — en táctil se quedan en
+    44 px y 16 px de texto en campos para que iOS no haga zoom; las REJILLAS
+    de contenido usan container queries sobre la columna (`@container/main` en
+    el layout): `@2xl/main:` (~672 px) y `@4xl/main:` (~896 px, principal 8 +
+    lateral 4). No usar `lg:`/`xl:` para contenido: con la barra lateral
+    abierta el viewport miente (a 1024 px el contenido mide 704 px). Las
+    variantes de contenedor no llegan a los portales de Radix.
+  - **Primitivos**: `Page`/`PageBody` (`src/components/page.tsx`; ancho
+    `full|narrow|form`), `ScreenHeader` plano (`title` = `<h1>`, `subtitle`,
+    `backHref` — la flecha solo se pinta en móvil, en escritorio manda el
+    breadcrumb —, `leading`, `actions`), `StatCard`/`StatGrid`/`DeltaChip`
+    (KPI; su contrato de DOM lo fija `stat-card.test.tsx`), `SectionHeader`
+    (`<h2>` real), `Card` (`ui/card.tsx`), `Segmented`/`SegmentedLinks`
+    (`ui/segmented.tsx`), `ProgressBar`, `Sparkline`, `buttonVariants()` para
+    enlaces con aspecto de botón y `SelectTrigger variant="form"`. Las listas
+    son UNA tarjeta con filas divididas (`divide-y divide-line-2`), no una
+    tarjeta por fila; siguen como teselas en rejilla cuentas, cajas, pares de
+    tasas y denominaciones. Las cifras clave de cada pantalla van en
+    `StatCard`, no en la cabecera.
+  - **Gráficos**: una sola serie de acento (`chart-1`), comparación en gris
+    (`chart-2`) y contexto en `chart-track`; todo SVG/CSS a mano.
+  Componentes base en `src/components/ui/`. Logotipo FE
   («pecera»: F y E partidas por una ola senoidal, verde petróleo arriba/
   blanco bajo el agua, colores de la paleta brand/brand-light/chip; letras =
   contornos de la fuente American Captain convertidos a path con opentype.js,
   sin dependencia de fuente en runtime):
   `src/app/icon.svg` (favicon) y `src/components/brand-mark.tsx`
-  (sidebar, header md y auth; en el sidebar va envuelto en un span para
+  (sidebar, cabecera de Inicio en móvil, auth y /compartir; en el sidebar va
+  envuelto en un span para
   esquivar el `[&>svg]:size-4` del SidebarMenuButton). Los ids internos del
   SVG (clipPaths/gradiente) son deterministas vía prop `idPrefix` (uno
   distinto por punto de montaje) — useId() rompía la hidratación dentro del
@@ -424,25 +494,32 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   `src/lib/auth.ts`). Actions en `src/app/actions/profile-actions.ts`.
 - **Iconos de cuenta**: set curado de lucide en `src/lib/account-icons.ts`
   (`getAccountIcon(icon, type)` con fallback por tipo). Selector en el form
-  de nueva cuenta y en el detalle (`account-icon-editor`); el nombre kebab se
-  guarda en `Account.icon`.
+  de nueva cuenta y en el drawer «Editar cuenta» de su detalle; el nombre
+  kebab se guarda en `Account.icon`.
 - **shadcn/ui**: infraestructura montada (`components.json`, tokens
-  semánticos —background/primary/sidebar-\*— mapeados a la paleta tienda en
+  semánticos —background/primary/sidebar-\*— mapeados a la paleta de Caja en
   `@theme`, deps radix-ui/cva/tw-animate-css). Componentes vendorizados:
-  sidebar, sheet, tooltip, separator, skeleton, avatar, dropdown-menu y
-  drawer (vaul, única dependencia de UI añadida; re-vestido con los tokens). REGLA:
-  la UI nueva usa componentes shadcn; los primitivos históricos
-  (Button/Input/Badge/Select estilo tienda) se mantienen.
+  sidebar, sheet, tooltip, separator, skeleton, avatar, dropdown-menu,
+  breadcrumb y drawer (vaul, única dependencia de UI añadida; re-vestido
+  con los tokens); propios con la misma convención: card y segmented.
+  REGLA: la UI nueva usa esos componentes; los primitivos escritos a mano
+  (Button/Input/Badge/Select) se mantienen.
 - **UserMenu** (`src/components/user-menu.tsx`): avatar con iniciales +
-  dropdown (Mi perfil / Cerrar sesión) en el header de Inicio, solo móvil
-  (`md:hidden`, en escritorio ya está el bloque del sidebar). `ScreenHeader`
-  acepta `actions` para el lado derecho del título.
+  dropdown (Mi perfil / Cerrar sesión) en la cabecera de Inicio, solo móvil
+  (`md:hidden`); en escritorio el mismo menú cuelga del bloque de usuario del
+  sidebar. Exporta `initials()` (envoltorio de `src/lib/initials.ts`).
 - **Navegación**: escritorio = `src/components/app-sidebar.tsx` (Sidebar
   shadcn colapsable a iconos, estado en cookie `sidebar_state`, atajo
-  Ctrl/Cmd+B); móvil = `bottom-nav.tsx` (sin cambios). El layout de `(app)`
-  monta SidebarProvider + SidebarInset. `/mensualidades` y `/contactos` tienen
-  entrada propia en el sidebar y en `/mas`; en la barra inferior cuelgan de
-  la pestaña Deudas, y las tres vistas comparten las pestañas `DebtsTabs`
+  Ctrl/Cmd+B) con el botón «Registrar» fijo arriba (el único acceso global a
+  /registrar en escritorio; plegado queda como «+»), los grupos General /
+  Compromisos / Efectivo / Ajustes y el bloque de usuario con menú; barra
+  superior con breadcrumb y campana. Móvil = `bottom-nav.tsx` (plana, «+» al
+  centro). El layout de `(app)` monta SidebarProvider + SidebarInset (que es
+  un `<div>`: el `<main>` lo pone cada página con `<Page>`) y la columna de
+  contenido `@container/main` (`max-w-6xl`). `/mensualidades` y
+  `/contactos` tienen entrada propia en el sidebar (grupo Compromisos) y en
+  `/mas`; en la barra inferior cuelgan de la pestaña Deudas, y las tres
+  vistas comparten las pestañas `DebtsTabs`
   (`src/components/section-tabs.tsx`).
 
 ## Gotchas
@@ -458,8 +535,16 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   pisar un estilo suyo (el asa) la clase lleva `!`. `FormDrawer` fija
   `handleOnly` (sin él vaul captura el puntero y rompe los `Select` y la
   selección de texto) y el asa lleva `preventCycle` (sin él un toque en el
-  asa cierra con un guardado en curso). `PageBody` y `anim-fade-up` crean
-  bloque contenedor: nada `position: fixed` dentro sin portal.
+  asa cierra con un guardado en curso).
+- Tests de componentes: el setup NO limpia el DOM entre tests; cada archivo
+  que renderiza lleva `afterEach(cleanup)` o los renders se acumulan.
+- `@container/main` (layout de (app) y de /compartir) es contenedor de los
+  `position: fixed` de dentro: lo flotante va por portal (Radix) o fuera de
+  la columna (Toast). Por eso `fadeUp` termina en `transform: none`.
+- Los tests E2E localizan por texto, rol y estructura (no hay test ids): al
+  tocar marcado, un solo nodo por contenido (nada de copia móvil + copia
+  escritorio), encabezados testeados con UN `<section>` ancestro, y monto y
+  unidad separados por un espacio real.
 - El `Button` de ui/ tiene `type="button"` por defecto — los botones de
   submit en formularios DEBEN llevar `type="submit"` explícito.
 - Páginas que leen la BD llevan `export const dynamic = "force-dynamic"`.
@@ -492,20 +577,30 @@ App Next.js 15 (App Router) mobile-first, estética portada de
   deprecado): el seed vive en `migrations.seed`. Con config file Prisma NO
   carga `.env` solo — lo repone el `import "dotenv/config"` de ese archivo
   (dotenv no pisa variables ya definidas, así el override de DATABASE_URL
-  en `e2e/setup-db.ts` sigue ganando).
-- OJO: la suite E2E está ROTA desde la migración a Postgres —
-  `e2e/test-db.ts` sigue apuntando a `file:./test.db` y `prisma migrate
-  deploy` no acepta esa URL. Lo que sigue describe el diseño original con
-  SQLite; el plan es una BD Postgres aislada (schema `caja_e2e`, ya previsto
-  en `db-url.ts`).
-- Playwright E2E (`e2e/`, config en `playwright.config.ts`): BD aislada
-  `prisma/test.db` recreada en cada corrida (migrate deploy + seed vía
-  `e2e/setup-db.ts`, encadenado en el comando del webServer porque este
-  arranca ANTES que globalSetup). Proyecto `setup` registra `e2e@caja.test`
-  vía /auth/registro y guarda `e2e/.auth/user.json` (storageState) para los
+  y DIRECT_URL en `e2e/setup-db.ts` sigue ganando).
+- Playwright E2E (`e2e/`, config en `playwright.config.ts`): BD aislada en
+  la MISMA base de Neon pero en el schema `caja_e2e`. `e2e/test-db.ts`
+  deriva las URLs de test de `DATABASE_URL`/`DIRECT_URL` del `.env`
+  cambiando SOLO el parámetro `schema` (`normalizeDatabaseUrl` respeta un
+  schema presente) y `e2e/setup-db.ts` recrea el schema en cada corrida
+  (`DROP SCHEMA IF EXISTS "caja_e2e" CASCADE` + `prisma migrate deploy`, sin
+  seed: los defaults se crean al registrarse), encadenado en el comando del
+  webServer porque este arranca ANTES que globalSetup. Guard duro
+  (`assertTestSchema`): aborta si el schema resuelto es `caja`/`public` o no
+  es exactamente `caja_e2e`. El webServer recibe las DOS URLs de test
+  (`migrate deploy` usa `DIRECT_URL`: sin sobrescribirla iría al schema
+  real), más `APP_TIME_ZONE` (igual al `timezoneId` del navegador, para que
+  «Vence hoy» no dependa de la hora de la corrida) y
+  `ALLOW_REGISTRATION=true`. Proyecto `setup` registra `e2e@caja.test` vía
+  /auth/registro y guarda `e2e/.auth/user.json` (storageState) para los
   proyectos desktop y mobile (375×812). `channel: "chrome"` (Chrome del
   sistema): la descarga del Chromium empaquetado da 403 por geo-bloqueo.
-  `workers: 1` a propósito (los flujos mutan la misma BD SQLite). Los specs
-  entran por `/cuentas/nueva` y `/deudas/nueva`, que hoy redirigen al drawer
-  de su lista: por eso los formularios en drawer conservan labels,
-  placeholders y nombres de botón.
+  `workers: 1` a propósito (los flujos mutan datos del mismo usuario). El
+  schema `caja_e2e` queda en Neon tras la corrida (sirve para inspeccionar
+  un fallo) y se borra al empezar la siguiente. En los specs, los Select de
+  Radix se abren con `selectOption` de `e2e/helpers.ts`, que casa el rótulo
+  del `<label>` de forma EXACTA (por subcadena, «Cuenta» casaba también con
+  la ayuda del campo Monto). Los specs entran por
+  `/cuentas/nueva` y `/deudas/nueva`, que hoy redirigen al drawer de su
+  lista: por eso los formularios en drawer conservan labels, placeholders y
+  nombres de botón.

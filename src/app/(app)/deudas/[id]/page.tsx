@@ -6,15 +6,19 @@ import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { PanelDrawer } from "@/components/form-drawer";
 import { LinkedAccountEditor } from "@/components/linked-account-editor";
-import { PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
+import { ProgressBar } from "@/components/progress-bar";
 import { ScreenHeader } from "@/components/screen-header";
 import { Section } from "@/components/section";
 import { SettleInstallment } from "@/components/settle-installment";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
-import { fmtMinor, minorToInput } from "@/lib/format";
+import { fmtMinor, fmtMinorParts, minorToInput } from "@/lib/format";
 import { daysUntil, dueLabel } from "@/lib/dates";
 import { dueTone } from "@/lib/plans-core";
 import {
@@ -24,6 +28,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Nombre del drawer de abono (`/deudas/[id]#panel=abono`). */
 const PAYMENT_PANEL = "abono";
 
 const DATE_FMT = new Intl.DateTimeFormat("es", {
@@ -31,6 +36,23 @@ const DATE_FMT = new Intl.DateTimeFormat("es", {
   month: "short",
   year: "numeric",
 });
+
+// En escritorio hay dos columnas (principal + lateral). En móvil las dos se
+// «disuelven» (contents) y sus bloques se intercalan en UNA columna con este
+// orden: resumen → cuotas → abono → historial → contacto → eliminar. La cuota
+// va antes que el abono libre (quien entra a cobrar la cuota de hoy no debe
+// toparse primero con la otra acción) y lo destructivo queda al final.
+// Clases literales: Tailwind no ve las compuestas.
+const COLUMN =
+  "contents @4xl/main:flex @4xl/main:min-w-0 @4xl/main:flex-col @4xl/main:gap-5";
+const MOBILE_ORDER = {
+  summary: "order-1 @4xl/main:order-none",
+  installments: "order-2 @4xl/main:order-none",
+  payment: "order-3 @4xl/main:order-none",
+  history: "order-4 @4xl/main:order-none",
+  contact: "order-5 @4xl/main:order-none",
+  remove: "order-6 @4xl/main:order-none",
+} as const;
 
 export default async function DeudaDetallePage({
   params,
@@ -85,117 +107,63 @@ export default async function DeudaDetallePage({
 
   const isOpen = debt.status === "OPEN";
   const receivable = debt.direction === "RECEIVABLE";
+  const remainingParts = fmtMinorParts(remaining, debt.currency);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={debt.contact.name} backHref="/deudas">
-        <div className="mt-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-sm text-white/80">
-              {debt.description}
-            </span>
-            <Badge variant="neutral" className="bg-white/15 text-white">
-              {DEBT_DIRECTION_LABELS[debt.direction as DebtDirection]}
-            </Badge>
-          </div>
-          <div className="money mt-2 text-[28px] font-bold tracking-[-0.5px]">
-            {isOpen ? fmtMinor(remaining, debt.currency) : "Saldada"}
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20 md:max-w-md">
-            <div
-              className="anim-grow-x h-2 rounded-full bg-white/90"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <div className="mt-1.5 text-xs text-white/80">
-            Abonado {fmtMinor(paid, debt.currency)} de{" "}
-            {fmtMinor(debt.totalMinor, debt.currency)} ({pct}%)
-          </div>
-        </div>
+    <Page>
+      <ScreenHeader
+        title={debt.contact.name}
+        subtitle={debt.description}
+        backHref="/deudas"
+      >
+        <Badge>{DEBT_DIRECTION_LABELS[debt.direction as DebtDirection]}</Badge>
       </ScreenHeader>
 
       <PageBody>
-        <SplitLayout
-          asideFirst
-          aside={
-            <>
-              {isOpen && (
-                <div className="flex flex-col gap-2">
-                  <PanelButton
-                    panel={PAYMENT_PANEL}
-                    className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-                  >
-                    <HandCoins className="size-[18px]" />
-                    Registrar abono
-                  </PanelButton>
-                  {/* La cuenta habitual va junto a la acción que la usa. */}
-                  <LinkedAccountEditor
-                    kind="debt"
-                    targetId={debt.id}
-                    accounts={accounts}
-                    currentAccountId={debt.accountId}
-                    currencyCode={debt.currency.code}
-                  />
-                </div>
-              )}
-
-              <Link
-                href={`/contactos/${debt.contact.id}`}
-                className="press flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 hover:border-brand-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        {/* Principal (8) + lateral (4). Las columnas son <div>: los tests
+            localizan «Cuotas pendientes» por su <section>, que no puede
+            quedar dentro de otra. Orden en móvil: ver MOBILE_ORDER. */}
+        <div className="grid grid-cols-1 gap-5 @4xl/main:grid-cols-12">
+          <div className={`${COLUMN} @4xl/main:col-span-8`}>
+            {isOpen && pendingInstallments.length > 0 && (
+              <Section
+                title="Cuotas pendientes"
+                className={MOBILE_ORDER.installments}
+                action={
+                  planId
+                    ? {
+                        href: `/mensualidades/${planId}`,
+                        label: "Ver mensualidad",
+                      }
+                    : undefined
+                }
               >
-                <EntityAvatar
-                  name={debt.contact.name}
-                  tone={receivable ? "ok" : "warn"}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs text-muted">Contacto</div>
-                  <div className="truncate text-sm font-semibold text-heading">
-                    {debt.contact.name}
-                  </div>
-                </div>
-                <ChevronRight className="size-4 flex-none text-muted" />
-              </Link>
-            </>
-          }
-          main={
-            <>
-              {isOpen && pendingInstallments.length > 0 && (
-                <Section
-                  title="Cuotas pendientes"
-                  action={
-                    planId && (
-                      <Link
-                        href={`/mensualidades/${planId}`}
-                        className="flex items-center gap-0.5 text-xs font-semibold text-brand-ink hover:underline"
-                      >
-                        Ver mensualidad
-                        <ChevronRight className="size-3.5" />
-                      </Link>
-                    )
-                  }
+                <Card
+                  padding="none"
+                  className="divide-y divide-line-2 overflow-hidden"
                 >
-                  <div className="flex flex-col gap-2.5">
-                    {pendingInstallments.map((inst) => {
-                      const days = daysUntil(inst.dueAt);
-                      return (
-                        <div
-                          key={inst.id}
-                          className="flex flex-col gap-2.5 rounded-2xl border border-line bg-card p-4"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="money text-sm font-bold text-heading">
-                                {fmtMinor(inst.amountMinor, debt.currency)}
-                              </div>
-                              <div className="text-xs text-muted">
-                                {DATE_FMT.format(inst.dueAt)}
-                              </div>
+                  {pendingInstallments.map((inst) => {
+                    const days = daysUntil(inst.dueAt);
+                    return (
+                      <div
+                        key={inst.id}
+                        className="flex flex-col gap-3 px-4 py-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:gap-5"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 @4xl/main:justify-start">
+                          <div className="min-w-0">
+                            <div className="money text-[15px] font-semibold text-heading">
+                              {fmtMinor(inst.amountMinor, debt.currency)}
                             </div>
-                            <Badge variant={dueTone(days)}>
-                              <CalendarClock className="size-3" />
-                              {dueLabel(inst.dueAt)}
-                            </Badge>
+                            <div className="text-xs text-muted">
+                              {DATE_FMT.format(inst.dueAt)}
+                            </div>
                           </div>
+                          <Badge variant={dueTone(days)}>
+                            <CalendarClock className="size-3" />
+                            {dueLabel(inst.dueAt)}
+                          </Badge>
+                        </div>
+                        <div className="@4xl/main:w-80 @4xl/main:flex-none">
                           {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
                           <SettleInstallment
                             key={inst.planAccountId ?? debt.accountId ?? "none"}
@@ -212,42 +180,109 @@ export default async function DeudaDetallePage({
                             }
                           />
                         </div>
-                      );
-                    })}
-                  </div>
-                </Section>
-              )}
-
-              <Section title="Historial de abonos">
-                {debt.payments.length === 0 ? (
-                  <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">
-                    Todavía no hay abonos.
-                  </p>
-                ) : (
-                  <div className="anim-stagger flex flex-col gap-1.5">
-                    {debt.payments.map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm"
-                      >
-                        <span className="text-muted">
-                          {DATE_FMT.format(payment.paidAt)}
-                        </span>
-                        <span className="money font-semibold text-ok">
-                          +{fmtMinor(payment.amountMinor, debt.currency)}
-                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </Card>
               </Section>
+            )}
 
-              <div className="flex justify-end">
-                <DeleteEntityButton kind="debt" targetId={debt.id} />
-              </div>
-            </>
-          }
-        />
+            {/* Siempre presente: sin cuotas ni abonos la columna principal
+                quedaría vacía junto a la lateral. */}
+            <Section title="Historial de abonos" className={MOBILE_ORDER.history}>
+              {debt.payments.length === 0 ? (
+                <Card className="py-6 text-center text-sm text-muted">
+                  Sin abonos todavía.
+                </Card>
+              ) : (
+                <Card
+                  padding="none"
+                  className="divide-y divide-line-2 overflow-hidden"
+                >
+                  {debt.payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <span className="text-sm font-medium text-heading">
+                        {DATE_FMT.format(payment.paidAt)}
+                      </span>
+                      <span className="money text-[15px] font-semibold whitespace-nowrap text-ok">
+                        +{fmtMinor(payment.amountMinor, debt.currency)}
+                      </span>
+                    </div>
+                  ))}
+                </Card>
+              )}
+            </Section>
+          </div>
+
+          <div className={`${COLUMN} @4xl/main:col-span-4`}>
+            {/* La frase «Abonado X de Y (N%)» aparece UNA sola vez en la
+                página y en un único elemento (la pista de la tarjeta): los
+                tests la buscan con getByText. */}
+            <StatCard
+              label="Pendiente"
+              size="lg"
+              value={isOpen ? remainingParts.amount : "Saldada"}
+              unit={isOpen ? remainingParts.code : undefined}
+              tone={isOpen ? "default" : "ok"}
+              hint={`Abonado ${fmtMinor(paid, debt.currency)} de ${fmtMinor(debt.totalMinor, debt.currency)} (${pct}%)`}
+              className={MOBILE_ORDER.summary}
+            >
+              <ProgressBar percent={pct} />
+            </StatCard>
+
+            {isOpen && (
+              <Card className={MOBILE_ORDER.payment}>
+                {/* El abono libre se registra en un drawer. */}
+                <PanelButton
+                  panel={PAYMENT_PANEL}
+                  className={buttonVariants({ className: "w-full" })}
+                >
+                  <HandCoins className="size-4" />
+                  Registrar abono
+                </PanelButton>
+                {/* La cuenta habitual va aquí, pegada a la acción que la
+                    usa, en vez de en una sección propia. */}
+                <div className="mt-3 border-t border-line-2 pt-3">
+                  <LinkedAccountEditor
+                    kind="debt"
+                    targetId={debt.id}
+                    accounts={accounts}
+                    currentAccountId={debt.accountId}
+                    currencyCode={debt.currency.code}
+                  />
+                </div>
+              </Card>
+            )}
+
+            <Card
+              asChild
+              interactive
+              padding="none"
+              className={`flex items-center gap-3 px-4 py-3 ${MOBILE_ORDER.contact}`}
+            >
+              <Link href={`/contactos/${debt.contact.id}`}>
+                <EntityAvatar
+                  name={debt.contact.name}
+                  tone={receivable ? "ok" : "warn"}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted">Contacto</div>
+                  <div className="truncate text-sm font-medium text-heading">
+                    {debt.contact.name}
+                  </div>
+                </div>
+                <ChevronRight className="size-4 flex-none text-muted" />
+              </Link>
+            </Card>
+
+            <div className={`flex justify-end ${MOBILE_ORDER.remove}`}>
+              <DeleteEntityButton kind="debt" targetId={debt.id} />
+            </div>
+          </div>
+        </div>
       </PageBody>
 
       {isOpen && (
@@ -256,7 +291,9 @@ export default async function DeudaDetallePage({
           title="Registrar abono"
           description={`${receivable ? "Cobro de" : "Pago a"} ${debt.contact.name}`}
         >
+          {/* key: re-inicializa la preselección si cambia la cuenta vinculada */}
           <DebtPaymentForm
+            key={debt.accountId ?? "none"}
             debtId={debt.id}
             accounts={accounts}
             currencyCode={debt.currency.code}
@@ -265,6 +302,6 @@ export default async function DeudaDetallePage({
           />
         </PanelDrawer>
       )}
-    </main>
+    </Page>
   );
 }

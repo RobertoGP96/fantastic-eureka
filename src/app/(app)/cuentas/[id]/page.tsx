@@ -1,24 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Banknote, FolderOpen, Plus } from "lucide-react";
+import { Banknote, Plus } from "lucide-react";
 import { AccountActivityChart } from "@/components/account-activity-chart";
 import { AccountEditForm } from "@/components/account-edit-form";
 import { AccountManage } from "@/components/account-manage";
 import { AccountSharePanel } from "@/components/account-share-panel";
+import { SplitLayout } from "@/components/content-grid";
 import { DenominationAvailability } from "@/components/denomination-availability";
 import { PanelDrawer } from "@/components/form-drawer";
-import { PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { Section } from "@/components/section";
+import { StatCard } from "@/components/stat-card";
 import { TxList } from "@/components/tx-list";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth";
 import { activeShareForAccount } from "@/lib/shares";
 import { prisma } from "@/lib/db";
 import { accountBalanceMinor } from "@/lib/balances";
 import { activityDeltas } from "@/lib/account-activity";
 import { getAccountIcon } from "@/lib/account-icons";
-import { fmtMinor } from "@/lib/format";
+import { fmtMinorParts } from "@/lib/format";
 import { toTxRow } from "@/lib/tx-rows";
 import {
   ACCOUNT_TYPE_LABELS,
@@ -30,6 +34,10 @@ export const dynamic = "force-dynamic";
 
 /** Drawer de edición (`/cuentas/[id]#panel=editar-cuenta`). */
 const EDIT_ACCOUNT_PANEL = "editar-cuenta";
+
+// Icono de las acciones de cabecera: se oculta cuando la columna es estrecha
+// para que en un móvil quede sitio para el nombre de la cuenta.
+const ACTION_ICON = "hidden size-3.5 @xl/main:block";
 
 export default async function CuentaDetallePage({
   params,
@@ -63,6 +71,7 @@ export default async function CuentaDetallePage({
         orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 30,
       }),
+      // Opciones del drawer «Editar cuenta».
       prisma.accountGroup.findMany({
         where: { userId: user.id },
         orderBy: { name: "asc" },
@@ -98,58 +107,63 @@ export default async function CuentaDetallePage({
     .map((tx) => toTxRow(tx, account.id, account.currency))
     .reverse();
 
+  const balance = fmtMinorParts(balanceMinor, account.currency);
+  const typeLabel =
+    ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type;
   const Icon = getAccountIcon(account.icon, account.type);
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title={account.name} backHref="/cuentas">
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-xs font-medium tracking-wide text-white/80 uppercase">
-              Saldo actual
-            </div>
-            <div
-              className={`money mt-0.5 text-[28px] font-bold tracking-[-0.5px] ${
-                balanceMinor < 0 ? "text-danger-soft" : ""
-              }`}
-            >
-              {fmtMinor(balanceMinor, account.currency)}
-            </div>
-          </div>
-          <Badge variant="neutral" className="mb-1.5 bg-white/15 text-white">
-            {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}
-            {account.archived ? " · Archivada" : ""}
-          </Badge>
-        </div>
+    <Page>
+      <ScreenHeader
+        title={account.name}
+        subtitle={`${typeLabel} · ${account.currency.code}`}
+        backHref="/cuentas"
+        actions={
+          // Archivada: /registrar y /conteo solo admiten cuentas activas; el
+          // enlace acababa preseleccionando en silencio otra cuenta.
+          !account.archived && (
+            <>
+              {isCashLikeType(account.type) && (
+                <Link
+                  href={`/conteo/${account.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  <Banknote className={ACTION_ICON} />
+                  Arqueo
+                </Link>
+              )}
+              <Link
+                href={`/registrar?cuenta=${account.id}`}
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus className={ACTION_ICON} />
+                Registrar
+              </Link>
+            </>
+          )
+        }
+      >
+        {account.archived && <Badge>Archivada</Badge>}
       </ScreenHeader>
 
       <PageBody>
-        {/* Archivada: /registrar y /conteo solo admiten cuentas activas; el
-            enlace acababa preseleccionando en silencio otra cuenta. */}
-        {!account.archived && (
-          <div className="flex gap-2.5 md:max-w-md">
-            <Link
-              href={`/registrar?cuenta=${account.id}`}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-            >
-              <Plus className="size-4" />
-              Registrar
-            </Link>
-            {isCashLikeType(account.type) && (
-              <Link
-                href={`/conteo/${account.id}`}
-                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-ink-soft transition-colors hover:border-brand-ink hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-              >
-                <Banknote className="size-4" />
-                Arqueo
-              </Link>
-            )}
-          </div>
-        )}
-
+        {/* Las columnas de SplitLayout y las tarjetas son <div>: el único
+            <section> que envuelve «Movimientos recientes» es el suyo (lo
+            exigen los tests). */}
         <SplitLayout
           main={
             <>
+              {/* «Saldo actual» aparece UNA sola vez y lo pinta StatCard: el
+                  helper E2E saldoActual() sube al padre del rótulo y espera
+                  encontrar ahí el monto. */}
+              <StatCard
+                size="lg"
+                label="Saldo actual"
+                value={balance.amount}
+                unit={balance.code}
+                tone={balanceMinor < 0 ? "danger" : "default"}
+              />
+
               {activity.length > 0 && (
                 <AccountActivityChart
                   deltas={activity}
@@ -160,19 +174,11 @@ export default async function CuentaDetallePage({
                 />
               )}
 
-              {account.type === "CASH_BOX" && (
-                <DenominationAvailability
-                  userId={user.id}
-                  accountId={account.id}
-                  currency={account.currency}
-                />
-              )}
-
               <Section title="Movimientos recientes">
                 {rows.length === 0 ? (
-                  <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center text-sm text-muted">
+                  <Card className="py-6 text-center text-sm text-muted">
                     Sin movimientos todavía.
-                  </div>
+                  </Card>
                 ) : (
                   <TxList rows={rows} />
                 )}
@@ -181,30 +187,37 @@ export default async function CuentaDetallePage({
           }
           aside={
             <>
-              <div className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3">
-                <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
-                  <Icon className="size-[18px]" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-heading">
-                    {account.currency.code} · {account.currency.name}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted">
-                    <FolderOpen className="size-3 flex-none" />
-                    <span className="truncate">
-                      {account.group?.name ?? "Sin grupo"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {account.type === "CASH_BOX" && (
+                <DenominationAvailability
+                  userId={user.id}
+                  accountId={account.id}
+                  currency={account.currency}
+                />
+              )}
 
+              {/* Nombre, icono y grupo se cambian en el drawer «Editar
+                  cuenta»; aquí solo se resume lo que hay. */}
               <AccountManage
                 accountId={account.id}
                 name={account.name}
                 archived={account.archived}
                 hasUsage={ledger.length + countCount > 0}
                 editPanel={EDIT_ACCOUNT_PANEL}
-              />
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-xl bg-chip text-brand-ink">
+                    <Icon className="size-[18px]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-heading">
+                      {account.currency.code} · {account.currency.name}
+                    </div>
+                    <div className="truncate text-xs text-muted">
+                      {account.group?.name ?? "Sin grupo"}
+                    </div>
+                  </div>
+                </div>
+              </AccountManage>
 
               <AccountSharePanel
                 accountId={account.id}
@@ -223,6 +236,7 @@ export default async function CuentaDetallePage({
         />
       </PageBody>
 
+      {/* El drawer va por portal: no cuenta para el layout de <Page>. */}
       <PanelDrawer panel={EDIT_ACCOUNT_PANEL} title="Editar cuenta">
         <AccountEditForm
           accountId={account.id}
@@ -232,6 +246,6 @@ export default async function CuentaDetallePage({
           groups={groups}
         />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

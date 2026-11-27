@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { balancesFromGroups, signedKindMinor } from "@/lib/balances-core";
@@ -123,8 +124,12 @@ export async function listAccountsWithBalances(
  * Tasa vigente de cada moneda CONTRA LA BASE, resuelta desde los pares
  * registrados (directo o inverso). Mantiene la interfaz histórica
  * Map<currencyId, {rateScaled, effectiveAt}> que consume el resto de la app.
+ *
+ * Va envuelta en cache() de React: Inicio la necesita para el saldo total y
+ * dashboardMetrics la vuelve a pedir por dentro; así es una sola resolución
+ * por render. El Map se comparte entre quienes lo piden: NO mutarlo.
  */
-export async function latestRatesByCurrency(
+export const latestRatesByCurrency = cache(async function latestRatesByCurrency(
   userId: string
 ): Promise<Map<string, { rateScaled: number; effectiveAt: Date }>> {
   const [base, currencies, pairs] = await Promise.all([
@@ -145,4 +150,4 @@ export async function latestRatesByCurrency(
     if (resolved) map.set(currency.id, resolved);
   }
   return map;
-}
+});

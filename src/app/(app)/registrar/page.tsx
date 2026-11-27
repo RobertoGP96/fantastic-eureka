@@ -1,4 +1,4 @@
-import { PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { ScreenHeader } from "@/components/screen-header";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -69,11 +69,15 @@ export default async function RegistrarPage({
     : "gasto";
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
-      <ScreenHeader title="Registrar" backHref="/" />
-      {/* Ancho completo: el formulario reparte campos y resumen en dos
-          columnas (SplitLayout) cuando hay sitio. */}
+    <Page width="form">
+      <ScreenHeader
+        title="Registrar"
+        subtitle="Gasto, ingreso o transferencia"
+        backHref="/"
+      />
       <PageBody>
+        {/* Sin <Card> aquí: RegisterForm pinta la suya (o, si no hay
+            cuentas, el aviso con borde discontinuo). */}
         <RegisterForm
           accounts={accounts.map((account) => ({
             id: account.id,
@@ -93,6 +97,6 @@ export default async function RegistrarPage({
           }
         />
       </PageBody>
-    </main>
+    </Page>
   );
 }

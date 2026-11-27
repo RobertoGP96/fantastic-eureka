@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Star } from "lucide-react";
 import { ConfirmDrawer } from "@/components/confirm-drawer";
-import { CardGrid } from "@/components/page-body";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   setBaseCurrency,
   toggleCurrency,
@@ -29,10 +29,10 @@ export interface CurrencyItem {
 }
 
 /**
- * Rejilla de monedas. Cada tarjeta enlaza a su detalle (denominaciones) y
- * lleva sus acciones: «Hacer base» (con confirmación, cambia en qué moneda
- * se consolidan los totales) y ocultar/activar (de un toque). El alta vive
- * en el drawer de la página.
+ * Lista de monedas: UNA tarjeta con una fila por divisa. Cada fila enlaza a
+ * su detalle (denominaciones) y lleva sus acciones: «Hacer base» (con
+ * confirmación en drawer: cambia en qué moneda se consolidan los totales) y
+ * ocultar/activar (de un toque). El alta vive en el drawer de la página.
  */
 export function CurrencyManager({
   currencies,
@@ -67,71 +67,84 @@ export function CurrencyManager({
 
   return (
     <>
-      <CardGrid>
-        {currencies.map((currency) => (
-          <div
-            key={currency.id}
-            className={cn(
-              "flex flex-col rounded-2xl border border-line bg-card",
-              !currency.active && "opacity-55"
-            )}
-          >
-            <Link
-              href={`/monedas/${currency.id}`}
-              className="press flex flex-1 items-center gap-3 rounded-2xl p-4 hover:bg-chip/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      {currencies.length > 0 && (
+        <Card padding="none" className="divide-y divide-line-2 overflow-hidden">
+          {currencies.map((currency) => (
+            // El enlace al detalle y los botones son HERMANOS (un botón
+            // dentro de un <a> no es válido). En móvil los botones bajan a
+            // una segunda línea; en escritorio comparten la fila.
+            <div
+              key={currency.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3"
             >
-              <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-chip text-base font-bold text-brand-ink">
-                {currency.symbol}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-sm font-bold text-heading">
-                    {currency.code}
-                  </span>
-                  {currency.isBase && <Badge variant="featured">Base</Badge>}
-                  {currency.kind === "DIGITAL" && (
-                    <Badge variant="neutral">Digital</Badge>
+              <Link
+                href={`/monedas/${currency.id}`}
+                className="group flex min-w-0 flex-1 basis-60 items-center gap-3"
+              >
+                <span
+                  className={cn(
+                    "flex size-9 flex-none items-center justify-center rounded-xl bg-chip font-semibold text-brand-ink",
+                    // Símbolos largos («CUC$») no caben a tamaño normal.
+                    currency.symbol.length > 2 ? "text-[11px]" : "text-sm"
                   )}
-                  {!currency.active && <Badge variant="neutral">Oculta</Badge>}
+                >
+                  {currency.symbol}
                 </span>
-                <span className="block truncate text-xs text-muted">
-                  {currency.name} · {currency.decimalPlaces} dec ·{" "}
-                  {currency.kind === "DIGITAL"
-                    ? "sin efectivo"
-                    : `${currency.denominationCount} denominaciones`}
-                  {currency.accountCount > 0 &&
-                    ` · ${currency.accountCount} cuentas`}
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-sm font-medium text-heading transition-colors group-hover:text-brand-ink">
+                      {currency.code}
+                    </span>
+                    {currency.isBase && <Badge variant="featured">Base</Badge>}
+                    {currency.kind === "DIGITAL" && (
+                      <Badge variant="neutral">Digital</Badge>
+                    )}
+                    {/* Oculta: insignia y contraste normal, no opacidad. */}
+                    {!currency.active && (
+                      <Badge variant="neutral">Oculta</Badge>
+                    )}
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {currency.name} · {currency.decimalPlaces} dec ·{" "}
+                    {currency.kind === "DIGITAL"
+                      ? "sin efectivo"
+                      : `${currency.denominationCount} denominaciones`}
+                    {currency.accountCount > 0 &&
+                      ` · ${currency.accountCount} cuentas`}
+                  </span>
                 </span>
-              </span>
-              <ChevronRight className="size-4 flex-none text-muted" />
-            </Link>
+                {/* Pista táctil de que la fila abre el detalle; con ratón
+                    basta el realce del código al pasar por encima. */}
+                <ChevronRight className="size-4 flex-none text-muted dense:hidden" />
+              </Link>
 
-            {/* La base no se oculta ni se «hace base»: sin acciones. */}
-            {!currency.isBase && (
-              <div className="flex items-center justify-end gap-2 border-t border-line-2 px-3 py-2">
-                <Button
-                  size="sm"
-                  variant="chip"
-                  onClick={() => {
-                    setNewBase(currency);
-                    setBaseOpen(true);
-                  }}
-                >
-                  <Star className="size-3.5" />
-                  Hacer base
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void toggle(currency.id)}
-                >
-                  {currency.active ? "Ocultar" : "Activar"}
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </CardGrid>
+              {/* La base no se oculta ni se «hace base»: sin acciones. */}
+              {!currency.isBase && (
+                <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setNewBase(currency);
+                      setBaseOpen(true);
+                    }}
+                  >
+                    <Star className="size-3.5" />
+                    Hacer base
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void toggle(currency.id)}
+                  >
+                    {currency.active ? "Ocultar" : "Activar"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
 
       <ConfirmDrawer
         open={baseOpen}

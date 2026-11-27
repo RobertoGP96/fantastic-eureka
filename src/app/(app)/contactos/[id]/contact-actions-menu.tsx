@@ -76,7 +76,7 @@ export function ContactActionsMenu({
         <Button
           variant="ghost"
           size="sm"
-          className="text-danger hover:text-danger"
+          className="text-danger hover:bg-danger-bg hover:text-danger"
           onClick={() => setDeleting(true)}
         >
           <Trash2 className="size-3.5" />

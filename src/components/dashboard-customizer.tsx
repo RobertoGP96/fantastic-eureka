@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { saveDashboardPrefs } from "@/app/actions/dashboard-actions";
+import { runAction } from "@/lib/run-action";
 import {
   DASHBOARD_SECTIONS,
   DEFAULT_WIDGET_SIZE,
@@ -66,9 +67,6 @@ const FIXED_LABELS = new Map<string, string>(
 const newWidgetId = () =>
   `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
-const selectTriggerCls =
-  "h-10 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink";
-
 function CheckRow({
   checked,
   label,
@@ -88,7 +86,7 @@ function CheckRow({
         className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border transition-colors ${
           checked
             ? "border-brand bg-brand text-white"
-            : "border-line bg-white text-transparent"
+            : "border-line bg-card text-transparent"
         }`}
       >
         <Check className="h-3.5 w-3.5" />
@@ -349,7 +347,11 @@ export function DashboardCustomizer({
   const save = async () => {
     setSaving(true);
     setError(null);
-    const result = await saveDashboardPrefs({ sections, widgets, accountIds });
+    // runAction: un fallo de red vuelve como error en vez de dejar el
+    // drawer bloqueado en «Guardando…».
+    const result = await runAction(() =>
+      saveDashboardPrefs({ sections, widgets, accountIds })
+    );
     setSaving(false);
     if (result.success) {
       setOpen(false);
@@ -372,7 +374,7 @@ export function DashboardCustomizer({
         value={addSize}
         onValueChange={(v) => setAddSize(v as WidgetSize)}
       >
-        <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+        <SelectTrigger variant="form" className="flex-1">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -392,10 +394,15 @@ export function DashboardCustomizer({
         type="button"
         aria-label="Personalizar Inicio"
         onClick={() => openSheet(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+        className="flex size-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-card text-ink-soft transition-colors hover:bg-subtle hover:text-heading focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:w-auto md:px-3 dense:h-9"
       >
         <SlidersHorizontal className="h-[18px] w-[18px]" />
+        <span className="hidden text-sm font-medium md:inline">
+          Personalizar
+        </span>
       </button>
+      {/* Hoja inferior en móvil y panel lateral en escritorio; `busy` impide
+          cerrarla (overlay, Escape, Atrás) con el guardado en curso. */}
       <FormDrawer
         open={open}
         onClose={() => openSheet(false)}
@@ -411,8 +418,8 @@ export function DashboardCustomizer({
               key={item.key}
               className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
                 item.visible
-                  ? "border-line bg-white"
-                  : "border-line-2 bg-app opacity-70"
+                  ? "border-line bg-card"
+                  : "border-line-2 bg-subtle opacity-70"
               }`}
             >
               <button
@@ -424,7 +431,7 @@ export function DashboardCustomizer({
                     : `Mostrar ${FIXED_LABELS.get(item.key) ?? item.key}`
                 }
                 className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg transition-colors ${
-                  item.visible ? "bg-chip text-brand" : "bg-white text-muted"
+                  item.visible ? "bg-chip text-brand-ink" : "bg-card text-muted"
                 }`}
               >
                 {item.visible ? (
@@ -433,7 +440,7 @@ export function DashboardCustomizer({
                   <EyeOff className="h-4 w-4" />
                 )}
               </button>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-soft">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-soft">
                 {FIXED_LABELS.get(item.key) ?? item.key}
               </span>
               <button
@@ -441,7 +448,7 @@ export function DashboardCustomizer({
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
                 aria-label={`Subir ${FIXED_LABELS.get(item.key) ?? item.key}`}
-                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-subtle text-brand-mid transition-colors hover:text-brand-ink disabled:opacity-30"
               >
                 <ArrowUp className="h-4 w-4" />
               </button>
@@ -450,7 +457,7 @@ export function DashboardCustomizer({
                 onClick={() => move(index, 1)}
                 disabled={index === sections.length - 1}
                 aria-label={`Bajar ${FIXED_LABELS.get(item.key) ?? item.key}`}
-                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-subtle text-brand-mid transition-colors hover:text-brand-ink disabled:opacity-30"
               >
                 <ArrowDown className="h-4 w-4" />
               </button>
@@ -460,8 +467,8 @@ export function DashboardCustomizer({
 
         {/* Gadgets del panel bento: tamaño, orden y baja */}
         {widgets.length > 0 && (
-          <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
-            <div className="mb-1 text-sm font-bold text-navy">
+          <div className="mx-4 rounded-2xl border border-line bg-card p-3.5">
+            <div className="mb-1 text-sm font-semibold text-heading">
               Gadgets del panel
             </div>
             <p className="mb-2 text-[11px] text-muted">
@@ -471,9 +478,9 @@ export function DashboardCustomizer({
               {widgets.map((widget, index) => (
                 <div
                   key={widget.id}
-                  className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2"
+                  className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-soft">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-soft">
                     {widgetLabel(widget)}
                     <span className="ml-1.5 text-[11px] font-medium text-muted">
                       {
@@ -489,8 +496,8 @@ export function DashboardCustomizer({
                     aria-label={`Editar ${widgetLabel(widget)}`}
                     className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg transition-colors ${
                       editingId === widget.id
-                        ? "bg-chip text-brand"
-                        : "bg-app text-brand-mid hover:text-brand"
+                        ? "bg-chip text-brand-ink"
+                        : "bg-subtle text-brand-mid hover:text-brand-ink"
                     }`}
                   >
                     <PencilLine className="h-4 w-4" />
@@ -500,7 +507,7 @@ export function DashboardCustomizer({
                     onClick={() => moveWidget(index, -1)}
                     disabled={index === 0}
                     aria-label={`Subir ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-subtle text-brand-mid transition-colors hover:text-brand-ink disabled:opacity-30"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>
@@ -509,7 +516,7 @@ export function DashboardCustomizer({
                     onClick={() => moveWidget(index, 1)}
                     disabled={index === widgets.length - 1}
                     aria-label={`Bajar ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-brand-mid transition-colors hover:text-brand disabled:opacity-30"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-subtle text-brand-mid transition-colors hover:text-brand-ink disabled:opacity-30"
                   >
                     <ArrowDown className="h-4 w-4" />
                   </button>
@@ -517,7 +524,7 @@ export function DashboardCustomizer({
                     type="button"
                     onClick={() => removeWidget(widget.id)}
                     aria-label={`Eliminar ${widgetLabel(widget)}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-app text-muted transition-colors hover:text-danger"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-subtle text-muted transition-colors hover:text-danger"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -528,8 +535,8 @@ export function DashboardCustomizer({
         )}
 
         {/* Alta y edición de gadgets */}
-        <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
-          <div className="mb-2 text-sm font-bold text-navy">
+        <div className="mx-4 rounded-2xl border border-line bg-card p-3.5">
+          <div className="mb-2 text-sm font-semibold text-heading">
             {editingId ? "Editar gadget" : "Añadir gadget"}
           </div>
           {widgets.length >= MAX_WIDGETS && !editingId ? (
@@ -549,7 +556,7 @@ export function DashboardCustomizer({
                     type="button"
                     disabled={disabled}
                     onClick={() => startAdd(type)}
-                    className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand-ink disabled:opacity-40"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     {WIDGET_TYPE_LABELS[type]}
@@ -565,7 +572,7 @@ export function DashboardCustomizer({
               {addType === "accountCard" && (
                 <>
                   <Select value={addAccountId} onValueChange={setAddAccountId}>
-                    <SelectTrigger className={selectTriggerCls}>
+                    <SelectTrigger variant="form" className="w-full">
                       <SelectValue placeholder="Elige cuenta" />
                     </SelectTrigger>
                     <SelectContent>
@@ -593,7 +600,7 @@ export function DashboardCustomizer({
               {addType === "ratePair" && (
                 <div className="flex items-center gap-2">
                   <Select value={addFromId} onValueChange={setAddFromId}>
-                    <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+                    <SelectTrigger variant="form" className="flex-1">
                       <SelectValue placeholder="Origen" />
                     </SelectTrigger>
                     <SelectContent>
@@ -606,7 +613,7 @@ export function DashboardCustomizer({
                   </Select>
                   <span className="text-xs text-muted">→</span>
                   <Select value={addToId} onValueChange={setAddToId}>
-                    <SelectTrigger className="h-10 flex-1 rounded-xl border border-line bg-white px-3.5 text-sm text-ink">
+                    <SelectTrigger variant="form" className="flex-1">
                       <SelectValue placeholder="Destino" />
                     </SelectTrigger>
                     <SelectContent>
@@ -629,7 +636,7 @@ export function DashboardCustomizer({
               {addType === "incomeCard" && (
                 <>
                   <Select value={addAccountId} onValueChange={setAddAccountId}>
-                    <SelectTrigger className={selectTriggerCls}>
+                    <SelectTrigger variant="form" className="w-full">
                       <SelectValue placeholder="Cuentas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -650,7 +657,7 @@ export function DashboardCustomizer({
                         setAddVariant(v as IncomeCardVariant)
                       }
                     >
-                      <SelectTrigger className={selectTriggerCls}>
+                      <SelectTrigger variant="form" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -662,7 +669,7 @@ export function DashboardCustomizer({
                       value={addMetric}
                       onValueChange={(v) => setAddMetric(v as IncomeCardMetric)}
                     >
-                      <SelectTrigger className={selectTriggerCls}>
+                      <SelectTrigger variant="form" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -676,7 +683,7 @@ export function DashboardCustomizer({
                     value={addPeriod}
                     onValueChange={(v) => setAddPeriod(v as IncomeCardPeriod)}
                   >
-                    <SelectTrigger className={selectTriggerCls}>
+                    <SelectTrigger variant="form" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -751,16 +758,16 @@ export function DashboardCustomizer({
 
         {/* Cuentas visibles en la sección Cuentas */}
         {accounts.length > 0 && (
-          <div className="mx-4 rounded-2xl border border-line bg-white p-3.5">
+          <div className="mx-4 rounded-2xl border border-line bg-card p-3.5">
             <div className="mb-1 flex items-center justify-between">
-              <div className="text-sm font-bold text-navy">
+              <div className="text-sm font-semibold text-heading">
                 Cuentas visibles
               </div>
               <button
                 type="button"
                 onClick={() => setAccountIds(null)}
                 disabled={accountIds === null}
-                className="text-xs font-semibold text-brand-mid transition-colors hover:text-brand disabled:opacity-40"
+                className="text-xs font-semibold text-brand-mid transition-colors hover:text-brand-ink disabled:opacity-40"
               >
                 Todas
               </button>

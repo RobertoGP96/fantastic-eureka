@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ArrowRightLeft, Plus } from "lucide-react";
 import { CurrencyForm } from "@/components/currency-form";
 import { PanelDrawer } from "@/components/form-drawer";
-import { PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
-import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
+import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import { CurrencyManager, type CurrencyItem } from "./currency-manager";
@@ -36,31 +37,41 @@ export default async function MonedasPage() {
   }));
 
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    // narrow: con el alta en un drawer la página es una lista simple.
+    <Page width="narrow">
       <ScreenHeader
         title="Monedas"
+        subtitle="Divisas del sistema y sus denominaciones"
         backHref="/mas"
         actions={
-          <PanelButton panel={NEW_CURRENCY_PANEL} className={HEADER_ACTION}>
-            <Plus className="size-3.5" />
-            Nueva
-          </PanelButton>
+          <>
+            <Link
+              href="/tasas"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <ArrowRightLeft className="size-3.5" />
+              Tasas
+            </Link>
+            <PanelButton
+              panel={NEW_CURRENCY_PANEL}
+              className={buttonVariants({ size: "sm" })}
+            >
+              <Plus className="size-3.5" />
+              Nueva
+            </PanelButton>
+          </>
         }
-      >
-        <p className="mt-1 text-sm text-white/80">
-          Divisas del sistema y sus denominaciones
-        </p>
-      </ScreenHeader>
+      />
 
       <PageBody>
         <CurrencyManager currencies={items} />
 
-        <p className="text-xs text-muted @2xl:max-w-2xl">
+        <p className="text-xs text-muted">
           La moneda base es en la que se consolidan los totales. Las tasas se
           registran por pares en{" "}
           <Link
             href="/tasas"
-            className="font-semibold text-brand-ink hover:underline"
+            className="font-semibold text-brand-ink hover:text-brand-mid"
           >
             Tasas
           </Link>
@@ -76,6 +87,6 @@ export default async function MonedasPage() {
       >
         <CurrencyForm />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

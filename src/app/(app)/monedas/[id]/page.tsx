@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { Plus } from "lucide-react";
+import { SplitLayout } from "@/components/content-grid";
 import { DenominationForm } from "@/components/denomination-form";
 import { PanelDrawer } from "@/components/form-drawer";
-import { PageBody, SplitLayout } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
-import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
 import {
@@ -50,36 +53,41 @@ export default async function MonedaDetallePage({
     decimalPlaces: currency.decimalPlaces,
   };
 
+  const subtitle = [
+    `${currency.decimalPlaces} decimales`,
+    currency.isBase ? "Moneda base" : null,
+    isDigital
+      ? "Digital (sin efectivo)"
+      : currency.denominations.length === 0
+        ? "Sin denominaciones"
+        : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title={`${currency.code} · ${currency.name}`}
+        subtitle={subtitle}
         backHref="/monedas"
         actions={
           // Una moneda digital no lleva billetes ni monedas.
           !isDigital && (
             <PanelButton
               panel={NEW_DENOMINATION_PANEL}
-              className={HEADER_ACTION}
+              className={buttonVariants({ size: "sm" })}
             >
               <Plus className="size-3.5" />
               Nueva
             </PanelButton>
           )
         }
-      >
-        <p className="mt-1 text-sm text-white/80">
-          {currency.decimalPlaces} decimales
-          {currency.isBase ? " · Moneda base" : ""}
-          {isDigital
-            ? " · Digital (sin efectivo)"
-            : currency.denominations.length === 0
-              ? " · Sin denominaciones"
-              : ""}
-        </p>
-      </ScreenHeader>
+      />
 
       <PageBody>
+        {/* asideFirst: en estrecho la clasificación (compacta) va arriba;
+            con sitio pasa a la columna lateral. */}
         <SplitLayout
           asideFirst
           aside={
@@ -87,11 +95,11 @@ export default async function MonedaDetallePage({
           }
           main={
             isDigital ? (
-              <p className="rounded-2xl border border-line bg-card px-4 py-5 text-center text-sm text-muted">
+              <Card dashed className="py-6 text-center text-sm text-muted">
                 Esta moneda es digital: no existe en efectivo, así que no lleva
                 billetes ni monedas. Conviértela a efectivo si necesitas
                 denominaciones.
-              </p>
+              </Card>
             ) : (
               <DenominationManager
                 currency={displayCurrency}
@@ -111,6 +119,6 @@ export default async function MonedaDetallePage({
           <DenominationForm currency={displayCurrency} />
         </PanelDrawer>
       )}
-    </main>
+    </Page>
   );
 }

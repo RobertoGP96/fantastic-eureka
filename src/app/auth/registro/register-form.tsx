@@ -38,7 +38,7 @@ export function RegisterForm() {
       }}
     >
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Nombre
         </span>
         <Input
@@ -52,7 +52,7 @@ export function RegisterForm() {
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-ink-soft">
+        <span className="text-sm font-medium text-ink-soft">
           Correo
         </span>
         <Input
@@ -65,9 +65,11 @@ export function RegisterForm() {
         />
       </label>
 
+      {/* «Mínimo 8» va de placeholder y no como ayuda dentro del label: el
+          test E2E localiza el campo por el texto EXACTO «Contraseña». */}
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Contraseña
           </span>
           <Input
@@ -80,7 +82,7 @@ export function RegisterForm() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink-soft">
+          <span className="text-sm font-medium text-ink-soft">
             Repetir
           </span>
           <Input
@@ -115,7 +117,7 @@ export function RegisterForm() {
         ¿Ya tienes cuenta?{" "}
         <Link
           href="/auth/login"
-          className="font-semibold text-brand-mid transition-colors hover:text-brand"
+          className="font-semibold text-brand-ink transition-colors hover:text-brand-mid"
         >
           Inicia sesión
         </Link>

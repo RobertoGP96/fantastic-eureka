@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDrawer } from "@/components/confirm-drawer";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { deleteAccount, updateAccount } from "@/app/actions/account-actions";
 import { openPanel } from "@/hooks/use-panel";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
 
 /**
- * Gestión de la cuenta desde su detalle: editar (drawer `editPanel`),
+ * Tarjeta «Gestionar cuenta» del detalle: editar (drawer `editPanel`),
  * archivar/activar y eliminar. Eliminar borra también todo el historial de
  * la cuenta (movimientos, arqueos y abonos vinculados), así que la
  * confirmación lo avisa explícitamente cuando la cuenta tiene uso.
@@ -22,6 +23,7 @@ export function AccountManage({
   archived,
   hasUsage,
   editPanel,
+  children,
 }: {
   accountId: string;
   name: string;
@@ -29,6 +31,8 @@ export function AccountManage({
   hasUsage: boolean;
   /** Nombre del drawer de edición que hospeda la página. */
   editPanel: string;
+  /** Resumen de lo editable (icono, moneda, grupo), sobre los botones. */
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -61,11 +65,13 @@ export function AccountManage({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-card px-4 py-3">
-      <div className="flex flex-wrap items-center gap-1">
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-heading">Gestionar cuenta</h2>
+      {children}
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
-          variant="ghost"
+          variant="outline"
           disabled={saving}
           onClick={() => openPanel(editPanel)}
         >
@@ -74,7 +80,7 @@ export function AccountManage({
         </Button>
         <Button
           size="sm"
-          variant="ghost"
+          variant="outline"
           disabled={saving}
           onClick={() => void toggleArchived()}
         >
@@ -96,7 +102,7 @@ export function AccountManage({
           Eliminar
         </Button>
       </div>
-      <p className="text-[11px] text-muted">
+      <p className="text-xs text-muted">
         Eliminar una cuenta borra también todo su historial (movimientos,
         arqueos y abonos vinculados). Si prefieres conservarlo, archívala y
         dejará de aparecer al registrar.
@@ -113,6 +119,6 @@ export function AccountManage({
         }
         onConfirm={remove}
       />
-    </div>
+    </Card>
   );
 }

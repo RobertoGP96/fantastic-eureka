@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
@@ -62,27 +63,41 @@ export async function closeDebtPlans(
   });
 }
 
-/** Cuotas pendientes vencidas o que vencen dentro de `withinDays` días. */
-export async function upcomingInstallments(userId: string, withinDays = 7) {
-  const limit = new Date();
-  limit.setDate(limit.getDate() + withinDays);
-  limit.setHours(23, 59, 59, 999);
+// cache() de React: la campana del layout y la sección de Inicio piden lo
+// mismo en un único render y así comparten una sola consulta. Solo deduplica
+// dentro de ese render; fuera (acciones, API móvil) se ejecuta cada vez.
+const loadUpcomingInstallments = cache(
+  async (userId: string, withinDays: number) => {
+    const limit = new Date();
+    limit.setDate(limit.getDate() + withinDays);
+    limit.setHours(23, 59, 59, 999);
 
-  return prisma.installment.findMany({
-    where: {
-      status: "PENDING",
-      dueAt: { lte: limit },
-      plan: { active: true, userId },
-    },
-    include: {
-      plan: {
-        include: {
-          currency: { select: { code: true, decimalPlaces: true } },
-          contact: { select: { name: true } },
-          debt: { include: { contact: { select: { name: true } } } },
+    return prisma.installment.findMany({
+      where: {
+        status: "PENDING",
+        dueAt: { lte: limit },
+        plan: { active: true, userId },
+      },
+      include: {
+        plan: {
+          include: {
+            currency: { select: { code: true, decimalPlaces: true } },
+            contact: { select: { name: true } },
+            debt: { include: { contact: { select: { name: true } } } },
+          },
         },
       },
-    },
-    orderBy: { dueAt: "asc" },
-  });
+      orderBy: { dueAt: "asc" },
+    });
+  }
+);
+
+/** Cuotas pendientes vencidas o que vencen dentro de `withinDays` días. */
+export function upcomingInstallments(userId: string, withinDays = 7) {
+  // El valor por defecto se resuelve aquí: cache() distingue (id) de (id, 7).
+  return loadUpcomingInstallments(userId, withinDays);
 }
+
+export type UpcomingInstallment = Awaited<
+  ReturnType<typeof upcomingInstallments>
+>[number];

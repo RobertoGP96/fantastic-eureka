@@ -16,7 +16,7 @@ import {
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { Field, FIELD_SELECT, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { registerDebtPayment } from "@/app/actions/debt-actions";
 import { runAction } from "@/lib/run-action";
 import { useUI } from "@/lib/ui-store";
@@ -114,7 +114,7 @@ export function DebtPaymentForm({
         </Field>
         <Field label="Cuenta">
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className={FIELD_SELECT}>
+            <SelectTrigger variant="form" className="w-full">
               <SelectValue placeholder="Cuenta" />
             </SelectTrigger>
             <SelectContent>

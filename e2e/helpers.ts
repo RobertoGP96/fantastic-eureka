@@ -14,7 +14,10 @@ export const uniqueSuffix = () => Math.random().toString(36).slice(2, 8);
 
 /**
  * Abre un Select de Radix cuyo trigger (role=combobox) está dentro del
- * <label> que contiene labelText, y elige la opción indicada.
+ * <label> cuyo rótulo es EXACTAMENTE labelText, y elige la opción indicada.
+ * Exacto a propósito: un `hasText` por subcadena (que además ignora
+ * mayúsculas) casaba «Cuenta» también con el label de «Monto», cuya ayuda
+ * termina en «…a la de la cuenta.» y trae su propio selector de moneda.
  */
 export async function selectOption(
   page: Page,
@@ -22,7 +25,8 @@ export async function selectOption(
   option: string | RegExp
 ) {
   await page
-    .locator("label", { hasText: labelText })
+    .locator("label")
+    .filter({ has: page.getByText(labelText, { exact: true }) })
     .getByRole("combobox")
     .click();
   await page.getByRole("option", { name: option }).click();
@@ -50,4 +54,13 @@ export async function createCashAccount(
   // redirección real a /cuentas/[id] (carrera con la server action).
   await page.waitForURL(/\/cuentas\/(?!nueva)[^/]+$/);
   return name;
+}
+
+/**
+ * Bloque «Saldo actual» de la cabecera de /cuentas/[id] (rótulo + monto).
+ * Se acota a ese bloque porque el mismo importe puede repetirse en el
+ * gráfico de actividad o en la lista de movimientos.
+ */
+export function saldoActual(page: Page) {
+  return page.getByText("Saldo actual", { exact: true }).locator("xpath=..");
 }

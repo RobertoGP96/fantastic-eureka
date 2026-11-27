@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   FORM_DRAWER_FORM,
   FormDrawerBody,
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { ChoiceGroup, Field, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import { createCategory, renameCategory } from "@/app/actions/category-actions";
 import { type CategoryKind } from "@/lib/domain";
 import { runAction } from "@/lib/run-action";
@@ -68,11 +69,12 @@ export function CategoryForm({
     >
       <FormDrawerBody>
         {!category && (
-          <ChoiceGroup
-            label="Tipo de categoría"
+          <Segmented
+            layout="fill"
+            ariaLabel="Tipo de categoría"
             options={KIND_OPTIONS}
             value={kind}
-            onChange={setKind}
+            onValueChange={setKind}
           />
         )}
         <Field label="Nombre">

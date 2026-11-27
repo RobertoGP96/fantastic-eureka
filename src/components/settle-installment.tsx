@@ -23,6 +23,12 @@ interface AccountOption {
   name: string;
 }
 
+/**
+ * Saldar (u omitir) una cuota en dos líneas compactas: la cuenta arriba y,
+ * debajo, monto + acciones. Se incrusta en filas de lista y en tarjetas
+ * estrechas, así que no trae marco propio ni depende del ancho de la página:
+ * quien lo monta decide dónde va y cuánto mide.
+ */
 export function SettleInstallment({
   installmentId,
   accounts,
@@ -97,52 +103,55 @@ export function SettleInstallment({
   return (
     <div className="flex flex-col gap-2">
       {picking ? (
-        <div className="flex items-center gap-2">
-          <Wallet className="h-3.5 w-3.5 flex-none text-muted" />
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger
-              aria-label="Cuenta"
-              className="min-w-0 flex-1 justify-between"
-            >
+        // Es el ÚNICO combobox del componente: los tests E2E lo localizan por
+        // rol dentro de la sección «Cuotas pendientes».
+        <Select value={accountId} onValueChange={setAccountId}>
+          <SelectTrigger variant="form" aria-label="Cuenta" className="w-full">
+            <span className="flex min-w-0 items-center gap-2">
+              <Wallet className="size-4 flex-none text-muted" />
               <span className="truncate">
                 <SelectValue placeholder="Cuenta" />
               </span>
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {account.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
         <div className="flex items-center gap-1.5 text-xs text-muted">
-          <Wallet className="h-3.5 w-3.5 flex-none text-muted" />
-          <span className="truncate">
+          <Wallet className="size-3.5 flex-none" />
+          <span className="min-w-0 truncate">
             {kind === "COLLECT" ? "Entra en" : "Sale de"}{" "}
-            <span className="font-semibold text-ink-soft">{selectedName}</span>
+            <span className="font-medium text-ink-soft">{selectedName}</span>
           </span>
+          {/* -my/py: agranda la zona táctil sin separar las dos líneas. */}
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="font-semibold text-brand-mid transition-colors hover:text-brand"
+            className="-my-2 flex-none rounded-md px-1 py-2 font-semibold text-brand-ink transition-colors hover:text-brand-mid focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             Cambiar
           </button>
         </div>
       )}
       <div className="flex items-center gap-2">
+        {/* Sin tamaño de letra propio: hereda de Input los 16 px en táctil
+            (por debajo de eso iOS amplía la página al enfocar). */}
         <Input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           aria-label={`Monto en ${currencyCode}`}
-          className="h-9 w-24 rounded-lg px-2 text-center text-xs"
+          className="money w-28 px-3 text-center"
         />
+        {/* El texto es exactamente «Cobrar»/«Pagar»: los tests buscan el
+            botón por ese nombre. */}
         <Button
-          size="sm"
           className="flex-1"
           disabled={saving || !accountId || !amount.trim()}
           onClick={() => void settle()}
@@ -150,8 +159,8 @@ export function SettleInstallment({
           {kind === "COLLECT" ? "Cobrar" : "Pagar"}
         </Button>
         <Button
-          size="sm"
           variant="ghost"
+          className="px-3"
           disabled={saving}
           onClick={() => void skip()}
         >

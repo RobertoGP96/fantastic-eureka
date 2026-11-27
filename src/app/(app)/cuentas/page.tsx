@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { Archive, FolderOpen, Plus, Wallet } from "lucide-react";
 import { AccountForm } from "@/components/account-form";
-import { EMPTY_STATE_CTA, EmptyState } from "@/components/empty-state";
+import { CardGrid } from "@/components/content-grid";
+import { EmptyState } from "@/components/empty-state";
 import { PanelDrawer } from "@/components/form-drawer";
 import { GroupManager } from "@/components/group-manager";
-import { CardGrid, PageBody } from "@/components/page-body";
+import { Page, PageBody } from "@/components/page";
 import { PanelButton } from "@/components/panel-button";
-import { HEADER_ACTION, ScreenHeader } from "@/components/screen-header";
+import { ScreenHeader } from "@/components/screen-header";
+import { SectionHeader } from "@/components/section-header";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { requireSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
@@ -14,9 +18,8 @@ import {
   listAccountsWithBalances,
   type AccountWithBalance,
 } from "@/lib/balances";
-import { totalsByCurrency } from "@/lib/balances-core";
+import { consolidatedTotalMinor, totalsByCurrency } from "@/lib/balances-core";
 import { fmtMinor } from "@/lib/format";
-import { convertMinor } from "@/lib/money";
 import { AccountCard } from "./account-card";
 
 export const dynamic = "force-dynamic";
@@ -25,15 +28,20 @@ export const dynamic = "force-dynamic";
 const NEW_ACCOUNT_PANEL = "nueva-cuenta";
 const GROUPS_PANEL = "grupos";
 
-const TOOLBAR_BUTTON =
-  "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs font-semibold text-ink-soft transition-colors hover:border-brand-soft hover:text-brand-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
-
 interface AccountSection {
   key: string;
   name: string | null;
   accounts: AccountWithBalance[];
   subtotalMinor: number | null;
 }
+
+// Las acciones secundarias de la cabecera quedan en solo icono cuando la
+// columna es estrecha (en un móvil los tres botones con texto no caben junto
+// al título); el rótulo sigue en el DOM para lectores de pantalla.
+const ACTION_LABEL = "sr-only @xl/main:not-sr-only";
+
+const plural = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
 
 export default async function CuentasPage() {
   const user = await requireSessionUser();
@@ -92,59 +100,77 @@ export default async function CuentasPage() {
 
   const visible = sections.filter((section) => section.accounts.length > 0);
 
-  // Subtotal por grupo consolidado a la base; se omite si falta alguna tasa.
+  // Subtotal por grupo consolidado a la base; se omite si falta alguna tasa
+  // (un total parcial engaña).
   if (base) {
     for (const section of visible) {
-      let subtotal = 0;
-      let complete = true;
-      for (const account of section.accounts) {
-        if (account.currency.id === base.id) {
-          subtotal += account.balanceMinor;
-        } else {
-          const rate = rates.get(account.currency.id);
-          if (rate) {
-            subtotal += convertMinor(
-              account.balanceMinor,
-              account.currency,
-              base,
-              rate.rateScaled
-            );
-          } else if (account.balanceMinor !== 0) {
-            complete = false;
-            break;
-          }
-        }
-      }
-      section.subtotalMinor = complete ? subtotal : null;
+      const total = consolidatedTotalMinor(section.accounts, base, rates);
+      section.subtotalMinor = total.complete ? total.totalMinor : null;
     }
   }
 
+  const accountsLabel = plural(accounts.length, "cuenta", "cuentas");
+
   return (
-    <main className="flex flex-1 flex-col pb-8">
+    <Page>
       <ScreenHeader
         title="Cuentas"
+        subtitle={
+          groups.length > 0 ? (
+            // Cada dato es indivisible: si no caben los dos, el salto de
+            // línea cae entre ellos y no en medio de «3 grupos».
+            <>
+              <span className="whitespace-nowrap">{accountsLabel}</span> ·{" "}
+              <span className="whitespace-nowrap">
+                {plural(groups.length, "grupo", "grupos")}
+              </span>
+            </>
+          ) : (
+            accountsLabel
+          )
+        }
         actions={
-          <PanelButton panel={NEW_ACCOUNT_PANEL} className={HEADER_ACTION}>
-            <Plus className="size-3.5" />
-            Nueva cuenta
-          </PanelButton>
+          <>
+            {archivedCount > 0 && (
+              <Link
+                href="/cuentas/archivadas"
+                title={`Archivadas (${archivedCount})`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <Archive className="size-3.5" />
+                <span className={ACTION_LABEL}>
+                  Archivadas ({archivedCount})
+                </span>
+              </Link>
+            )}
+            <PanelButton
+              panel={GROUPS_PANEL}
+              title="Grupos"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <FolderOpen className="size-3.5" />
+              <span className={ACTION_LABEL}>Grupos</span>
+            </PanelButton>
+            <PanelButton
+              panel={NEW_ACCOUNT_PANEL}
+              className={buttonVariants({ size: "sm" })}
+            >
+              {/* Con el botón de archivadas delante, en móvil el «+» se
+                  oculta para que el subtítulo quepa en una línea. */}
+              <Plus
+                className={
+                  archivedCount > 0
+                    ? "hidden size-3.5 @xl/main:block"
+                    : "size-3.5"
+                }
+              />
+              Nueva cuenta
+            </PanelButton>
+          </>
         }
       />
 
-      <PageBody>
-        <div className="flex flex-wrap justify-end gap-2">
-          {archivedCount > 0 && (
-            <Link href="/cuentas/archivadas" className={TOOLBAR_BUTTON}>
-              <Archive className="size-3.5" />
-              Archivadas ({archivedCount})
-            </Link>
-          )}
-          <PanelButton panel={GROUPS_PANEL} className={TOOLBAR_BUTTON}>
-            <FolderOpen className="size-3.5" />
-            Grupos
-          </PanelButton>
-        </div>
-
+      <PageBody className="gap-6">
         {accounts.length === 0 ? (
           <EmptyState
             icon={Wallet}
@@ -153,7 +179,7 @@ export default async function CuentasPage() {
             cta={
               <PanelButton
                 panel={NEW_ACCOUNT_PANEL}
-                className={EMPTY_STATE_CTA}
+                className={buttonVariants()}
               >
                 Crear cuenta
               </PanelButton>
@@ -161,61 +187,69 @@ export default async function CuentasPage() {
           />
         ) : (
           visible.map((section) => {
+            const tiles = section.accounts.map((account) => (
+              <AccountCard key={account.id} account={account} />
+            ));
+
+            // Sin grupos no hay cabecera que pintar: la rejilla va sola.
+            if (!section.name) {
+              return <CardGrid key={section.key}>{tiles}</CardGrid>;
+            }
+
             // Totales por cada divisa usada en el grupo (sin conversión):
             // visibles aunque falten tasas para el consolidado en base. Si el
-            // grupo entero está en la base, el consolidado ya es exacto y los
-            // chips serían redundantes.
+            // grupo entero está en la base, el consolidado ya es exacto y las
+            // insignias serían redundantes.
             const currencyTotals = totalsByCurrency(section.accounts);
             const onlyBase =
               currencyTotals.length === 1 &&
               currencyTotals[0].currency.id === base?.id;
+
             return (
               <section key={section.key}>
-                {section.name && (
-                  <div className="mb-2 flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between">
-                      <h2 className="text-sm font-bold text-heading">
-                        {section.name}
-                      </h2>
-                      {base && section.subtotalMinor !== null && (
-                        <span
-                          className="money text-xs font-semibold text-muted"
-                          title={`Consolidado en ${base.code}`}
-                        >
-                          {onlyBase ? "" : "≈ "}
-                          {fmtMinor(section.subtotalMinor, base)}
-                        </span>
-                      )}
-                    </div>
-                    {!onlyBase && currencyTotals.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
+                <SectionHeader
+                  title={section.name}
+                  description={
+                    !onlyBase && currencyTotals.length > 0 ? (
+                      <span className="flex flex-wrap gap-1.5 pt-1">
                         {currencyTotals.map((total) => (
-                          <span
+                          <Badge
                             key={total.currency.id}
-                            className={`money rounded-full bg-chip px-2.5 py-0.5 text-[11px] font-semibold ${
-                              total.totalMinor < 0
-                                ? "text-danger"
-                                : "text-brand-ink"
-                            }`}
+                            variant={total.totalMinor < 0 ? "danger" : "neutral"}
+                            className="money"
                           >
                             {fmtMinor(total.totalMinor, total.currency)}
-                          </span>
+                          </Badge>
                         ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <CardGrid>
-                  {section.accounts.map((account) => (
-                    <AccountCard key={account.id} account={account} />
-                  ))}
-                </CardGrid>
+                      </span>
+                    ) : undefined
+                  }
+                  action={
+                    base && section.subtotalMinor !== null ? (
+                      // self-start + leading-6: el subtotal se alinea con el
+                      // nombre del grupo aunque debajo haya insignias.
+                      <span
+                        className={`money flex-none self-start text-sm leading-6 font-semibold ${
+                          section.subtotalMinor < 0
+                            ? "text-danger"
+                            : "text-heading"
+                        }`}
+                        title={`Consolidado en ${base.code}`}
+                      >
+                        {onlyBase ? "" : "≈ "}
+                        {fmtMinor(section.subtotalMinor, base)}
+                      </span>
+                    ) : undefined
+                  }
+                />
+                <CardGrid>{tiles}</CardGrid>
               </section>
             );
           })
         )}
       </PageBody>
 
+      {/* Los drawers van por portal: no cuentan para el layout de <Page>. */}
       <PanelDrawer panel={NEW_ACCOUNT_PANEL} title="Nueva cuenta">
         <AccountForm
           currencies={currencies.map(({ id, code, name, kind }) => ({
@@ -240,6 +274,6 @@ export default async function CuentasPage() {
           }))}
         />
       </PanelDrawer>
-    </main>
+    </Page>
   );
 }

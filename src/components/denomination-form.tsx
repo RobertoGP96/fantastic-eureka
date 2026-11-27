@@ -3,13 +3,14 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import {
   FORM_DRAWER_FORM,
   FormDrawerBody,
   FormDrawerFooter,
   useFormDrawer,
 } from "@/components/form-drawer";
-import { ChoiceGroup, Field, FormError } from "@/components/form-field";
+import { Field, FormError } from "@/components/form-field";
 import {
   createDenomination,
   updateDenomination,
@@ -100,11 +101,12 @@ export function DenominationForm({
       }}
     >
       <FormDrawerBody>
-        <ChoiceGroup
-          label="Tipo de denominación"
+        <Segmented
+          layout="fill"
+          ariaLabel="Tipo de denominación"
           options={KIND_OPTIONS}
           value={kind}
-          onChange={setKind}
+          onValueChange={setKind}
         />
         <Field
           label={`Valor en ${currency.code}`}
@@ -121,6 +123,7 @@ export function DenominationForm({
             inputMode="decimal"
             placeholder={currency.decimalPlaces > 0 ? "0.25" : "1000"}
             autoComplete="off"
+            className="money"
             required
           />
         </Field>
